@@ -27,6 +27,7 @@ pnpm-debug.log*
 /test-results
 
 # local automation / deployment artifacts
+/.vercel
 /.omx
 /release
 /deploy
