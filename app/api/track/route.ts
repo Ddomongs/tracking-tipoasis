@@ -17,6 +17,10 @@ const errorResponse = (error: ApiError, status = 400) =>
     { status }
   );
 
+const isExternalFetchError = (error: unknown): boolean =>
+  error instanceof Error &&
+  (error.name === "AbortError" || error.message.includes("fetch failed") || error.message.includes("UND_ERR"));
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -40,12 +44,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, data: cached });
     }
 
-    let customsEvents: TrackingEvent[] = await fetchCustomsEvents(identified.number, identified.type);
+    let customsEvents: TrackingEvent[] = [];
     let deliveryEvents: TrackingEvent[] = [];
 
     if (identified.type === "DOMESTIC") {
-      const customsAsHblLike = await fetchCustomsEvents(identified.number, "DOMESTIC");
-      customsEvents = customsAsHblLike;
+      try {
+        customsEvents = await fetchCustomsEvents(identified.number, "DOMESTIC");
+      } catch (error) {
+        if (!isExternalFetchError(error)) {
+          throw error;
+        }
+      }
 
       try {
         deliveryEvents = await fetchDeliveryEvents(identified.number);
@@ -54,6 +63,8 @@ export async function POST(request: Request) {
           throw error;
         }
       }
+    } else {
+      customsEvents = await fetchCustomsEvents(identified.number, identified.type);
     }
 
     if (customsEvents.length === 0 && deliveryEvents.length === 0) {
@@ -98,6 +109,16 @@ export async function POST(request: Request) {
     }
 
     if (error instanceof Error && error.name === "AbortError") {
+      return errorResponse(
+        {
+          code: "API_TIMEOUT",
+          message: "조회 서비스에 일시적인 문제가 있습니다. 잠시 후 다시 시도해주세요"
+        },
+        504
+      );
+    }
+
+    if (isExternalFetchError(error)) {
       return errorResponse(
         {
           code: "API_TIMEOUT",
