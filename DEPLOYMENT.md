@@ -8,7 +8,7 @@ This project is moving from the previous ChemiCloud standalone workflow to an In
 - Primary deployment: InsForge deployment
 - Final production URL: `https://tracking.tipoasis.com`
 - Current InsForge deployment URL: `https://sk9gyysw.insforge.site`
-- Current InsForge deployment ID: `9e6214a7-3dcc-4f89-9f63-57129d5aa776`
+- Current InsForge deployment ID: `4c75f426-2dd9-42c0-9449-f37191478380`
 - InsForge project dashboard: `https://insforge.dev/dashboard/project/84fed775-4e5d-40f2-a533-9781e9758c3f`
 
 ## Recommended Flow
@@ -92,8 +92,8 @@ If browser login is unavailable in an agent terminal, authenticate with a person
 npx @insforge/cli login --user-api-key "<uak_...>"
 ```
 
-Current deployment blocker: InsForge CLI is installed, but this machine is not authenticated yet.
-`npx @insforge/cli current --json` reports `authenticated: false`.
+Current deployment status: InsForge CLI is authenticated on this machine and the project is linked.
+Latest live verification returned `READY` for deployment `4c75f426-2dd9-42c0-9449-f37191478380`.
 
 See [docs/insforge-deployment-runbook.md](./docs/insforge-deployment-runbook.md) for the full handoff, including the manual GitHub Actions deployment path.
 
