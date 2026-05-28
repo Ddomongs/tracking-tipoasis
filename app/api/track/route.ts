@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { getCache, setCache, buildTrackCacheKey } from "@/lib/cache";
 import { TrackRequestSchema } from "@/lib/schemas";
 import { fetchCustomsEvents } from "@/lib/services/customs";
+import { fetchCustomstrackCustomsEvents } from "@/lib/services/customstrack";
 import { fetchDeliveryEvents } from "@/lib/services/delivery";
 import { identifyTrackingNumber } from "@/lib/services/identifier";
 import { normalizeTrackingData } from "@/lib/services/normalizer";
@@ -47,12 +48,22 @@ export async function POST(request: Request) {
     let customsEvents: TrackingEvent[] = [];
     let deliveryEvents: TrackingEvent[] = [];
 
+    try {
+      customsEvents = await fetchCustomstrackCustomsEvents(identified.number);
+    } catch (error) {
+      if (!isExternalFetchError(error)) {
+        throw error;
+      }
+    }
+
     if (identified.type === "DOMESTIC") {
-      try {
-        customsEvents = await fetchCustomsEvents(identified.number, "DOMESTIC");
-      } catch (error) {
-        if (!isExternalFetchError(error)) {
-          throw error;
+      if (customsEvents.length === 0) {
+        try {
+          customsEvents = await fetchCustomsEvents(identified.number, "DOMESTIC");
+        } catch (error) {
+          if (!isExternalFetchError(error)) {
+            throw error;
+          }
         }
       }
 
@@ -63,7 +74,7 @@ export async function POST(request: Request) {
           throw error;
         }
       }
-    } else {
+    } else if (customsEvents.length === 0) {
       customsEvents = await fetchCustomsEvents(identified.number, identified.type);
     }
 

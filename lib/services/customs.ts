@@ -3,7 +3,7 @@ import type { TrackingEvent, TrackingType } from "@/lib/types";
 import { toIsoOrNow } from "@/lib/utils";
 import { fetchWithTimeout } from "@/lib/services/http";
 
-const normalizeCustomsStatus = (raw: string): TrackingEvent["statusCode"] => {
+export const normalizeCustomsStatus = (raw: string): TrackingEvent["statusCode"] => {
   const normalized = raw.replace(/\s+/g, "");
 
   if (
