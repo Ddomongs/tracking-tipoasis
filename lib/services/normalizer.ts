@@ -65,25 +65,27 @@ export const normalizeTrackingData = (params: {
   deliveryEvents: TrackingEvent[];
 }): TrackResponseData => {
   const { trackingNumber, type, customsEvents, deliveryEvents } = params;
+  const trackingEvents = [...customsEvents, ...deliveryEvents];
+  const hasTrackingEvents = trackingEvents.length > 0;
+  const isPendingDomestic = type === "DOMESTIC" && !hasTrackingEvents;
+  const latestStatusCode = trackingEvents.map((event) => event.statusCode).sort((a, b) => b - a)[0] ?? 1;
 
-  const currentStatusCode = ([...customsEvents, ...deliveryEvents]
-    .map((event) => event.statusCode)
-    .sort((a, b) => b - a)[0] ?? 1) as StatusCode;
+  const currentStatusCode = (isPendingDomestic ? 5 : latestStatusCode) as StatusCode;
 
-  const latestCurrentEvent = getLatestEventByStatusCode([...customsEvents, ...deliveryEvents], currentStatusCode);
-  const currentStatus = latestCurrentEvent?.status ?? LABEL_BY_STEP[currentStatusCode];
+  const latestCurrentEvent = getLatestEventByStatusCode(trackingEvents, currentStatusCode);
+  const currentStatus = isPendingDomestic ? "배송정보 대기" : latestCurrentEvent?.status ?? LABEL_BY_STEP[currentStatusCode];
 
   const orderedSteps: StatusCode[] = [1, 2, 3, 4, 5, 6, 7];
 
   const timeline: TimelineStep[] = orderedSteps.map((step) => {
-    const matched = [...customsEvents, ...deliveryEvents]
+    const matched = trackingEvents
       .filter((event) => event.statusCode === step)
       .sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())[0];
 
     return {
       step,
       label: LABEL_BY_STEP[step],
-      completed: step <= currentStatusCode,
+      completed: hasTrackingEvents && step <= currentStatusCode,
       datetime: matched?.datetime
     };
   });
@@ -97,13 +99,16 @@ export const normalizeTrackingData = (params: {
 
   const lastUpdated =
     getLastDatetime(deliveryEvents) || getLastDatetime(customsEvents) || new Date().toISOString();
-  const estimatedDeliveryDate = estimateDeliveryDate(deliveryEvents, customsEvents, currentStatusCode);
+  const estimatedDeliveryDate = isPendingDomestic
+    ? undefined
+    : estimateDeliveryDate(deliveryEvents, customsEvents, currentStatusCode);
 
   return {
     trackingNumber,
     type,
     currentStatus,
     currentStatusCode,
+    isPending: isPendingDomestic || undefined,
     estimatedDeliveryDate,
     customs: { events: customsEvents },
     delivery,

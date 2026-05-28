@@ -69,13 +69,16 @@ export async function POST(request: Request) {
 
     if (customsEvents.length === 0 && deliveryEvents.length === 0) {
       if (identified.type === "DOMESTIC") {
-        return errorResponse(
-          {
-            code: "NOT_FOUND",
-            message: "아직 배송중인가봅니다. 판매처에게 문의해주세요!"
-          },
-          404
-        );
+        const pending = normalizeTrackingData({
+          trackingNumber: identified.number,
+          type: identified.type,
+          customsEvents,
+          deliveryEvents
+        });
+
+        setCache(cacheKey, pending, 300);
+
+        return NextResponse.json({ success: true, data: pending });
       }
 
       return errorResponse(

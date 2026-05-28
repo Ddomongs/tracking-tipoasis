@@ -48,6 +48,20 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
     });
   };
 
+  const getDeliveryWaitingMessage = (data: TrackResponseData): string | undefined => {
+    if (data.delivery.events.length > 0) return undefined;
+
+    if (data.isPending) {
+      return "택배사에 아직 운송장 이동 이력이 없습니다. 출고 직후라면 반영까지 시간이 걸릴 수 있습니다.";
+    }
+
+    if (data.customs.events.length > 0 && data.currentStatusCode >= 4) {
+      return "택배사 인계를 기다리고 있습니다. 보통 통관 완료 후 0~1영업일 내 인계됩니다.";
+    }
+
+    return undefined;
+  };
+
   return (
     <main className="pointer-events-none mx-auto min-h-screen w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
       <motion.section
@@ -138,7 +152,7 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
               <p className="mt-1 text-sm font-semibold text-slate-100">STEP {result.currentStatusCode}</p>
             </div>
           </Card>
-          <StatusBanner status={result.currentStatus} code={result.currentStatusCode} />
+          <StatusBanner status={result.currentStatus} code={result.currentStatusCode} isPending={result.isPending} />
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="order-2 lg:order-1">
               <CustomsTimeline events={result.customs.events} />
@@ -146,11 +160,7 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
             <div className="order-1 lg:order-2">
               <DeliveryTimeline
                 delivery={result.delivery}
-                waitingMessage={
-                  result.delivery.events.length === 0 && result.customs.events.length > 0 && result.currentStatusCode >= 4
-                    ? "택배사 인계를 기다리고 있습니다. 보통 통관 완료 후 0~1영업일 내 인계됩니다."
-                    : undefined
-                }
+                waitingMessage={getDeliveryWaitingMessage(result)}
               />
             </div>
           </div>

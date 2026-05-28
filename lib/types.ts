@@ -35,6 +35,7 @@ export interface TrackResponseData {
   type: TrackingType;
   currentStatus: string;
   currentStatusCode: StatusCode;
+  isPending?: boolean;
   estimatedDeliveryDate?: string;
   customs: CustomsResult;
   delivery: DeliveryResult;
