@@ -49,12 +49,28 @@ Run smoke E2E when a browser environment is available:
 npm run test:e2e
 ```
 
+## GitHub Verification
+
+GitHub Actions runs the same verification gate on pushes and pull requests to `main`:
+
+- `npm ci`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+- `npm run test:e2e`
+
 ## InsForge CLI Notes
 
 The InsForge CLI is available through:
 
 ```bash
 npx @insforge/cli --help
+```
+
+Check local authentication/project context:
+
+```bash
+npm run insforge:current
 ```
 
 Typical steps:
@@ -65,8 +81,17 @@ npx @insforge/cli create --name tracking-tipoasis --template empty
 npx @insforge/cli deployments env set UNIPASS_API_KEY "<value>"
 npx @insforge/cli deployments env set UNIPASS_API_URL "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo"
 npx @insforge/cli deployments env set NEXT_PUBLIC_BASE_URL "https://tracking.tipoasis.com"
-npx @insforge/cli deployments deploy .
+npm run insforge:deploy
 ```
+
+If browser login is unavailable in an agent terminal, authenticate with a personal API key:
+
+```bash
+npx @insforge/cli login --user-api-key "<uak_...>"
+```
+
+Current deployment blocker: InsForge CLI is installed, but this machine is not authenticated yet.
+`npx @insforge/cli current --json` reports `authenticated: false`.
 
 ## Legacy Artifacts
 
