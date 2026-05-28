@@ -48,22 +48,12 @@ export async function POST(request: Request) {
     let customsEvents: TrackingEvent[] = [];
     let deliveryEvents: TrackingEvent[] = [];
 
-    try {
-      customsEvents = await fetchCustomstrackCustomsEvents(identified.number);
-    } catch (error) {
-      if (!isExternalFetchError(error)) {
-        throw error;
-      }
-    }
-
     if (identified.type === "DOMESTIC") {
-      if (customsEvents.length === 0) {
-        try {
-          customsEvents = await fetchCustomsEvents(identified.number, "DOMESTIC");
-        } catch (error) {
-          if (!isExternalFetchError(error)) {
-            throw error;
-          }
+      try {
+        customsEvents = await fetchCustomsEvents(identified.number, "DOMESTIC");
+      } catch (error) {
+        if (!isExternalFetchError(error)) {
+          throw error;
         }
       }
 
@@ -74,8 +64,18 @@ export async function POST(request: Request) {
           throw error;
         }
       }
-    } else if (customsEvents.length === 0) {
+    } else {
       customsEvents = await fetchCustomsEvents(identified.number, identified.type);
+    }
+
+    if (customsEvents.length === 0) {
+      try {
+        customsEvents = await fetchCustomstrackCustomsEvents(identified.number);
+      } catch (error) {
+        if (!isExternalFetchError(error)) {
+          throw error;
+        }
+      }
     }
 
     if (customsEvents.length === 0 && deliveryEvents.length === 0) {
