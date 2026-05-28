@@ -22,6 +22,18 @@ const isExternalFetchError = (error: unknown): boolean =>
   error instanceof Error &&
   (error.name === "AbortError" || error.message.includes("fetch failed") || error.message.includes("UND_ERR"));
 
+const getTrackCacheTtl = (params: {
+  type: string;
+  customsEvents: TrackingEvent[];
+  deliveryEvents: TrackingEvent[];
+}): number => {
+  if (params.type === "DOMESTIC" && params.customsEvents.length === 0 && params.deliveryEvents.length > 0) {
+    return 60;
+  }
+
+  return 900;
+};
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -108,7 +120,15 @@ export async function POST(request: Request) {
       deliveryEvents
     });
 
-    setCache(cacheKey, normalized, 900);
+    setCache(
+      cacheKey,
+      normalized,
+      getTrackCacheTtl({
+        type: identified.type,
+        customsEvents,
+        deliveryEvents
+      })
+    );
 
     return NextResponse.json({ success: true, data: normalized });
   } catch (error) {
