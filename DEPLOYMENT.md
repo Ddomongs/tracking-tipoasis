@@ -93,6 +93,8 @@ npx @insforge/cli login --user-api-key "<uak_...>"
 Current deployment blocker: InsForge CLI is installed, but this machine is not authenticated yet.
 `npx @insforge/cli current --json` reports `authenticated: false`.
 
+See [docs/insforge-deployment-runbook.md](./docs/insforge-deployment-runbook.md) for the full handoff, including the manual GitHub Actions deployment path.
+
 ## Legacy Artifacts
 
 Previous ChemiCloud/CloudLinux packages are kept locally under ignored paths such as `release/`, `deploy/`, `backups/`, and `deploy.zip`. They are intentionally excluded from Git.

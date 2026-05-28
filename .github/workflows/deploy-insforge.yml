@@ -1,0 +1,61 @@
+name: Deploy to InsForge
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  NEXT_PUBLIC_BASE_URL: https://tracking.tipoasis.com
+  UNIPASS_API_URL: https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    env:
+      INSFORGE_USER_API_KEY: ${{ secrets.INSFORGE_USER_API_KEY }}
+      INSFORGE_API_BASE_URL: ${{ secrets.INSFORGE_API_BASE_URL }}
+      INSFORGE_API_KEY: ${{ secrets.INSFORGE_API_KEY }}
+      UNIPASS_API_KEY: ${{ secrets.UNIPASS_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify before deploy
+        run: |
+          npm run lint
+          npm run typecheck -- --pretty false --incremental false
+          npm run build
+
+      - name: Authenticate with InsForge Cloud
+        if: ${{ env.INSFORGE_USER_API_KEY != '' }}
+        run: npx @insforge/cli login --user-api-key "$INSFORGE_USER_API_KEY"
+
+      - name: Link self-hosted InsForge
+        if: ${{ env.INSFORGE_API_BASE_URL != '' && env.INSFORGE_API_KEY != '' }}
+        run: |
+          npx @insforge/cli link \
+            --api-base-url "$INSFORGE_API_BASE_URL" \
+            --api-key "$INSFORGE_API_KEY"
+
+      - name: Show InsForge context
+        run: npx @insforge/cli current --json
+
+      - name: Configure deployment environment
+        run: |
+          npx @insforge/cli deployments env set UNIPASS_API_KEY "$UNIPASS_API_KEY"
+          npx @insforge/cli deployments env set UNIPASS_API_URL "$UNIPASS_API_URL"
+          npx @insforge/cli deployments env set NEXT_PUBLIC_BASE_URL "$NEXT_PUBLIC_BASE_URL"
+
+      - name: Deploy
+        run: npx @insforge/cli deployments deploy .
