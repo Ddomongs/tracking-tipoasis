@@ -14,7 +14,7 @@ const corsHeaders = {
 
 const buildRequestUrls = (apiUrl: string, apiKey: string, trackingNumber: string, type: TrackingType): string[] => {
   const thisYear = new Date().getFullYear();
-  const years = [thisYear, thisYear - 1, thisYear - 2, thisYear - 3, thisYear - 4, thisYear + 1];
+  const years = [thisYear, thisYear + 1, thisYear - 1, thisYear - 2, thisYear - 3, thisYear - 4];
 
   if (type === "CARGO") {
     return years.map((year) => {
