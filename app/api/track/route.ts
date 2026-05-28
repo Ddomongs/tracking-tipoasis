@@ -77,6 +77,38 @@ const fetchCustomsEventsWithRetry = async (
   return [];
 };
 
+const resolveDomesticLookups = async (
+  trackingNumber: string
+): Promise<{
+  customsEvents: TrackingEvent[];
+  deliveryEvents: TrackingEvent[];
+}> => {
+  const [customsResult, deliveryResult] = await Promise.allSettled([
+    fetchCustomsEventsWithRetry(trackingNumber, "DOMESTIC"),
+    fetchDeliveryEvents(trackingNumber)
+  ]);
+
+  if (customsResult.status === "rejected" && !isExternalFetchError(customsResult.reason)) {
+    throw customsResult.reason;
+  }
+
+  const customsEvents = customsResult.status === "fulfilled" ? customsResult.value : [];
+
+  if (deliveryResult.status === "rejected") {
+    const error = deliveryResult.reason;
+    const canIgnoreCarrierError =
+      error instanceof Error && error.name === "CarrierUnavailableError" && customsEvents.length > 0;
+    if (!canIgnoreCarrierError) {
+      throw error;
+    }
+  }
+
+  return {
+    customsEvents,
+    deliveryEvents: deliveryResult.status === "fulfilled" ? deliveryResult.value : []
+  };
+};
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -104,21 +136,9 @@ export async function POST(request: Request) {
     let deliveryEvents: TrackingEvent[] = [];
 
     if (identified.type === "DOMESTIC") {
-      try {
-        customsEvents = await fetchCustomsEventsWithRetry(identified.number, "DOMESTIC");
-      } catch (error) {
-        if (!isExternalFetchError(error)) {
-          throw error;
-        }
-      }
-
-      try {
-        deliveryEvents = await fetchDeliveryEvents(identified.number);
-      } catch (error) {
-        if (!(error instanceof Error && error.name === "CarrierUnavailableError" && customsEvents.length > 0)) {
-          throw error;
-        }
-      }
+      const domesticLookups = await resolveDomesticLookups(identified.number);
+      customsEvents = domesticLookups.customsEvents;
+      deliveryEvents = domesticLookups.deliveryEvents;
     } else {
       customsEvents = await fetchCustomsEventsWithRetry(identified.number, identified.type);
     }
