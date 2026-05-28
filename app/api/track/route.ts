@@ -9,29 +9,72 @@ import { identifyTrackingNumber } from "@/lib/services/identifier";
 import { normalizeTrackingData } from "@/lib/services/normalizer";
 import type { ApiError, TrackResponseData, TrackingEvent } from "@/lib/types";
 
+const noStoreHeaders = {
+  "Cache-Control": "no-store, max-age=0"
+};
+
 const errorResponse = (error: ApiError, status = 400) =>
   NextResponse.json(
     {
       success: false,
       error
     },
-    { status }
+    {
+      status,
+      headers: noStoreHeaders
+    }
+  );
+
+const successResponse = (data: TrackResponseData) =>
+  NextResponse.json(
+    {
+      success: true,
+      data
+    },
+    {
+      headers: noStoreHeaders
+    }
   );
 
 const isExternalFetchError = (error: unknown): boolean =>
   error instanceof Error &&
   (error.name === "AbortError" || error.message.includes("fetch failed") || error.message.includes("UND_ERR"));
 
-const getTrackCacheTtl = (params: {
+const shouldCacheTrackResult = (params: {
   type: string;
   customsEvents: TrackingEvent[];
   deliveryEvents: TrackingEvent[];
-}): number => {
+}): boolean => {
   if (params.type === "DOMESTIC" && params.customsEvents.length === 0 && params.deliveryEvents.length > 0) {
-    return 60;
+    return false;
   }
 
-  return 900;
+  return true;
+};
+
+const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+const fetchCustomsEventsWithRetry = async (
+  trackingNumber: string,
+  type: "DOMESTIC" | "HBL" | "CARGO",
+  attempts = 3
+): Promise<TrackingEvent[]> => {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const events = await fetchCustomsEvents(trackingNumber, type);
+      if (events.length > 0 || attempt === attempts) {
+        return events;
+      }
+    } catch (error) {
+      if (!isExternalFetchError(error) || attempt === attempts) {
+        throw error;
+      }
+    }
+
+    await wait(500);
+  }
+
+  return [];
 };
 
 export async function POST(request: Request) {
@@ -54,7 +97,7 @@ export async function POST(request: Request) {
     const cacheKey = buildTrackCacheKey(identified.type, identified.number);
     const cached = getCache<TrackResponseData>(cacheKey);
     if (cached) {
-      return NextResponse.json({ success: true, data: cached });
+      return successResponse(cached);
     }
 
     let customsEvents: TrackingEvent[] = [];
@@ -62,7 +105,7 @@ export async function POST(request: Request) {
 
     if (identified.type === "DOMESTIC") {
       try {
-        customsEvents = await fetchCustomsEvents(identified.number, "DOMESTIC");
+        customsEvents = await fetchCustomsEventsWithRetry(identified.number, "DOMESTIC");
       } catch (error) {
         if (!isExternalFetchError(error)) {
           throw error;
@@ -77,7 +120,7 @@ export async function POST(request: Request) {
         }
       }
     } else {
-      customsEvents = await fetchCustomsEvents(identified.number, identified.type);
+      customsEvents = await fetchCustomsEventsWithRetry(identified.number, identified.type);
     }
 
     if (customsEvents.length === 0) {
@@ -101,7 +144,7 @@ export async function POST(request: Request) {
 
         setCache(cacheKey, pending, 300);
 
-        return NextResponse.json({ success: true, data: pending });
+        return successResponse(pending);
       }
 
       return errorResponse(
@@ -120,17 +163,17 @@ export async function POST(request: Request) {
       deliveryEvents
     });
 
-    setCache(
-      cacheKey,
-      normalized,
-      getTrackCacheTtl({
+    if (
+      shouldCacheTrackResult({
         type: identified.type,
         customsEvents,
         deliveryEvents
       })
-    );
+    ) {
+      setCache(cacheKey, normalized, 900);
+    }
 
-    return NextResponse.json({ success: true, data: normalized });
+    return successResponse(normalized);
   } catch (error) {
     if (error instanceof ZodError) {
       return errorResponse(

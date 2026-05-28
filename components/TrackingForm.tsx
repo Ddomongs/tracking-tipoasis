@@ -36,6 +36,7 @@ export const TrackingForm = ({ onSuccess, onError, onLoading, initialTrackingNum
       try {
         const response = await fetch("/api/track", {
           method: "POST",
+          cache: "no-store",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ trackingNumber })
         });
