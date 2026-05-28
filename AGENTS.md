@@ -69,3 +69,24 @@
 - cPanel `Application startup file`은 반드시 `.next/standalone/server.js`로 유지한다.
 - 배포 아카이브에는 루트 `node_modules/`를 포함하지 않는다.
 - 화면 스타일 깨짐 발생 시 `.next/standalone/.next/static` 및 `.next/standalone/public` 존재 여부를 먼저 확인한다.
+
+<!-- INSFORGE:START -->
+## InsForge backend
+
+This project uses [InsForge](https://insforge.dev): an all-in-one, open-source Postgres-based backend (BaaS) that gives this app a database, authentication, file storage, edge functions, realtime, an AI model gateway, and payments through one platform.
+
+- **Project:** **tracking-tipoasis** (API base `https://sk9gyysw.ap-southeast.insforge.app`)
+- **Skills:** these InsForge skills are installed for supported coding agents. Reach for them before implementing any InsForge feature instead of guessing the API:
+  - `insforge`: app code with the `@insforge/sdk` client (database CRUD, auth, storage, edge functions, realtime, AI, email, and Stripe payments).
+  - `insforge-cli`: backend and infrastructure via the `insforge` CLI (projects, SQL, migrations, RLS policies, storage buckets, functions, secrets, payment setup, schedules, deploys).
+  - `insforge-debug`: diagnosing failures (SDK/HTTP errors, RLS denials, auth and OAuth issues) and running security or performance audits.
+  - `insforge-integrations`: wiring external auth providers (Clerk, Auth0, WorkOS, Better Auth, etc.) for JWT-based RLS, or the OKX x402 payment facilitator.
+  - `find-skills`: discovering additional skills on demand.
+- **Credentials:** app code reads keys from `.env.local`; the CLI reads `.insforge/project.json`. Never hardcode or commit keys.
+
+Key patterns:
+
+- Database inserts take an array: `insert([{ ... }])`.
+- Reference users with `auth.users(id)`; use `auth.uid()` in RLS policies.
+- For storage uploads, persist both the returned `url` and `key`.
+<!-- INSFORGE:END -->

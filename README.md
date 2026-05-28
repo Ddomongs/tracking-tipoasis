@@ -40,7 +40,13 @@ NEXT_PUBLIC_BASE_URL=https://tracking.tipoasis.com
 
 ## Deployment
 
-The target deployment path is InsForge deployment first, then custom domain connection for:
+Current InsForge deployment:
+
+```text
+https://sk9gyysw.insforge.site
+```
+
+The target custom domain remains:
 
 ```text
 https://tracking.tipoasis.com

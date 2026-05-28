@@ -1,13 +1,15 @@
 # InsForge Deployment Runbook
 
-This repository is ready for InsForge deployment, but the current machine is not authenticated with InsForge yet.
+This repository is linked to InsForge and has a successful deployment.
 
 Current verified state:
 
 - GitHub repository: `https://github.com/Ddomongs/tracking-tipoasis`
-- Latest verified commit at the time this runbook was added: `92422f4`
+- InsForge project dashboard: `https://insforge.dev/dashboard/project/84fed775-4e5d-40f2-a533-9781e9758c3f`
+- Current InsForge deployment URL: `https://sk9gyysw.insforge.site`
+- Current InsForge deployment ID: `9e6214a7-3dcc-4f89-9f63-57129d5aa776`
 - GitHub CI passes `npm ci`, `lint`, `typecheck`, `build`, and E2E smoke.
-- Local `npx @insforge/cli current --json` reports `"authenticated": false`.
+- Local `npx @insforge/cli current --json` reports an authenticated InsForge user and linked `tracking-tipoasis` project.
 
 ## Required Deployment Secrets
 
@@ -44,10 +46,15 @@ Confirm context:
 npm run insforge:current -- --json
 ```
 
-Create or link the project, then configure deployment variables:
+If the project is not linked yet, create it once:
 
 ```bash
 npx @insforge/cli create --name tracking-tipoasis --template empty
+```
+
+Then configure deployment variables and deploy:
+
+```bash
 npx @insforge/cli deployments env set UNIPASS_API_KEY "<value>"
 npx @insforge/cli deployments env set UNIPASS_API_URL "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo"
 npx @insforge/cli deployments env set NEXT_PUBLIC_BASE_URL "https://tracking.tipoasis.com"
@@ -99,10 +106,12 @@ https://tracking.tipoasis.com
 
 At the time of the current InsForge deployment documentation, custom domains for InsForge Deployments are listed as coming soon. If the deployed site is backed by Vercel through InsForge, domain binding may need to be completed through whichever provider surface InsForge exposes for that deployment.
 
-## Current Blocker
+## Remaining Custom Domain Work
 
-Remote deployment is blocked until one of these is true:
+Remote deployment is complete. The remaining production cutover task is custom domain binding for:
 
-1. `npx @insforge/cli current --json` reports an authenticated user and linked project.
-2. GitHub Actions has the required InsForge authentication secrets and the manual deployment workflow succeeds.
-3. A self-hosted InsForge API base URL and project API key are provided.
+```text
+https://tracking.tipoasis.com
+```
+
+If InsForge exposes domain binding for the deployment, connect the domain there. If the deployment is backed by Vercel, domain binding may need to happen through the provider surface exposed by InsForge.

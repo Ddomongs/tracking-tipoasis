@@ -7,7 +7,9 @@ This project is moving from the previous ChemiCloud standalone workflow to an In
 - Source control: GitHub public repository `Ddomongs/tracking-tipoasis`
 - Primary deployment: InsForge deployment
 - Final production URL: `https://tracking.tipoasis.com`
-- Temporary deployment URL: InsForge-provided URL until the custom domain is connected
+- Current InsForge deployment URL: `https://sk9gyysw.insforge.site`
+- Current InsForge deployment ID: `9e6214a7-3dcc-4f89-9f63-57129d5aa776`
+- InsForge project dashboard: `https://insforge.dev/dashboard/project/84fed775-4e5d-40f2-a533-9781e9758c3f`
 
 ## Recommended Flow
 
@@ -15,7 +17,7 @@ This project is moving from the previous ChemiCloud standalone workflow to an In
 2. Push only source, config, tests, and docs to GitHub.
 3. Configure deployment environment variables in InsForge.
 4. Deploy with InsForge CLI or MCP.
-5. Verify the temporary InsForge URL.
+5. Verify the current InsForge deployment URL.
 6. Connect `tracking.tipoasis.com` after domain support/DNS setup is ready.
 
 ## Environment Variables
