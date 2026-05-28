@@ -3,8 +3,6 @@ import type { TrackingEvent, TrackingType } from "@/lib/types";
 import { toIsoOrNow } from "@/lib/utils";
 import { fetchWithTimeout, postJsonWithTimeout } from "@/lib/services/http";
 
-const DEFAULT_UNIPASS_PROXY_URL = "https://sk9gyysw.functions.insforge.app/unipass-proxy";
-
 export const normalizeCustomsStatus = (raw: string): TrackingEvent["statusCode"] => {
   const normalized = raw.replace(/\s+/g, "");
 
@@ -205,7 +203,7 @@ const getProxyXml = (payload: unknown): string | null => {
 };
 
 const fetchProxyCustomsEvents = async (trackingNumber: string, type: TrackingType): Promise<TrackingEvent[]> => {
-  const proxyUrl = process.env.UNIPASS_PROXY_URL || DEFAULT_UNIPASS_PROXY_URL;
+  const proxyUrl = process.env.UNIPASS_PROXY_URL;
   if (!proxyUrl) {
     return [];
   }
@@ -229,8 +227,13 @@ export const fetchCustomsEvents = async (trackingNumber: string, type: TrackingT
     process.env.UNIPASS_API_URL ||
     "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo";
 
-  const directEvents = apiKey ? await fetchDirectCustomsEvents(buildCustomsRequestUrls(apiUrl, apiKey, trackingNumber, type)) : [];
-  const collected = directEvents.length > 0 ? directEvents : await fetchProxyCustomsEvents(trackingNumber, type);
+  const proxyEvents = await fetchProxyCustomsEvents(trackingNumber, type);
+  const collected =
+    proxyEvents.length > 0
+      ? proxyEvents
+      : apiKey
+        ? await fetchDirectCustomsEvents(buildCustomsRequestUrls(apiUrl, apiKey, trackingNumber, type))
+        : [];
 
   return dedupeEvents(collected).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
 };
