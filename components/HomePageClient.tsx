@@ -141,6 +141,7 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
               </p>
             </Card>
           </div>
+          <CustomerCta variant="result" />
 
           <Card className="grid gap-3 border-slate-700/80 bg-slate-900/40 sm:grid-cols-3">
             <div>
