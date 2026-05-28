@@ -1,7 +1,9 @@
 import { parseStringPromise } from "xml2js";
 import type { TrackingEvent, TrackingType } from "@/lib/types";
 import { toIsoOrNow } from "@/lib/utils";
-import { fetchWithTimeout } from "@/lib/services/http";
+import { fetchWithTimeout, postJsonWithTimeout } from "@/lib/services/http";
+
+const DEFAULT_UNIPASS_PROXY_URL = "https://sk9gyysw.functions.insforge.app/unipass-proxy";
 
 export const normalizeCustomsStatus = (raw: string): TrackingEvent["statusCode"] => {
   const normalized = raw.replace(/\s+/g, "");
@@ -164,42 +166,71 @@ const dedupeEvents = (events: TrackingEvent[]): TrackingEvent[] => {
   return deduped;
 };
 
-export const fetchCustomsEvents = async (trackingNumber: string, type: TrackingType): Promise<TrackingEvent[]> => {
-  const apiKey = process.env.UNIPASS_API_KEY;
-  if (!apiKey) {
+const parseCustomsEventsXml = async (xml: string): Promise<TrackingEvent[]> => {
+  const parsed = await parseStringPromise(xml, { explicitArray: false, trim: true });
+  const root = toRecord(parsed)?.cargCsclPrgsInfoQryRtnVo;
+  const rootNode = toRecord(Array.isArray(root) ? root[0] : root) ?? toRecord(parsed);
+  if (!rootNode) {
     return [];
   }
 
+  const summaryRows = toObjectArray(rootNode.cargCsclPrgsInfoQryVo).map(toFlatStringRecord);
+  const detailRows = toObjectArray(rootNode.cargCsclPrgsInfoDtlQryVo).map(toFlatStringRecord);
+  return mapRowsToEvents([...detailRows, ...summaryRows]);
+};
+
+const fetchDirectCustomsEvents = async (urls: string[]): Promise<TrackingEvent[]> => {
+  for (const url of urls) {
+    try {
+      const response = await fetchWithTimeout(url, 12000);
+      if (!response.ok) {
+        continue;
+      }
+
+      const events = await parseCustomsEventsXml(await response.text());
+      if (events.length > 0) {
+        return events;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return [];
+};
+
+const getProxyXml = (payload: unknown): string | null => {
+  const node = toRecord(payload);
+  return typeof node?.xml === "string" ? node.xml : null;
+};
+
+const fetchProxyCustomsEvents = async (trackingNumber: string, type: TrackingType): Promise<TrackingEvent[]> => {
+  const proxyUrl = process.env.UNIPASS_PROXY_URL || DEFAULT_UNIPASS_PROXY_URL;
+  if (!proxyUrl) {
+    return [];
+  }
+
+  try {
+    const response = await postJsonWithTimeout(proxyUrl, { trackingNumber, type }, 15000);
+    if (!response.ok) {
+      return [];
+    }
+
+    const xml = getProxyXml(await response.json());
+    return xml ? parseCustomsEventsXml(xml) : [];
+  } catch {
+    return [];
+  }
+};
+
+export const fetchCustomsEvents = async (trackingNumber: string, type: TrackingType): Promise<TrackingEvent[]> => {
+  const apiKey = process.env.UNIPASS_API_KEY;
   const apiUrl =
     process.env.UNIPASS_API_URL ||
     "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo";
 
-  const urls = buildCustomsRequestUrls(apiUrl, apiKey, trackingNumber, type);
-  const collected: TrackingEvent[] = [];
-
-  for (const url of urls) {
-    const response = await fetchWithTimeout(url, 12000);
-    if (!response.ok) {
-      continue;
-    }
-
-    const xml = await response.text();
-    const parsed = await parseStringPromise(xml, { explicitArray: false, trim: true });
-    const root = toRecord(parsed)?.cargCsclPrgsInfoQryRtnVo;
-    const rootNode = toRecord(Array.isArray(root) ? root[0] : root) ?? toRecord(parsed);
-    if (!rootNode) {
-      continue;
-    }
-
-    const summaryRows = toObjectArray(rootNode.cargCsclPrgsInfoQryVo).map(toFlatStringRecord);
-    const detailRows = toObjectArray(rootNode.cargCsclPrgsInfoDtlQryVo).map(toFlatStringRecord);
-    const rows = [...detailRows, ...summaryRows];
-    const events = mapRowsToEvents(rows);
-    if (events.length > 0) {
-      collected.push(...events);
-      break;
-    }
-  }
+  const directEvents = apiKey ? await fetchDirectCustomsEvents(buildCustomsRequestUrls(apiUrl, apiKey, trackingNumber, type)) : [];
+  const collected = directEvents.length > 0 ? directEvents : await fetchProxyCustomsEvents(trackingNumber, type);
 
   return dedupeEvents(collected).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
 };

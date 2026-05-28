@@ -20,6 +20,25 @@ const requestWithTimeout = async (input: string, init: RequestInit, timeoutMs = 
 export const fetchWithTimeout = async (input: string, timeoutMs = 10000): Promise<Response> =>
   requestWithTimeout(input, {}, timeoutMs);
 
+export const postJsonWithTimeout = async (
+  input: string,
+  body: unknown,
+  timeoutMs = 10000,
+  extraHeaders?: Record<string, string>
+): Promise<Response> =>
+  requestWithTimeout(
+    input,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: {
+        "content-type": "application/json",
+        ...(extraHeaders ?? {})
+      }
+    },
+    timeoutMs
+  );
+
 export const postFormWithTimeout = async (
   input: string,
   form: Record<string, string>,
