@@ -9,6 +9,8 @@ import { identifyTrackingNumber } from "@/lib/services/identifier";
 import { normalizeTrackingData } from "@/lib/services/normalizer";
 import type { ApiError, TrackResponseData, TrackingEvent } from "@/lib/types";
 
+export const preferredRegion = "icn1";
+
 const noStoreHeaders = {
   "Cache-Control": "no-store, max-age=0"
 };
