@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { CustomerCta } from "@/components/CustomerCta";
 import { motion } from "framer-motion";
 import { CustomsTimeline } from "@/components/CustomsTimeline";
 import { DeliveryTimeline } from "@/components/DeliveryTimeline";
@@ -63,7 +64,7 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
   };
 
   return (
-    <main className="pointer-events-none mx-auto min-h-screen w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+    <main className="pointer-events-none mx-auto min-h-screen w-full max-w-5xl px-4 pb-32 pt-10 sm:px-6 sm:pb-36 sm:pt-14 lg:pb-14">
       <motion.section
         className="mb-8 space-y-5"
         initial={{ opacity: 0, y: 10 }}
@@ -90,6 +91,9 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
             initialTrackingNumber={initialTrackingNumber}
           />
         </Card>
+        <div className="hidden lg:block">
+          <CustomerCta />
+        </div>
         <Card className="border-amber-300/20 bg-amber-300/5">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-[0.08em] text-amber-100">조회 시 주의사항</h2>
           <ul className="space-y-1 text-xs text-amber-50/90 sm:text-sm">
@@ -177,6 +181,7 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
           </div>
         </section>
       )}
+      <CustomerCta variant="mobileFixed" />
     </main>
   );
 };
