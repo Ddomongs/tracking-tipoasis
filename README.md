@@ -9,7 +9,7 @@
 - Tailwind CSS
 - shadcn/ui 스타일 컴포넌트
 - UNI-PASS 통관 조회
-- CJ대한통운 배송 조회
+- CJ대한통운·우체국·한진·롯데·로젠 배송 조회
 - Playwright E2E smoke test
 
 ## Local Development

@@ -2,6 +2,10 @@ export type TrackingType = "HBL" | "DOMESTIC" | "CARGO" | "UNKNOWN";
 
 export type StatusCode = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
+export const DELIVERY_CARRIER_CODES = ["AUTO", "CJ", "EPOST", "HANJIN", "LOTTE", "LOGEN"] as const;
+
+export type DeliveryCarrierCode = (typeof DELIVERY_CARRIER_CODES)[number];
+
 export interface TrackingEvent {
   status: string;
   statusCode: StatusCode;
@@ -14,12 +18,25 @@ export interface TrackingEvent {
 
 export interface CustomsResult {
   events: TrackingEvent[];
+  estimateAdjusted?: boolean;
 }
 
 export interface DeliveryResult {
   carrier: string;
-  carrierCode: string;
+  carrierCode: DeliveryCarrierCode;
   invoiceNumber: string;
+  trackingUrl?: string;
+  lookupUnavailable?: boolean;
+  ambiguous?: boolean;
+  events: TrackingEvent[];
+}
+
+export interface DeliveryLookupResult {
+  carrier: string;
+  carrierCode: DeliveryCarrierCode;
+  trackingUrl?: string;
+  lookupUnavailable?: boolean;
+  ambiguous?: boolean;
   events: TrackingEvent[];
 }
 
@@ -36,6 +53,7 @@ export interface TrackResponseData {
   currentStatus: string;
   currentStatusCode: StatusCode;
   isPending?: boolean;
+  estimatedCustomsClearanceDate?: string;
   estimatedDeliveryDate?: string;
   customs: CustomsResult;
   delivery: DeliveryResult;

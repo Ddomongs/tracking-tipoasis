@@ -93,7 +93,12 @@ const parseCustomsDatetime = (raw?: string): string => {
   return toIsoOrNow(raw);
 };
 
-const buildCustomsRequestUrls = (apiUrl: string, apiKey: string, trackingNumber: string, type: TrackingType): string[] => {
+const buildCustomsRequestUrlBatches = (
+  apiUrl: string,
+  apiKey: string,
+  trackingNumber: string,
+  type: TrackingType
+): string[][] => {
   const thisYear = new Date().getFullYear();
   const years = [thisYear, thisYear + 1, thisYear - 1, thisYear - 2, thisYear - 3, thisYear - 4];
 
@@ -104,12 +109,12 @@ const buildCustomsRequestUrls = (apiUrl: string, apiKey: string, trackingNumber:
         cargMtNo: trackingNumber,
         blYy: String(year)
       });
-      return `${apiUrl}?${params.toString()}`;
+      return [`${apiUrl}?${params.toString()}`];
     });
   }
 
   if (type === "HBL") {
-    return years.flatMap((year) => {
+    return years.map((year) => {
       const common = { crkyCn: apiKey, blYy: String(year) };
       return [
         `${apiUrl}?${new URLSearchParams({ ...common, hblNo: trackingNumber }).toString()}`,
@@ -119,7 +124,7 @@ const buildCustomsRequestUrls = (apiUrl: string, apiKey: string, trackingNumber:
   }
 
   if (type === "DOMESTIC") {
-    return years.flatMap((year) => {
+    return years.map((year) => {
       const common = { crkyCn: apiKey, blYy: String(year) };
       return [
         `${apiUrl}?${new URLSearchParams({ ...common, hblNo: trackingNumber }).toString()}`,
@@ -177,24 +182,38 @@ const parseCustomsEventsXml = async (xml: string): Promise<TrackingEvent[]> => {
   return mapRowsToEvents([...detailRows, ...summaryRows]);
 };
 
-const fetchDirectCustomsEvents = async (urls: string[]): Promise<TrackingEvent[]> => {
-  for (const url of urls) {
-    try {
-      const response = await fetchWithTimeout(url, 12000);
-      if (!response.ok) {
-        continue;
-      }
+type DirectCustomsResult = {
+  events: TrackingEvent[];
+  reachedDirectApi: boolean;
+};
 
-      const events = await parseCustomsEventsXml(await response.text());
-      if (events.length > 0) {
-        return events;
-      }
-    } catch {
-      continue;
+const fetchDirectCustomsEvents = async (urlBatches: string[][]): Promise<DirectCustomsResult> => {
+  let reachedDirectApi = false;
+
+  for (const batch of urlBatches) {
+    const settled = await Promise.allSettled(
+      batch.map(async (url) => {
+        const response = await fetchWithTimeout(url, 8000);
+        if (!response.ok) {
+          return { events: [] as TrackingEvent[], reachedDirectApi: false };
+        }
+
+        return {
+          events: await parseCustomsEventsXml(await response.text()),
+          reachedDirectApi: true
+        };
+      })
+    );
+
+    const fulfilled = settled.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
+    reachedDirectApi = reachedDirectApi || fulfilled.some((result) => result.reachedDirectApi);
+    const events = fulfilled.flatMap((result) => result.events);
+    if (events.length > 0) {
+      return { events, reachedDirectApi };
     }
   }
 
-  return [];
+  return { events: [], reachedDirectApi };
 };
 
 const getProxyXml = (payload: unknown): string | null => {
@@ -227,13 +246,17 @@ export const fetchCustomsEvents = async (trackingNumber: string, type: TrackingT
     process.env.UNIPASS_API_URL ||
     "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo";
 
-  const proxyEvents = await fetchProxyCustomsEvents(trackingNumber, type);
-  const collected =
-    proxyEvents.length > 0
-      ? proxyEvents
-      : apiKey
-        ? await fetchDirectCustomsEvents(buildCustomsRequestUrls(apiUrl, apiKey, trackingNumber, type))
-        : [];
+  if (apiKey) {
+    const directResult = await fetchDirectCustomsEvents(buildCustomsRequestUrlBatches(apiUrl, apiKey, trackingNumber, type));
+    if (directResult.events.length > 0) {
+      return dedupeEvents(directResult.events).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+    }
 
-  return dedupeEvents(collected).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+    if (directResult.reachedDirectApi) {
+      return [];
+    }
+  }
+
+  const proxyEvents = await fetchProxyCustomsEvents(trackingNumber, type);
+  return dedupeEvents(proxyEvents).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
 };

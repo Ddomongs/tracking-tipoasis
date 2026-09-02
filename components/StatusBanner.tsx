@@ -33,10 +33,10 @@ export const StatusBanner = ({ status, code, isPending }: StatusBannerProps) => 
   <Card className="space-y-3 border-cyan-300/20 bg-gradient-to-r from-slate-900/70 to-slate-800/40">
     <div className="flex items-center justify-between gap-4">
       <div className="flex items-center gap-3">
-        <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-200">
+        <span className="brand-icon-tile">
           {(() => {
             const Icon = iconByCode[code];
-            return <Icon size={20} />;
+            return <Icon size={20} aria-hidden="true" />;
           })()}
         </span>
         <div>
@@ -44,9 +44,16 @@ export const StatusBanner = ({ status, code, isPending }: StatusBannerProps) => 
           <p className="text-lg font-semibold text-slate-50 sm:text-xl">{status}</p>
         </div>
       </div>
-      <Badge tone={toneByCode[code]}>{isPending ? "대기" : `STEP ${code}`}</Badge>
+      <Badge tone={toneByCode[code]}>{isPending ? "내역 없음" : `${code}단계`}</Badge>
     </div>
-    <div className="h-2 overflow-hidden rounded-full bg-slate-800/80">
+    <div
+      className="h-2 overflow-hidden rounded-full bg-slate-800/80"
+      role="progressbar"
+      aria-label="배송 진행 단계"
+      aria-valuemin={0}
+      aria-valuemax={7}
+      aria-valuenow={isPending ? 0 : code}
+    >
       <div
         className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-emerald-300"
         style={{ width: `${isPending ? 0 : (code / 7) * 100}%` }}

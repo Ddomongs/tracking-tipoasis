@@ -1,0 +1,10 @@
+.codegraph
+.env
+.env.*
+!.env.example
+.omx
+.playwright-mcp
+.pdca-status.json
+playwright-report
+test-results
+production-*.png

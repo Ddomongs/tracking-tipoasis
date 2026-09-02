@@ -48,3 +48,8 @@ pnpm-debug.log*
 .roo
 .trae
 .windsurf
+
+# local tooling artifacts
+.playwright-mcp
+.pdca-status.json
+production-*.png

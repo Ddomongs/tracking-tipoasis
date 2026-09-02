@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
 import type { TrackingEvent } from "@/lib/types";
-import { fetchWithTimeout } from "@/lib/services/http";
+import { fetchWithTimeout, readTextWithLimit } from "@/lib/services/http";
 import { normalizeCustomsStatus } from "@/lib/services/customs";
 
 const CUSTOMSTRACK_BASE_URL = "https://www.customstrack.com";
@@ -103,6 +103,6 @@ export const fetchCustomstrackCustomsEvents = async (trackingNumber: string): Pr
     return [];
   }
 
-  const html = await response.text();
+  const html = await readTextWithLimit(response, 1_048_576, 12000);
   return parseCustomstrackEvents(html);
 };

@@ -1,4 +1,12 @@
-import type { DeliveryResult, StatusCode, TimelineStep, TrackResponseData, TrackingEvent, TrackingType } from "@/lib/types";
+import type {
+  DeliveryLookupResult,
+  DeliveryResult,
+  StatusCode,
+  TimelineStep,
+  TrackResponseData,
+  TrackingEvent,
+  TrackingType
+} from "@/lib/types";
 
 const LABEL_BY_STEP: Record<StatusCode, string> = {
   1: "입항",
@@ -15,6 +23,11 @@ const getLastDatetime = (events: TrackingEvent[]): string | undefined => {
   return events[events.length - 1]?.datetime;
 };
 
+const getLatestDatetime = (values: Array<string | undefined>): string | undefined =>
+  values
+    .filter((value): value is string => typeof value === "string" && !Number.isNaN(new Date(value).getTime()))
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+
 const getLatestEventByStatusCode = (events: TrackingEvent[], statusCode: StatusCode): TrackingEvent | undefined =>
   events
     .filter((event) => event.statusCode === statusCode)
@@ -26,18 +39,54 @@ const addDaysIso = (isoLike: string, days: number): string => {
     return new Date().toISOString();
   }
 
-  base.setDate(base.getDate() + days);
-  return base.toISOString();
+  return new Date(base.getTime() + days * 86_400_000).toISOString();
+};
+
+const getKoreaDateKey = (date: Date): number => {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return Number(`${values.year}${values.month}${values.day}`);
+};
+
+const getKoreaTodayIso = (now: Date): string => {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(now);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}T00:00:00+09:00`;
+};
+
+type EstimatedDate = {
+  date?: string;
+  adjusted: boolean;
+};
+
+const adjustPastEstimate = (isoText: string | undefined, now: Date): EstimatedDate => {
+  if (!isoText) return { adjusted: false };
+  const target = new Date(isoText);
+  if (Number.isNaN(target.getTime())) return { adjusted: false };
+  if (getKoreaDateKey(target) >= getKoreaDateKey(now)) return { date: isoText, adjusted: false };
+  return { date: getKoreaTodayIso(now), adjusted: true };
 };
 
 const estimateDeliveryDate = (
   deliveryEvents: TrackingEvent[],
   customsEvents: TrackingEvent[],
-  currentStatusCode: StatusCode
+  currentStatusCode: StatusCode,
+  customsEstimate: string | undefined,
+  now: Date
 ): string | undefined => {
   const latestDelivery = getLastDatetime(deliveryEvents);
   const latestCustoms = getLastDatetime(customsEvents);
-  const reference = latestDelivery || latestCustoms;
+  const reference = latestDelivery || customsEstimate || latestCustoms;
 
   if (!reference) {
     return undefined;
@@ -48,32 +97,69 @@ const estimateDeliveryDate = (
   }
 
   if (currentStatusCode === 6) {
-    return addDaysIso(reference, 1);
+    return adjustPastEstimate(addDaysIso(reference, 1), now).date;
   }
 
   if (currentStatusCode === 5) {
-    return addDaysIso(reference, 2);
+    return adjustPastEstimate(addDaysIso(reference, 2), now).date;
   }
 
-  return addDaysIso(reference, 3);
+  return adjustPastEstimate(addDaysIso(reference, 3), now).date;
+};
+
+const estimateCustomsClearanceDate = (
+  customsEvents: TrackingEvent[],
+  currentStatusCode: StatusCode,
+  now: Date
+): EstimatedDate => {
+  const completedEvent = getLatestEventByStatusCode(customsEvents, 4);
+  if (currentStatusCode >= 4) {
+    return { date: completedEvent?.datetime, adjusted: false };
+  }
+
+  const latestCustoms = getLastDatetime(customsEvents);
+  if (!latestCustoms) {
+    return { adjusted: false };
+  }
+
+  const remainingDaysByStatus: Record<1 | 2 | 3, number> = {
+    1: 2,
+    2: 1,
+    3: 1
+  };
+
+  return adjustPastEstimate(
+    addDaysIso(latestCustoms, remainingDaysByStatus[currentStatusCode as 1 | 2 | 3]),
+    now
+  );
 };
 
 export const normalizeTrackingData = (params: {
   trackingNumber: string;
   type: TrackingType;
   customsEvents: TrackingEvent[];
-  deliveryEvents: TrackingEvent[];
+  deliveryLookup: DeliveryLookupResult;
+  now?: Date;
 }): TrackResponseData => {
-  const { trackingNumber, type, customsEvents, deliveryEvents } = params;
+  const { trackingNumber, type, customsEvents, deliveryLookup, now = new Date() } = params;
+  const deliveryEvents = deliveryLookup.events;
   const trackingEvents = [...customsEvents, ...deliveryEvents];
-  const hasTrackingEvents = trackingEvents.length > 0;
-  const isPendingDomestic = type === "DOMESTIC" && !hasTrackingEvents;
-  const latestStatusCode = trackingEvents.map((event) => event.statusCode).sort((a, b) => b - a)[0] ?? 1;
+  const hasTrackingData = trackingEvents.length > 0;
+  const isLookupUnavailable = deliveryLookup.lookupUnavailable === true && !hasTrackingData;
+  const isAmbiguous = deliveryLookup.ambiguous === true && !hasTrackingData;
+  const isPendingDomestic = type === "DOMESTIC" && !hasTrackingData && !isLookupUnavailable && !isAmbiguous;
+  const latestStatusCode: StatusCode = trackingEvents.map((event) => event.statusCode).sort((a, b) => b - a)[0] ?? 1;
 
-  const currentStatusCode = (isPendingDomestic ? 5 : latestStatusCode) as StatusCode;
+  const currentStatusCode: StatusCode = isPendingDomestic ? 1 : latestStatusCode;
 
   const latestCurrentEvent = getLatestEventByStatusCode(trackingEvents, currentStatusCode);
-  const currentStatus = isPendingDomestic ? "배송정보 대기" : latestCurrentEvent?.status ?? LABEL_BY_STEP[currentStatusCode];
+  const currentStatus = isAmbiguous
+    ? "택배사 선택 필요"
+    : isLookupUnavailable
+      ? "조회 지연"
+      : isPendingDomestic
+        ? "도착전"
+        : latestCurrentEvent?.status ?? LABEL_BY_STEP[currentStatusCode];
 
   const orderedSteps: StatusCode[] = [1, 2, 3, 4, 5, 6, 7];
 
@@ -85,23 +171,28 @@ export const normalizeTrackingData = (params: {
     return {
       step,
       label: LABEL_BY_STEP[step],
-      completed: hasTrackingEvents && step <= currentStatusCode,
+      completed: hasTrackingData && step <= currentStatusCode,
       datetime: matched?.datetime
     };
   });
 
   const delivery: DeliveryResult = {
-    carrier: "CJ대한통운",
-    carrierCode: "04",
+    carrier: deliveryLookup.carrier,
+    carrierCode: deliveryLookup.carrierCode,
     invoiceNumber: trackingNumber,
+    trackingUrl: deliveryLookup.trackingUrl,
+    lookupUnavailable: deliveryLookup.lookupUnavailable,
+    ambiguous: deliveryLookup.ambiguous,
     events: deliveryEvents
   };
 
   const lastUpdated =
-    getLastDatetime(deliveryEvents) || getLastDatetime(customsEvents) || new Date().toISOString();
+    getLatestDatetime([getLastDatetime(deliveryEvents), getLastDatetime(customsEvents)]) ?? now.toISOString();
+  const customsEstimate = estimateCustomsClearanceDate(customsEvents, currentStatusCode, now);
   const estimatedDeliveryDate = isPendingDomestic
     ? undefined
-    : estimateDeliveryDate(deliveryEvents, customsEvents, currentStatusCode);
+    : estimateDeliveryDate(deliveryEvents, customsEvents, currentStatusCode, customsEstimate.date, now);
+  const estimatedCustomsClearanceDate = customsEstimate.date;
 
   return {
     trackingNumber,
@@ -109,8 +200,12 @@ export const normalizeTrackingData = (params: {
     currentStatus,
     currentStatusCode,
     isPending: isPendingDomestic || undefined,
+    estimatedCustomsClearanceDate,
     estimatedDeliveryDate,
-    customs: { events: customsEvents },
+    customs: {
+      events: customsEvents,
+      estimateAdjusted: customsEstimate.adjusted || undefined
+    },
     delivery,
     timeline,
     lastUpdated

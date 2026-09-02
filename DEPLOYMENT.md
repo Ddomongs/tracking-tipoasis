@@ -10,7 +10,8 @@ InsForge remains in use for the UNI-PASS Edge Function proxy.
 - Vercel project: `tracking-tipoasis`
 - Current Vercel URL: `https://tracking-tipoasis.vercel.app`
 - Final production URL: `https://tracking.tipoasis.com`
-- Current Vercel deployment ID: `dpl_C19DuhGU6dU32cHFdnk8TmuBqReR`
+- Last manual CLI deployment ID: `dpl_Hu3jWM5VNMc4KWBXpf63kkkpptKK` (2026-07-20)
+- Deployment trigger: push to `main` on GitHub (Vercel Git integration); CLI deploy is the fallback
 - InsForge frontend fallback URL: `https://sk9gyysw.insforge.site`
 - Current InsForge deployment ID: `c8b7c28a-5fa1-43a7-995c-c2b4c01d6dce`
 - InsForge project dashboard: `https://insforge.dev/dashboard/project/84fed775-4e5d-40f2-a533-9781e9758c3f`
@@ -20,8 +21,8 @@ InsForge remains in use for the UNI-PASS Edge Function proxy.
 1. Keep generated artifacts out of Git.
 2. Push only source, config, tests, and docs to GitHub.
 3. Configure deployment environment variables in Vercel.
-4. Deploy with Vercel CLI.
-5. Verify the current Vercel deployment URL and `POST /api/track`.
+4. Push to `main`; GitHub Actions CI and the Vercel Git integration deploy automatically.
+5. Verify the current Vercel deployment URL, `POST /api/track`, and that `/internal/cs-helper` asks for a password.
 6. Keep the InsForge Edge Function proxy deployed for UNI-PASS access.
 
 ## Environment Variables
@@ -39,6 +40,7 @@ Required values:
 - `UNIPASS_API_URL`: `https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo`
 - `UNIPASS_PROXY_URL`: `https://sk9gyysw.ap-southeast.insforge.app/functions/unipass-proxy`
 - `NEXT_PUBLIC_BASE_URL`: `https://tracking.tipoasis.com`
+- `INTERNAL_ACCESS_PASSWORD`: browser basic-auth password for `/internal/*` (any username). When unset in production the pages return 404.
 
 ## Local Verification
 
@@ -94,6 +96,7 @@ NEXT_PUBLIC_BASE_URL=https://tracking.tipoasis.com
 UNIPASS_PROXY_URL=https://sk9gyysw.ap-southeast.insforge.app/functions/unipass-proxy
 UNIPASS_API_URL=https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo
 UNIPASS_API_KEY=<server secret>
+INTERNAL_ACCESS_PASSWORD=<server secret>
 ```
 
 Custom domain status:
@@ -143,4 +146,4 @@ See [docs/insforge-deployment-runbook.md](./docs/insforge-deployment-runbook.md)
 
 ## Legacy Artifacts
 
-Previous ChemiCloud/CloudLinux packages are kept locally under ignored paths such as `release/`, `deploy/`, `backups/`, and `deploy.zip`. They are intentionally excluded from Git.
+Previous ChemiCloud/CloudLinux packages under `release/`, `deploy/`, `backups/`, and `deploy.zip` are no longer used and are excluded from Git. They can be deleted safely.
