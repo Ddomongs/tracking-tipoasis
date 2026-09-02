@@ -17,7 +17,10 @@ export default defineConfig({
       },
   use: {
     baseURL: "http://127.0.0.1:43210",
-    trace: "on-first-retry"
+    trace: "on-first-retry",
+    // Customers are in Korea; CI runners are UTC, so pin the browser clock zone.
+    timezoneId: "Asia/Seoul",
+    locale: "ko-KR"
   },
   projects: [
     {
