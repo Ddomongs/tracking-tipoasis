@@ -1,0 +1,18 @@
+<!-- @dsCard group="Components" name="Customer CTA" subtitle="error / pending / inTransit / delivered states" -->
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>Customer CTA</title><link rel="stylesheet" href="../_base.css">
+<style>
+.cta{border-radius:16px;border:1px solid;background:rgba(2,6,23,.95);padding:20px;max-width:640px;box-shadow:0 18px 45px rgba(2,6,23,.5)}
+.cta small{font-size:12px;font-weight:600;color:#a7f3d0}.cta h2{font-size:18px;margin-top:4px}.cta p{font-size:14px;color:#cbd5e1;margin:4px 0 0;line-height:1.6}
+.links{display:grid;gap:8px;margin-top:12px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.l{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border-radius:12px;border:1px solid;padding:8px 12px;font-size:14px;font-weight:600}
+.talk{background:#03c75a;color:#020617;border-color:rgba(3,199,90,.7)}.naver{background:rgba(15,23,42,.75);color:#f1f5f9;border-color:rgba(3,199,90,.55)}.coupang{background:rgba(252,211,77,.1);color:#fffbeb;border-color:rgba(252,211,77,.55)}
+.note{font-size:12px;color:#cbd5e1;margin-top:12px;line-height:1.5}
+</style></head>
+<body><p class="kicker">Components</p><h1 class="title" style="font-size:24px;margin-top:8px">상태별 문의 카드</h1>
+<p class="copy" style="max-width:640px;margin-top:8px">스토어 링크는 국내 배송 대기·배송 완료 상태에서만 강조한다. 쿠팡 제휴 링크가 있으면 같은 카드 안에서 바로 고지한다.</p>
+<div class="stack" style="margin-top:24px">
+<div class="cta" style="border-color:rgba(253,164,175,.35)"><small>배송 및 기타 문의</small><h2>조회가 잘되지 않나요?</h2><p>조회번호를 다시 확인하거나 톡톡으로 문의하세요.</p><div class="links" style="max-width:220px"><a class="l talk">톡톡으로 문의하기 ↗</a></div><div class="label">error</div></div>
+<div class="cta" style="border-color:rgba(252,211,77,.35)"><small>배송 및 기타 문의</small><h2>아직 국내 배송 정보가 없어요</h2><p>구매한 쇼핑몰을 선택하거나 톡톡으로 문의하세요.</p><div class="links"><a class="l talk">톡톡으로 문의하기 ↗</a><a class="l naver">네이버 스토어 보기 ↗</a><a class="l coupang">쿠팡 스토어 보기 ↗</a></div><p class="note">쿠팡 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.</p><div class="label">pending</div></div>
+<div class="cta" style="border-color:rgba(103,232,249,.3)"><small>배송 및 기타 문의</small><h2>배송이 진행 중이에요</h2><p>위 배송 내역에서 위치를 확인하세요.</p><div class="links" style="max-width:220px"><a class="l talk">톡톡으로 문의하기 ↗</a></div><div class="label">inTransit</div></div>
+<div class="cta" style="border-color:rgba(110,231,183,.35)"><small>배송 및 기타 문의</small><h2>배송이 완료됐어요</h2><p>재구매나 다른 상품이 필요하면 스토어를 둘러보세요.</p><div class="links"><a class="l naver">네이버 스토어 보기 ↗</a><a class="l coupang">쿠팡 스토어 보기 ↗</a><a class="l" style="border-color:#475569;color:#e2e8f0">톡톡으로 문의하기 ↗</a></div><p class="note">쿠팡 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.</p><div class="label">delivered</div></div>
+</div></body></html>

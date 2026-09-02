@@ -1,0 +1,20 @@
+<!-- @dsCard group="Components" name="Buttons & links" subtitle="Primary, talk, store, ghost · 44px touch" -->
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>Buttons</title><link rel="stylesheet" href="../_base.css">
+<style>
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:12px;font-size:14px;font-weight:600;border:1px solid transparent;cursor:pointer;font-family:inherit}
+.primary{background:linear-gradient(90deg,#6ee7b7,#5eead4,#67e8f9);color:#020617}
+.talk{background:#03c75a;color:#020617;border-color:rgba(3,199,90,.7)}
+.naver{background:rgba(15,23,42,.75);color:#f1f5f9;border-color:rgba(3,199,90,.55)}
+.coupang{background:rgba(252,211,77,.1);color:#fffbeb;border-color:rgba(252,211,77,.55)}
+.ghost{background:transparent;color:#cbd5e1;border-color:transparent}
+.ghost:hover{background:rgba(30,41,59,.7);color:#fff}
+.disabled{opacity:.5;cursor:not-allowed}
+</style></head>
+<body><p class="kicker">Components</p><h1 class="title" style="font-size:24px;margin-top:8px">버튼과 링크</h1>
+<p class="copy" style="max-width:640px;margin-top:8px">터치 높이는 44px 이상. 에메랄드는 행동, 스토어 고유색은 외부 링크에서만. 외부 링크는 이름에 목적지와 새 창 열림을 포함한다.</p>
+<div class="stack" style="margin-top:24px">
+<div class="row"><button class="btn primary">조회하기 →</button><button class="btn primary disabled">조회 중…</button><span class="label">Primary · 조회</span></div>
+<div class="row"><a class="btn talk">톡톡으로 문의하기 ↗</a><span class="label">Talk · 문의 행동</span></div>
+<div class="row"><a class="btn naver">네이버 스토어 보기 ↗</a><a class="btn coupang">쿠팡 스토어 보기 ↗</a><span class="label">Store · 채널색 테두리만</span></div>
+<div class="row"><a class="btn ghost">배송 조회</a><a class="btn ghost">이용 안내</a><a class="btn ghost">개인정보처리방침</a><span class="label">Ghost · 헤더/푸터</span></div>
+</div></body></html>

@@ -53,3 +53,6 @@ pnpm-debug.log*
 .playwright-mcp
 .pdca-status.json
 production-*.png
+
+# local screenshots
+/*.png
