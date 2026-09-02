@@ -64,6 +64,16 @@ const getKoreaTodayIso = (now: Date): string => {
   return `${values.year}-${values.month}-${values.day}T00:00:00+09:00`;
 };
 
+/** Shipments with no new event for this long stop getting a computed estimate. */
+const STALE_AFTER_DAYS = 14;
+
+const isStaleShipment = (latestEventIso: string | undefined, currentStatusCode: StatusCode, now: Date): boolean => {
+  if (currentStatusCode === 7 || !latestEventIso) return false;
+  const latest = new Date(latestEventIso);
+  if (Number.isNaN(latest.getTime())) return false;
+  return now.getTime() - latest.getTime() > STALE_AFTER_DAYS * 86_400_000;
+};
+
 type EstimatedDate = {
   date?: string;
   adjusted: boolean;
@@ -188,10 +198,16 @@ export const normalizeTrackingData = (params: {
 
   const lastUpdated =
     getLatestDatetime([getLastDatetime(deliveryEvents), getLastDatetime(customsEvents)]) ?? now.toISOString();
-  const customsEstimate = estimateCustomsClearanceDate(customsEvents, currentStatusCode, now);
-  const estimatedDeliveryDate = isPendingDomestic
-    ? undefined
-    : estimateDeliveryDate(deliveryEvents, customsEvents, currentStatusCode, customsEstimate.date, now);
+  const latestEventIso = getLatestDatetime([getLastDatetime(deliveryEvents), getLastDatetime(customsEvents)]);
+  const estimateStale = hasTrackingData && isStaleShipment(latestEventIso, currentStatusCode, now);
+  const rawCustomsEstimate = estimateCustomsClearanceDate(customsEvents, currentStatusCode, now);
+  // Once a shipment goes quiet, a recalculated "today" estimate misleads; keep only real dates.
+  const customsEstimate: EstimatedDate =
+    estimateStale && rawCustomsEstimate.adjusted ? { adjusted: false } : rawCustomsEstimate;
+  const estimatedDeliveryDate =
+    isPendingDomestic || estimateStale
+      ? undefined
+      : estimateDeliveryDate(deliveryEvents, customsEvents, currentStatusCode, customsEstimate.date, now);
   const estimatedCustomsClearanceDate = customsEstimate.date;
 
   return {
@@ -202,6 +218,7 @@ export const normalizeTrackingData = (params: {
     isPending: isPendingDomestic || undefined,
     estimatedCustomsClearanceDate,
     estimatedDeliveryDate,
+    estimateStale: estimateStale || undefined,
     customs: {
       events: customsEvents,
       estimateAdjusted: customsEstimate.adjusted || undefined

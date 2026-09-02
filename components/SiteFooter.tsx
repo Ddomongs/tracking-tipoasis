@@ -1,4 +1,5 @@
-import { ArrowUp, MessageCircle } from "lucide-react";
+import Link from "next/link";
+import { ArrowUp, MessageCircle, ShieldCheck } from "lucide-react";
 import { TALK_URL } from "@/lib/storefront";
 
 export const SiteFooter = () => (
@@ -10,6 +11,13 @@ export const SiteFooter = () => (
       </p>
     </div>
     <div className="flex flex-wrap items-center gap-2">
+      <Link
+        href="/privacy"
+        className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80"
+      >
+        <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+        개인정보처리방침
+      </Link>
       <a
         href={TALK_URL}
         target="_blank"

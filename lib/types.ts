@@ -55,6 +55,8 @@ export interface TrackResponseData {
   isPending?: boolean;
   estimatedCustomsClearanceDate?: string;
   estimatedDeliveryDate?: string;
+  /** True when the shipment has had no new event for weeks, so estimates are withheld. */
+  estimateStale?: boolean;
   customs: CustomsResult;
   delivery: DeliveryResult;
   timeline: TimelineStep[];

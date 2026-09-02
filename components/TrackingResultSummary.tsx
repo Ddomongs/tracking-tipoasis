@@ -114,6 +114,7 @@ const getStatusHint = (data: TrackResponseData): string => {
 };
 
 const getNextAction = (data: TrackResponseData): string => {
+  if (data.estimateStale) return "마지막 처리 이후 오래 지났습니다. 택배사 조회 또는 톡톡 문의로 현재 상태를 확인해 주세요.";
   if (data.delivery.ambiguous) return "위 조회창에서 이용한 택배사를 선택해 다시 조회해 주세요.";
   if (data.delivery.lookupUnavailable) return "잠시 후 다시 조회하거나 택배사 공식 조회 링크를 이용해 주세요.";
   if (data.isPending) return "정보 반영까지 시간이 걸릴 수 있어 2~3시간 뒤 다시 확인해 주세요.";
@@ -125,8 +126,16 @@ export const TrackingResultSummary = ({ data }: TrackingResultSummaryProps) => {
   const journeyIndex = getJourneyIndex(data);
   const deliveryCompleted = data.currentStatusCode === 7 && !data.isPending;
   const deliveryDateLabel = deliveryCompleted ? "배송 완료일" : "배송 완료 예상일";
-  const deliveryDateValue = data.isPending ? "일정 확인 중" : formatDate(data.estimatedDeliveryDate);
-  const deliveryDateBadge = data.isPending ? "정보 대기" : getDateBadge(data.estimatedDeliveryDate, deliveryCompleted);
+  const deliveryDateValue = data.isPending
+    ? "일정 확인 중"
+    : data.estimateStale
+      ? "배송 이력 확인 필요"
+      : formatDate(data.estimatedDeliveryDate);
+  const deliveryDateBadge = data.isPending
+    ? "정보 대기"
+    : data.estimateStale
+      ? "확인 필요"
+      : getDateBadge(data.estimatedDeliveryDate, deliveryCompleted);
   const customsCompleted = data.currentStatusCode >= 4 && !data.isPending;
   const customsDateLabel = customsCompleted
     ? data.estimatedCustomsClearanceDate
@@ -135,7 +144,9 @@ export const TrackingResultSummary = ({ data }: TrackingResultSummaryProps) => {
     : "통관완료 예상일";
   const customsDateValue = data.isPending
     ? "정보 등록 후 안내"
-    : customsCompleted && !data.estimatedCustomsClearanceDate
+    : data.estimateStale && !data.estimatedCustomsClearanceDate
+      ? "확인 필요"
+      : customsCompleted && !data.estimatedCustomsClearanceDate
       ? "통관 완료"
       : formatDate(data.estimatedCustomsClearanceDate);
   const customsDateBadge = data.isPending
@@ -198,7 +209,9 @@ export const TrackingResultSummary = ({ data }: TrackingResultSummaryProps) => {
           <p className="mt-3 break-keep text-sm leading-6 text-slate-600">
             {deliveryCompleted
               ? "택배사에서 확인된 배송 완료 시각입니다."
-              : data.estimatedDeliveryDate
+              : data.estimateStale
+                ? "마지막 처리 이후 2주 넘게 새 이력이 없어 예상일을 계산하지 않습니다."
+                : data.estimatedDeliveryDate
                 ? data.customs.estimateAdjusted
                   ? "현재도 통관 대기 중인 상태를 반영해 오늘 이후 기준으로 다시 계산했습니다."
                   : "현재 통관·배송 단계의 최근 처리 시각을 기준으로 계산한 예상일입니다."

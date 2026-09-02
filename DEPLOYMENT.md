@@ -144,6 +144,20 @@ Latest live verification returned `READY` for deployment `c8b7c28a-5fa1-43a7-995
 
 See [docs/insforge-deployment-runbook.md](./docs/insforge-deployment-runbook.md) for the full handoff, including the manual GitHub Actions deployment path.
 
+## AdSense Auto Ads
+
+Auto ads are controlled in the AdSense dashboard, not in code. Element-level exclusion is only available there
+(Ads -> By site -> Edit -> Excluded areas, which accepts CSS selectors). The page exposes stable selectors for it:
+
+```text
+#tracking                          hero + lookup section (keep ads out)
+#tracking-panel                    the light lookup card
+[data-tracking-result-summary]     result summary card
+[data-ad-exclude="true"]           every area we consider off-limits
+```
+
+The ad script is loaded with `lazyOnload` so it never delays first paint.
+
 ## Legacy Artifacts
 
 Previous ChemiCloud/CloudLinux packages under `release/`, `deploy/`, `backups/`, and `deploy.zip` are no longer used and are excluded from Git. They can be deleted safely.

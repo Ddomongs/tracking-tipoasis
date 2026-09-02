@@ -36,6 +36,7 @@ export const TrackResponseDataSchema = z.object({
   isPending: z.boolean().optional(),
   estimatedCustomsClearanceDate: z.string().datetime({ offset: true }).optional(),
   estimatedDeliveryDate: z.string().optional(),
+  estimateStale: z.boolean().optional(),
   customs: z.object({
     events: z.array(TrackingEventSchema),
     estimateAdjusted: z.boolean().optional()

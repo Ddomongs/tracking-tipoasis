@@ -91,7 +91,7 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
       <SiteHeader showStorefront={showStorefront} />
       <StoreContactPopup visible={!loading && !error && !result} />
       <main id="main-content" className="mx-auto min-h-[100dvh] w-full max-w-6xl px-4 pb-10 sm:px-6">
-        <section id="tracking" className="scroll-mt-24 pb-9 pt-4 sm:pb-14 sm:pt-10">
+        <section id="tracking" data-ad-exclude="true" className="scroll-mt-24 pb-9 pt-4 sm:pb-14 sm:pt-10">
           <motion.div
             className="grid gap-10 lg:grid-cols-12 lg:items-center lg:gap-8"
             initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
@@ -113,7 +113,11 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
               <LogisticsFlow />
             </div>
 
-            <Card className="relative overflow-hidden rounded-[1.4rem] border-white/70 bg-slate-50 p-4 text-slate-950 shadow-2xl sm:p-7 lg:col-span-6 lg:p-8">
+            <Card
+              id="tracking-panel"
+              data-ad-exclude="true"
+              className="relative overflow-hidden rounded-[1.4rem] border-white/70 bg-slate-50 p-4 text-slate-950 shadow-2xl sm:p-7 lg:col-span-6 lg:p-8"
+            >
               <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-cyan-300/30 blur-3xl" aria-hidden="true" />
               <div className="relative">
                 <p className="text-sm font-semibold text-cyan-700">배송 조회</p>
