@@ -18,8 +18,6 @@ import type {
   TrackingEvent
 } from "@/lib/types";
 
-export const preferredRegion = "icn1";
-
 const noStoreHeaders = {
   "Cache-Control": "no-store, max-age=0"
 };

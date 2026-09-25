@@ -10,9 +10,9 @@
 
 ## 2) 기술 스택
 
-- Framework: Next.js 14 (App Router)
+- Framework: Next.js 16 (App Router, Turbopack)
 - Language: TypeScript
-- UI: React 18, Tailwind CSS 3.4, shadcn/ui, Radix UI 기반 컴포넌트
+- UI: React 19, Tailwind CSS 3.4, shadcn/ui, Radix UI 기반 컴포넌트
 - Data parsing: `xml2js` (UNI-PASS XML), `cheerio` (CJ HTML)
 - Validation: `zod`
 - Cache: `node-cache` (15분 기본 TTL)
@@ -90,3 +90,13 @@ Key patterns:
 - Reference users with `auth.users(id)`; use `auth.uid()` in RLS policies.
 - For storage uploads, persist both the returned `url` and `key`.
 <!-- INSFORGE:END -->
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

@@ -2,13 +2,14 @@ import { redirect } from "next/navigation";
 import { HomePageClient } from "@/components/HomePageClient";
 
 type TrackingPathPageProps = {
-  params: {
+  params: Promise<{
     trackingNumber: string;
-  };
+  }>;
 };
 
-export default function TrackingPathPage({ params }: TrackingPathPageProps) {
-  const normalized = params.trackingNumber.trim();
+export default async function TrackingPathPage({ params }: TrackingPathPageProps) {
+  const { trackingNumber } = await params;
+  const normalized = trackingNumber.trim();
 
   if (!normalized) {
     redirect("/");

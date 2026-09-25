@@ -31,7 +31,7 @@ const unauthorizedResponse = (): NextResponse =>
     headers: { "WWW-Authenticate": `Basic realm="${INTERNAL_REALM}", charset="UTF-8"` }
   });
 
-export function middleware(request: NextRequest): NextResponse {
+export function proxy(request: NextRequest): NextResponse {
   const expectedPassword = process.env.INTERNAL_ACCESS_PASSWORD;
 
   if (!expectedPassword) {

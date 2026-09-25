@@ -4,7 +4,7 @@
 
 ## Stack
 
-- Next.js 14 App Router
+- Next.js 16 App Router
 - TypeScript
 - Tailwind CSS
 - shadcn/ui 스타일 컴포넌트

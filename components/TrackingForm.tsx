@@ -28,10 +28,19 @@ export const TrackingForm = ({
   initialTrackingNumber,
   surface = "dark"
 }: TrackingFormProps) => {
-  const [value, setValue] = useState(initialTrackingNumber ?? "");
+  const [value, setValue] = useState(initialTrackingNumber?.trim() ?? "");
+  const [syncedTrackingNumber, setSyncedTrackingNumber] = useState(initialTrackingNumber);
   const [carrierCode, setCarrierCode] = useState<DeliveryCarrierCode>("AUTO");
   const [submitting, setSubmitting] = useState(false);
   const initialSubmittedRef = useRef<string>("");
+
+  // A new tracking number from the URL replaces the input during render rather than in an effect.
+  if (initialTrackingNumber !== syncedTrackingNumber) {
+    setSyncedTrackingNumber(initialTrackingNumber);
+    const normalized = initialTrackingNumber?.trim();
+    if (normalized) setValue(normalized);
+  }
+
   const isLight = surface === "light";
   const needsInputAttention = value.trim().length === 0 && !submitting;
 
@@ -76,8 +85,6 @@ export const TrackingForm = ({
 
     const normalized = initialTrackingNumber.trim();
     if (!normalized) return;
-
-    setValue(normalized);
 
     if (initialSubmittedRef.current === normalized) return;
 

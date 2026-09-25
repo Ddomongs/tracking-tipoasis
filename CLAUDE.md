@@ -10,9 +10,9 @@
 
 ## 2) 기술 스택
 
-- Framework: Next.js 14 (App Router)
+- Framework: Next.js 16 (App Router, Turbopack)
 - Language: TypeScript
-- UI: React 18, Tailwind CSS 3.4, shadcn/ui, Radix UI 기반 컴포넌트
+- UI: React 19, Tailwind CSS 3.4, shadcn/ui, Radix UI 기반 컴포넌트
 - Data parsing: `xml2js` (UNI-PASS XML), `cheerio` (CJ HTML)
 - Validation: `zod`
 - Cache: `node-cache` (15분 기본 TTL)
@@ -69,5 +69,5 @@
 - 배포/재배포 지시가 들어오면 `DEPLOYMENT.md`를 우선 참조한다.
 - 기본 배포 경로는 `main` 브랜치 push다. 로컬 `npx vercel deploy --prod`는 긴급 상황에만 쓰고, 쓴 뒤에는 반드시 같은 코드를 커밋해 GitHub과 운영 코드를 일치시킨다.
 - 서버 비밀값(`UNIPASS_API_KEY`, `INTERNAL_ACCESS_PASSWORD`)은 Vercel 환경변수에만 두고 커밋하지 않는다.
-- `/internal/*` 경로는 `middleware.ts`의 기본 인증으로 보호된다. 운영에서 `INTERNAL_ACCESS_PASSWORD`가 비어 있으면 404로 숨긴다.
+- `/internal/*` 경로는 `proxy.ts`(Next 16에서 `middleware.ts`가 바뀐 이름)의 기본 인증으로 보호된다. 운영에서 `INTERNAL_ACCESS_PASSWORD`가 비어 있으면 404로 숨긴다.
 - 로컬에 남은 ChemiCloud 시절 산출물(`release/`, `deploy/`, `backups/`, `deploy.zip`, `*.log`)은 더 이상 쓰지 않으며 gitignore 대상이다.

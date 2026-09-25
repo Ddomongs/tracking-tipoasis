@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState, useSyncExternalStore } from "react";
 import { z } from "zod";
 import {
   AlertTriangle,
@@ -25,8 +25,10 @@ import {
 } from "@/lib/services/cs-reply-template";
 import {
   createRecordId,
+  getServerStoredRecordsSnapshot,
+  getStoredRecordsSnapshot,
   normalizePhone,
-  readStoredRecords,
+  subscribeStoredRecords,
   writeStoredRecords,
   type MismatchRecord
 } from "@/lib/services/cs-mismatch-storage";
@@ -50,15 +52,11 @@ export const InternalCsHelper = () => {
   const [error, setError] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
 
-  const [records, setRecords] = useState<MismatchRecord[]>([]);
+  const records = useSyncExternalStore(subscribeStoredRecords, getStoredRecordsSnapshot, getServerStoredRecordsSnapshot);
   const [templateKey, setTemplateKey] = useState<CustomsMismatchTemplateKey>("default");
   const [mismatchPhone, setMismatchPhone] = useState("");
   const [trackingMemo, setTrackingMemo] = useState("");
   const [mismatchContent, setMismatchContent] = useState<string>(CUSTOMS_MISMATCH_TEMPLATES.default);
-
-  useEffect(() => {
-    setRecords(readStoredRecords());
-  }, []);
 
   const sortedRecords = useMemo(
     () => [...records].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
@@ -143,19 +141,14 @@ export const InternalCsHelper = () => {
       templateKey,
       createdAt: new Date().toISOString()
     };
-    const nextRecords = [record, ...records];
-
-    writeStoredRecords(nextRecords);
-    setRecords(nextRecords);
+    writeStoredRecords([record, ...records]);
     setMismatchPhone("");
     setTrackingMemo("");
     setError("");
   };
 
   const handleDeleteRecord = (id: string) => {
-    const nextRecords = records.filter((record) => record.id !== id);
-    writeStoredRecords(nextRecords);
-    setRecords(nextRecords);
+    writeStoredRecords(records.filter((record) => record.id !== id));
   };
 
   return (

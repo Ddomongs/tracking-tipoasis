@@ -2,13 +2,13 @@ import { redirect } from "next/navigation";
 import { HomePageClient } from "@/components/HomePageClient";
 
 type HomePageProps = {
-  searchParams?: {
+  searchParams: Promise<{
     trackingNumber?: string | string[];
-  };
+  }>;
 };
 
-export default function HomePage({ searchParams }: HomePageProps) {
-  const raw = searchParams?.trackingNumber;
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const { trackingNumber: raw } = await searchParams;
   if (typeof raw === "string" && raw.trim()) {
     redirect(`/${encodeURIComponent(raw.trim())}`);
   }
