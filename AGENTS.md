@@ -18,7 +18,8 @@
 - Cache: `node-cache` (15분 기본 TTL)
 - Animation: `framer-motion`
 - Test: Playwright (E2E)
-- Hosting: ChemiCloud Shared Hosting (Node.js App, Node 18+)
+- Hosting: Vercel (프로젝트 `tracking-tipoasis`, 리전 `icn1`), UNI-PASS 프록시는 InsForge Edge Function
+- Source control: GitHub `Ddomongs/tracking-tipoasis` (main push 시 CI 및 Vercel 자동 배포)
 
 ## 3) 코딩 규칙
 
@@ -59,16 +60,17 @@
 - `/phase-kickoff`: 이번 Phase 목표/범위/완료 조건 정리
 - `/phase-verify`: lint/typecheck/build/e2e smoke 일괄 실행
 - `/api-contract-check`: Zod 스키마와 API 응답 형태 일치 검토
-- `/deploy-check`: 환경변수/standalone 빌드/런타임 확인
+- `/deploy-check`: Vercel 환경변수/빌드/런타임 확인
 
 새 반복 패턴이 2회 이상 발생하면 슬래시 커맨드 후보로 추가한다.
 
-## 8) 배포 이슈 재발 방지 규칙 (CloudLinux)
+## 8) 배포 규칙 (Vercel)
 
-- 배포/재배포 지시가 들어오면 `DEPLOYMENT.md`의 `CloudLinux Safe Deploy (Next.js standalone)` 절을 우선 참조한다.
-- cPanel `Application startup file`은 반드시 `.next/standalone/server.js`로 유지한다.
-- 배포 아카이브에는 루트 `node_modules/`를 포함하지 않는다.
-- 화면 스타일 깨짐 발생 시 `.next/standalone/.next/static` 및 `.next/standalone/public` 존재 여부를 먼저 확인한다.
+- 배포/재배포 지시가 들어오면 `DEPLOYMENT.md`를 우선 참조한다.
+- 기본 배포 경로는 `main` 브랜치 push다. 로컬 `npx vercel deploy --prod`는 긴급 상황에만 쓰고, 쓴 뒤에는 반드시 같은 코드를 커밋해 GitHub과 운영 코드를 일치시킨다.
+- 서버 비밀값(`UNIPASS_API_KEY`, `INTERNAL_ACCESS_PASSWORD`)은 Vercel 환경변수에만 두고 커밋하지 않는다.
+- `/internal/*` 경로는 `proxy.ts`(Next 16에서 `middleware.ts`가 바뀐 이름)의 기본 인증으로 보호된다. 운영에서 `INTERNAL_ACCESS_PASSWORD`가 비어 있으면 404로 숨긴다.
+- 로컬에 남은 ChemiCloud 시절 산출물(`release/`, `deploy/`, `backups/`, `deploy.zip`, `*.log`)은 더 이상 쓰지 않으며 gitignore 대상이다.
 
 <!-- INSFORGE:START -->
 ## InsForge backend
