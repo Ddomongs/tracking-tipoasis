@@ -4,11 +4,11 @@
 
 **Goal:** Replace the legacy home with one server shell (`TrackingPage`) shared by `/` and `/{번호}` and one client island (`LookupController`), so that the lookup area — 48 px header, form, format hint, '번호는 어디서 찾나요?', input assist, 상담·스토어 바로가기 row, '보통 이렇게 걸려요', notice line — fits the 375×812 first view; deep links paint the number bar and '조회하고 있어요' from the server HTML, other alphanumeric paths get the INVALID screen and everything else a real 404; framer-motion and every infinite animation are gone; and the home E2E contract moves from copy to roles and hooks.
 
-**Architecture:** `app/(public)/page.tsx` (static, `revalidate = 300`) and `app/(public)/[trackingNumber]/page.tsx` (three-way split with `classifyDeepLink`) both render the server component `TrackingPage`, which renders the client island `LookupController`. The island owns the view mode as component state (idle → loading → settled | error), wires S04's `useLookup`, S02's scrub/restore/ad signals and S05's primitives, and decides what to show through a pure display table (`components/lookup/lookup-display.ts`). Until S07 ships its result island, loading/result/error content comes from S04's `StatusSlot` inside the transitional `LegacyResultSection`, whose view model is derived through a dynamic import so `deriveTrackingView` and zod stay out of the lookup island's static graph. Pure input rules (normalization, pre-check, confusables, deep-link decision, paste extraction) live in `lib/tracking/number-input.ts`.
+**Architecture:** `app/(public)/page.tsx` (static, `revalidate = 300`) and `app/(public)/[trackingNumber]/page.tsx` (three-way split with `classifyDeepLink`) both render the server component `TrackingPage`, which renders the client island `LookupController`. The island owns the view mode as component state (idle → loading → settled | error), wires S04's `useLookup`, S02's scrub/restore/ad signals and S05's primitives, and decides what to show through a pure display table (`components/lookup/lookup-display.ts`). Until S07 ships its result island, loading/result/error content comes from S04's `StatusSlot` inside the transitional `LegacyResultSection`, whose view model comes from S04's `deriveStatusView` (`deriveTrackingView` plus S04's approval-2/3 fallbacks in `components/status-slot/status-view.ts`) through a dynamic import, so `deriveTrackingView`, `siteConfig` and zod stay out of the lookup island's static graph. Pure input rules (normalization, pre-check, confusables, deep-link decision, paste extraction) live in `lib/tracking/number-input.ts`.
 
 **Tech Stack:** Next.js 16.3.6 App Router (Turbopack), React 19.3, TypeScript strict, Tailwind CSS 3.4 with the S05 `tt-*` keys, zod 3.25 (untouched here), Playwright 1.55 (the only test runner; pure-function tests are Playwright tests without a `page`; budgets use a Chromium CDP session). framer-motion is uninstalled by Task 9. Windows: every `npm`/`npx`/`node` command runs in PowerShell 5.1.
 
-**Spec:** `docs/superpowers/specs/2026-09-26-tracking-renewal-ia-design.md` — §3 (routes, screen modes, two entrances, candidate B, noscript), §4 (first view, input, format hint, 바로가기 행, below the fold), §5 (0–0.4 s button label, focus and live rules, INVALID handling), §7 rows idle / loading / error INVALID, §8 (톡톡 ≤ 3 places, disclosure first), §9 (notices re-filtered after mount), §12 (a11y and budgets), §13 (visual rules, B supplements), §14 (components, test contract), §16 approvals 1, 2, 13. Roadmap and shared contract: `docs/superpowers/plans/2026-09-26-renewal-00-roadmap.md` (§4 ledger, §6 Task 0, §7 gate, §9 budgets, §10 File Map, §11 contract). Stage plans consumed: S01 (`…-01-r0-urgent-fixes.md`), S02 (`…-02-r1-number-protection.md`), S03 (`…-03-r2-state-core.md`), S05 (`…-05-design-tokens-common.md`). S04's plan (`…-04-r2-status-slot.md`) did not exist when this plan was written: S06 consumes S04 through contract §11.8–§11.9 only and verifies S04's real shapes in Task 0 (see "Consumed S04 shapes"). S07 (`…-07-result-area.md`) later replaces `LegacyResultSection` with its own result island, which takes over the settle-time focus, live sentence and document title from `LookupController`.
+**Spec:** `docs/superpowers/specs/2026-09-26-tracking-renewal-ia-design.md` — §3 (routes, screen modes, two entrances, candidate B, noscript), §4 (first view, input, format hint, 바로가기 행, below the fold), §5 (0–0.4 s button label, focus and live rules, INVALID handling), §7 rows idle / loading / error INVALID, §8 (톡톡 ≤ 3 places, disclosure first), §9 (notices re-filtered after mount), §12 (a11y and budgets), §13 (visual rules, B supplements), §14 (components, test contract), §16 approvals 1, 2, 13. Roadmap and shared contract: `docs/superpowers/plans/2026-09-26-renewal-00-roadmap.md` (§4 ledger, §6 Task 0, §7 gate, §9 budgets, §10 File Map, §11 contract). Stage plans consumed: S01 (`…-01-r0-urgent-fixes.md`), S02 (`…-02-r1-number-protection.md`), S03 (`…-03-r2-state-core.md`), S05 (`…-05-design-tokens-common.md`). S04 (`…-04-r2-status-slot.md`: `useLookup`, `LiveAnnouncer`, `StatusSlot`, `deriveStatusView`, the legacy result block of its `HomePageClient`, `INVALID_NUMBER_ERROR_ID`, its E2E helpers and specs) is consumed as that plan writes it; Task 0 Step 9 re-checks the merged code (see "Consumed S04 shapes"). S07 (`…-07-result-area.md`) later replaces `LegacyResultSection` with its own result island, which takes over the settle-time focus, live sentence and document title from `LookupController`.
 
 **Depends on:** S02, S04, S05 (and through them S01, S03).
 
@@ -92,10 +92,10 @@ Every task in every stage plan implicitly includes these. Values are copied from
 
 **S06-specific constraints**
 - S06 is user order #2 of R3. R3 is released only after S05, S06, S07 and S08 Part A are merged (roadmap §1), so the transitional states below never reach production on their own.
-- Result rendering stays S04's until S07: `LegacyResultSection` renders S04's `StatusSlot` plus the legacy details exactly as S04's `HomePageClient` rendered them. S04's E2E files (`tests/e2e/{status-slot,loading-timeline,failure-causes,cta-consistency}.spec.ts`), S02's E2E files and the result tests in `tests/tracking.spec.ts` must pass unchanged at every commit of this stage.
+- Result rendering stays S04's until S07: `LegacyResultSection` renders S04's `StatusSlot` plus the legacy details as S04's `HomePageClient` rendered them, with views from S04's `deriveStatusView` (so S04's approval fallbacks keep applying). S02's E2E files and the result tests in `tests/tracking.spec.ts` must pass unchanged at every commit of this stage. S04's E2E files (`tests/e2e/{status-slot,loading-timeline,failure-causes,cta-consistency}.spec.ts`) must pass at every commit; S06 changes them only where Task 5 Steps 14 and 16 say (the `INVALID_NUMBER_ERROR_ID` import path, and the assertions whose element S06's contract DOM moves: a server INVALID answer shown at the input, the form hidden in number-bar modes), each recorded in `tests/e2e/RULE-MAP.md` section S. `components/shell/TrackingPage.tsx` keeps S04's `#tracking-panel` id on a wrapper so S04's helpers (`tests/support/status-slot.ts`) resolve unchanged.
 - Legacy dark components that stay visible until S07/S08 (the legacy footer, the legacy `StorefrontShowcase`, S04's status slot with the legacy result details, the privacy article) sit on a `.tt-legacy-dark` band so they stay readable once the body switches to the tokens (Task 9).
 - Test contract migration (approval 2): `tests/e2e/RULE-MAP.md` is written first (Task 3). A legacy test is removed only in the task that adds the new assertions for its rules, and only after those assertions pass.
-- The lookup island never imports `zod`, `lib/schemas.ts`, `lib/delivery-carriers.ts`, `lib/tracking/derive-view.ts` or `lib/tracking/derive/*` statically (contract §11.1 rule 3; S03's `tests/unit/module-boundaries.spec.ts` enforces it for every file in `components/lookup/`, following imports transitively). `deriveTrackingView` and `siteConfig` are reached through a dynamic `import()` only.
+- The lookup island never imports `zod`, `lib/schemas.ts`, `lib/delivery-carriers.ts`, `lib/tracking/derive-view.ts` or `lib/tracking/derive/*` statically (contract §11.1 rule 3; S03's `tests/unit/module-boundaries.spec.ts` enforces it for every file in `components/lookup/`, following imports transitively). S04's `deriveStatusView` (which carries `deriveTrackingView` and `siteConfig`) is reached through a dynamic `import()` only.
 - eslint-config-next 16 runs the React Compiler rules (`react-hooks/set-state-in-effect`, `react-hooks/refs`, `react-hooks/purity`, `react-hooks/immutability`): no `setState` directly in an effect body, no `ref.current` read during render, no `Date.now()`/`new Date()` in a component body. Clock reads live in event handlers, effects, `useSyncExternalStore` snapshot functions or plain helpers outside components.
 - Customer copy: spec strings that are also selectors (§11.11: '통관·배송 조회', '문의', '본문으로 건너뛰기', '조회번호 (HBL 또는 운송장)', '국내 택배사', '자동으로 찾기', '배송 조회 결과', '상담·스토어 바로가기', '택배사를 CJ대한통운으로 맞췄어요', '되돌리기', '번호 변경', and the spec's '다른 번호 조회') are constants in the S06 module that renders them; the diagnosis and confusable sentences live in `lib/tracking/number-input.ts` (contract §11.8); the one customer sentence the spec does not give (the noscript notice) is added to `config/site.config.ts` as `lookup.copy.noscriptNotice` (Task 8). Everything else comes from `config/site.config.ts`.
 - Digits in tests come from `tests/fixtures/tracking-fixtures.ts` only. This plan is scanned by S01's repository guard: it contains no 10+ digit run except all-zero-prefixed fixture forms and the fake mobile number.
@@ -121,20 +121,24 @@ Additive; no §11 name is renamed or retyped. Each item goes into the stage summ
 2. **File Map additions (S06-owned):** `components/lookup/lookup-display.ts` (pure display table: `computeDisplay`, `viewModeOf`, `outcomeKey`, `stillActiveHomeNotice`, types `LookupDisplay`, `DisplayInput`, `DerivedView`, `InvalidInput`), `components/lookup/session.ts` (per-document snapshots: restore entry, client clock; the same-address history helpers when S02 shipped them), `components/lookup/PendingCard.tsx` (the static '조회하고 있어요' card of a deep link before its lookup starts and during its first 0.4 s), `tests/unit/lookup-display.spec.ts`. Only files in `components/lookup/` and S06's tests import them; S07 may change or delete them.
 3. **Config addition:** `LookupConfig.copy.noscriptNotice: string` (type in `lib/config/types.ts`, schema in `lib/config/schema.ts`, value in `config/site.config.ts`, expectation in `tests/unit/config.spec.ts`). The File Map rows of those four files gain "M S06".
 4. **Transitional CSS class `.tt-legacy-dark`** in `app/globals.css` (a dark band for legacy components). S07 removes its result-area users and S08 removes the rest (legacy footer, legacy showcase, privacy page) and deletes the class. The File Map row `app/(public)/privacy/page.tsx` gains "M S06" (Task 9 adds the class to its `<main>`).
-5. **`LegacyResultSection.tsx` transitional exports:** `export type LegacyDeriver = (outcome: LookupOutcome, now: Date) => TrackingViewModel`, `export function loadLegacyDeriver(): Promise<LegacyDeriver>`, `export function getLoadedLegacyDeriver(): LegacyDeriver | null`, `export function LegacyResultSection(props: StatusSlotProps): React.JSX.Element`. S07 replaces them with `loadResultModule()` and deletes the file.
+5. **`LegacyResultSection.tsx` transitional exports:** `export type LegacyDeriver = (outcome: LookupOutcome, now: Date) => TrackingViewModel`, `export function loadLegacyDeriver(): Promise<LegacyDeriver>` (a memoized dynamic import of S04's `components/status-slot/status-view.ts` that resolves to its `deriveStatusView`), `export function getLoadedLegacyDeriver(): LegacyDeriver | null`, `export function LegacyResultSection(props: StatusSlotProps): React.JSX.Element`. S07 replaces them with `loadResultModule()` and deletes the file. S04's legacy details block moves in with one change: its container loses `aria-label="배송 조회 결과"`, because `section#tracking` (labelled by the sr-only h1 '배송 조회 결과' in result modes) is now the page's one region with that name (S04 `status-slot.spec.ts` "…one result region…").
 6. **Deep-link metadata:** the `/[trackingNumber]` document title is `${stateGuide.loading.docTitle} · 배송 조회` ('조회 중 · 배송 조회') for valid numbers and `${stateGuide.invalidNumber.docTitle} · 배송 조회` for the INVALID screen; `robots: { index: false, follow: false }`.
 7. **Legacy components kept mounted:** the legacy `StorefrontShowcase` stays in `TrackingPage`'s idle extras (on a `.tt-legacy-dark` band) until S08 swaps in `StoreShowcase`; the legacy `components/SiteFooter.tsx` is mounted by `app/(public)/layout.tsx` until S08's `components/shell/SiteFooter.tsx`.
-8. **Stage-screen output path** follows S01's Addition 1: `test-artifacts/stage-screens/S06-<before|after>/` (read that path wherever the verbatim Task 0 / gate text says `test-results/stage-screens/`).
+8. **Stage-screen output path** follows S01's Addition 1: Task 0 Step 5 and gate G7 are the roadmap §6/§7 text with `test-artifacts/stage-screens/S06-<before|after>/` in place of `test-results/stage-screens/…`. Roadmap amendment requested: apply the same path in §6 Step 5 and §7 G7.
 9. **`FailureFallback`** (listed in the File Map without a contract signature): `FailureFallback(props: { readonly guideKey: "invalidNumber" | "serverError" }): React.JSX.Element` — the error CTA block `<div data-cta-state="error">` (h3 `ctaHeading`, sentence `nextAction`, then [톡톡으로 문의하기] as the block's first link) used on the INVALID form screen and when the result code cannot be loaded.
+10. **`INVALID_NUMBER_ERROR_ID` moves to `components/lookup/LookupForm.tsx`** (`export const INVALID_NUMBER_ERROR_ID = "tracking-invalid-error"`, the value S04 Addition 5 gave it in the deleted `components/TrackingForm.tsx`); the form's invalid sentence carries that id. S04's `components/status-slot/FailureNotice.tsx` and `tests/e2e/failure-causes.spec.ts` import it from the new path (Task 5 Step 14). `LookupForm.tsx` also exports `TRACKING_INPUT_ID`, `FORMAT_HINT_ID`, `InvalidInputView`, `LookupFormProps` (S06-private).
+11. **Transitional wrapper `<div id="tracking-panel">`** around `LookupController` in `components/shell/TrackingPage.tsx`: S04's E2E helpers and specs select `#tracking-panel …` (the id of S04's `HomePageClient` card). S07 re-points those selectors (its Task 8 Step 12) and may then drop the wrapper.
+12. **File Map additions (M S06):** `components/status-slot/FailureNotice.tsx` (import path of `INVALID_NUMBER_ERROR_ID` only), `tests/e2e/failure-causes.spec.ts`, `tests/e2e/cta-consistency.spec.ts`, `tests/e2e/status-slot.spec.ts` (the re-points of `tests/e2e/RULE-MAP.md` section S only). Roadmap rows become `components/status-slot/FailureNotice.tsx` "C S04, M S06, MV+M S07" and `tests/e2e/{status-slot,loading-timeline,failure-causes,cta-consistency}.spec.ts` "C S04, M S06 (three of them), M S07, M S08".
 
 ## Consumed S04 shapes
 
-S04's plan was not available when this plan was written. S06 relies on these contract facts and checks them in Task 0 Step 9; if one does not hold, stop and have this plan amended before Task 4.
+Taken from S04's plan (Tasks 3–7) and re-checked on the merged code in Task 0 Step 9; if one does not hold, stop and have this plan amended before Task 4.
 
-- **A1** `components/lookup/useLookup.ts` exports `useLookup(options: UseLookupOptions): UseLookupResult` exactly as §11.9; `onSettled(outcome, now)` is called once per settled request, outside render; `submit`, `retry`, `cancel`, `reset` are stable callbacks; `cancel` returns to `phase: "idle"`; `loading` is non-null while `state.phase === "loading"`.
-- **A2** `components/status-slot/StatusSlot.tsx` exports `interface StatusSlotProps` and `StatusSlot` exactly as §11.9. It attaches `headingRef` to its visible status `h2` (`tabIndex={-1}`), renders the result summary with `ReturnLinkButton` ('다시 볼 링크 복사'), and does **not** call `useAnnounce`, move focus or set `document.title` (S04's `HomePageClient` did those; `LookupController` takes them over).
-- **A3** `components/primitives/LiveAnnouncer.tsx` exports `LiveAnnouncerProvider` and `useAnnounce` as §11.9, and S04 mounted the provider inside `components/HomePageClient.tsx` (not in a layout).
-- **A4** S04's `HomePageClient` renders, after `<StatusSlot … />`, the legacy result details (customs/delivery timelines, `CustomerCta`, `RecommendedProducts` with S04's props and conditions). Task 5 moves that block into `LegacyResultSection` verbatim.
+- **A1** `components/lookup/useLookup.ts` exports `useLookup({ config, onSettled }: UseLookupOptions): UseLookupResult` exactly as §11.9; `onSettled(outcome, now)` is called once per settled request, outside render; `submit`, `retry`, `cancel`, `reset` are stable callbacks; `cancel` returns to `phase: "idle"`; `loading` is non-null while `state.phase === "loading"`. Its stage timer already announces `loading.announcement` ('조회를 시작했어요' on entering `short`, the 8 s sentence on entering `veryLong`), so `LookupController` announces only the settled result.
+- **A2** `components/status-slot/StatusSlot.tsx` exports `interface StatusSlotProps { state; loading; view; onAction; headingRef }` and `StatusSlot` exactly as §11.9 (root `data-status-slot`). `FailureNotice`/`ResultSummary` attach `headingRef` to the visible status `h2` (`tabIndex={-1}`); `CustomerCta` `variant="view"` renders `ReturnLinkButton` ('다시 볼 링크 복사') in every settled result. The slot does **not** call `useAnnounce`, move focus or set `document.title` (S04's `HomePageClient` announced settled results and moved focus; nothing in S04 sets the title). For a server INVALID answer `FailureNotice` imports `INVALID_NUMBER_ERROR_ID` from `components/TrackingForm.tsx`, which S06 deletes (Addition 10).
+- **A3** `components/primitives/LiveAnnouncer.tsx` exports `LiveAnnouncerProvider` and `useAnnounce` as §11.9; S04 mounted the provider in the exported wrapper `export const HomePageClient = (…) => (<LiveAnnouncerProvider><HomePageContent … /></LiveAnnouncerProvider>)`, and `useAnnounce` shares one import line with it.
+- **A4** S04's `HomePageClient` derives the view with `deriveStatusView(outcome, now)` from `components/status-slot/status-view.ts` (`deriveTrackingView` + `applyApprovalFallbacks(view, STATUS_SLOT_APPROVALS)`) and renders, below the `#tracking-panel` card, `{settledData ? (<section aria-label="배송 조회 결과" data-ad-exclude="true" …>` with the '상세 진행 내역' block (`CustomsTimeline`, `DeliveryTimeline` with `getDeliveryWaitingMessage`) and `RecommendedProducts context={recommendationStage}` (`recommendationStageOf(slotView)`)`</section>) : null}`. Task 5 Step 10 moves that block into `LegacyResultSection`.
+- **A5** S04's E2E helpers (`tests/support/status-slot.ts`) select `#tracking-panel [data-status-slot]` and `#tracking-panel form button[type="submit"]`; `loading-timeline.spec.ts`, `status-slot.spec.ts` and `cta-consistency.spec.ts` also use `#tracking-panel` inline (Addition 11 keeps the id). Three S04 assertions point at elements S06 moves (RULE-MAP section S).
 
 ## File Structure
 
@@ -158,6 +162,8 @@ S04's plan was not available when this plan was written. S06 relies on these con
 | `components/shell/TrackingPage.tsx` | Create (5), Modify (8) | Server shell |
 | `app/(public)/page.tsx`, `app/(public)/[trackingNumber]/page.tsx` | Modify (5) | Static `/`; three-way split, `?c=`, metadata |
 | `components/TrackingForm.tsx`, `LogisticsFlow.tsx`, `AssuranceRail.tsx`, `ServiceGuide.tsx` | Delete (5) | Replaced or retired |
+| `components/status-slot/FailureNotice.tsx` | Modify (5) | Import `INVALID_NUMBER_ERROR_ID` from `LookupForm` (Addition 10) |
+| `tests/e2e/failure-causes.spec.ts`, `tests/e2e/cta-consistency.spec.ts`, `tests/e2e/status-slot.spec.ts` | Modify (5) | S04 assertions re-pointed to the S06 DOM (RULE-MAP section S) |
 | `tests/unit/lookup-display.spec.ts` | Create (5), Modify (8) | Display table and notice re-filter |
 | `tests/e2e/deep-link.spec.ts` | Create (5) | Deep-link split, focus/live/title rules |
 | `tests/e2e/lookup-input.spec.ts` | Create (5), Modify (6, 8) | Input rules, pre-check, paste, no-JS paths |
@@ -201,21 +207,21 @@ S04's plan was not available when this plan was written. S06 relies on these con
   Expected: build exits 0. Start the production server in a background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`
   Wait until `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` prints `200`.
   Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='before'; $env:PW_STAGE='S06'; npx playwright test tests/tools/stage-screens.spec.ts`
-  Expected: PNGs in `test-results/stage-screens/S06-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
+  Expected: PNGs in `test-artifacts/stage-screens/S06-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
 - [ ] **Step 6: Baseline suite.** With the server still running: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test`
   Expected: record "N passed / M skipped / 0 failed" in the stage summary. Then stop the server (Step 4 command) and clear the flags: `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 
 **S06 notes on the standard steps above**
 - Step 1: the "Gated by" list is approvals 2, 1 and 13. Approval 2 is decided in Step 7 below (it gates the whole stage). Approval 1 selects Task 7 (`approved`) or Task 7F (anything else). Approval 13 selects Task 11 (`approved`) or its fallback step.
-- Step 5 and gate G7: the stage-screens tool writes to `test-artifacts/stage-screens/S06-before/` and `…/S06-after/` (S01 Addition 1).
+- Step 5 and gate G7: the output paths above and in G7 are the roadmap §6/§7 text with S01's Addition 1 applied (`test-artifacts/`, not `test-results/`: Playwright empties `test-results/` at the start of every run, so Step 6 would delete the before-set; contract deviation, Addition 8). Check after Step 5: `(Get-ChildItem test-artifacts/stage-screens/S06-before -Filter *.png).Count` prints `55` (S01's 7 and S04's 4 scenarios × 5 widths).
 
 - [ ] **Step 7 (S06): Approval 2 is a hard stop.** Open roadmap §4 and read row 2 ("Home restructure + test contract").
   - `approved` → write "approval 2: approved" into the stage summary and continue.
   - anything else → **stop the stage now.** Write into the stage summary: "S06 blocked: approval 2 is `<status>`. Spec §16 item 2 'if declined': the new states would have to keep the current test wording, so the home cannot drop the hero copy, LogisticsFlow, AssuranceRail, the input shake and the popup dialog that `tests/tracking.spec.ts` asserts; the operator must decide approval 2 or re-scope S06." Delete the stage branch (`git switch claude/tipoasis-tracking-renewal-ae0e3a; git branch -D renewal/s06-lookup-area`) and hand the summary to the operator. No other task runs.
 
 - [ ] **Step 8 (S06): Dependency artifacts exist.** Run:
-  `Test-Path -LiteralPath lib/privacy/url-scrub.ts, lib/privacy/session-restore.ts, lib/ads/ad-signals.ts, components/ads/AdLoader.tsx, components/ReturnLinkButton.tsx, tests/support/network-capture.ts, config/site.config.ts, lib/tracking/carriers.ts, lib/tracking/notices.ts, lib/tracking/loading-view.ts, lib/tracking/derive-view.ts, lib/tracking/number-format.ts, tests/fixtures/config-fixtures.ts, lib/tracking/lookup-state.ts, lib/tracking/fetch-track.ts, components/lookup/useLookup.ts, components/primitives/LiveAnnouncer.tsx, components/status-slot/StatusSlot.tsx, app/styles/tokens.css, components/primitives/Button.tsx, components/primitives/ButtonLink.tsx, components/primitives/NumberBar.tsx, components/primitives/TalkLink.tsx, components/primitives/NoticeBanner.tsx, components/primitives/ToneIcon.tsx, tests/unit/module-boundaries.spec.ts`
-  Expected: 26 lines `True`. Any `False` → stop; the stage that owns the file (S02 first six, S03 next seven, S04 next five, S05 next seven, S03 last) is not merged.
+  `Test-Path -LiteralPath lib/privacy/url-scrub.ts, lib/privacy/session-restore.ts, lib/ads/ad-signals.ts, components/ads/AdLoader.tsx, components/ReturnLinkButton.tsx, tests/support/network-capture.ts, config/site.config.ts, lib/tracking/carriers.ts, lib/tracking/notices.ts, lib/tracking/loading-view.ts, lib/tracking/derive-view.ts, lib/tracking/number-format.ts, tests/fixtures/config-fixtures.ts, lib/tracking/lookup-state.ts, lib/tracking/fetch-track.ts, components/lookup/useLookup.ts, components/primitives/LiveAnnouncer.tsx, components/status-slot/StatusSlot.tsx, components/status-slot/status-view.ts, tests/support/status-slot.ts, app/styles/tokens.css, components/primitives/Button.tsx, components/primitives/ButtonLink.tsx, components/primitives/NumberBar.tsx, components/primitives/TalkLink.tsx, components/primitives/NoticeBanner.tsx, components/primitives/ToneIcon.tsx, tests/unit/module-boundaries.spec.ts`
+  Expected: 28 lines `True`. Any `False` → stop; the stage that owns the file (S02 first six, S03 next seven, S04 next seven, S05 next seven, S03 last) is not merged.
 
 - [ ] **Step 9 (S06): Check the consumed S04 shapes (A1–A4).** Run:
   `Select-String -LiteralPath components/lookup/useLookup.ts -Pattern "export function useLookup|export interface UseLookup(Options|Result)"`
@@ -223,8 +229,11 @@ S04's plan was not available when this plan was written. S06 relies on these con
   `Select-String -LiteralPath components/status-slot/StatusSlot.tsx -Pattern "export interface StatusSlotProps|export function StatusSlot|headingRef|useAnnounce|document\.title|\.focus\("`
   Expected: lines for `export interface StatusSlotProps`, `export function StatusSlot` and at least one `headingRef` use; **no** line with `useAnnounce`, `document.title` or `.focus(`. If `useAnnounce`, `document.title` or `.focus(` appears, S04's slot already announces, titles or focuses: stop and have Task 5 Step 11 amended so `LookupController` does not do the same work twice.
   `Select-String -LiteralPath components/HomePageClient.tsx -Pattern "LiveAnnouncerProvider|<StatusSlot|useLookup\(|onSettled|useAnnounce|document\.title|\.focus\(|setAdSignals|scrubNumberFromUrl|readRestoreEntry|LOOKUP_HISTORY_MARK"`
-  Expected: `LiveAnnouncerProvider` (import and one element), `<StatusSlot`, `useLookup(`, S02's `setAdSignals`/`scrubNumberFromUrl`/`readRestoreEntry` lines, and S04's focus/title/announce lines. Copy the whole output into the stage summary. Any behavior of S04's `HomePageClient` that is **not** one of: lookup start on a deep link, candidate-B scrub, restore, focus to the status `h2`, one live sentence, document title, the same-address entry, or the rendering of the result block — stop and have Task 5 amended to port it.
-  Then print S04's result block for Task 5 Step 10: `git show claude/tipoasis-tracking-renewal-ae0e3a:components/HomePageClient.tsx` and copy the JSX that follows `<StatusSlot … />` (up to, not including, the storefront showcase, `ServiceGuide` and footer elements) plus the module-level helpers it uses into the stage summary under the heading "S04 result block".
+  Expected: `LiveAnnouncerProvider` (the shared `import { LiveAnnouncerProvider, useAnnounce }` line and the wrapper's opening and closing tags), `<StatusSlot`, `useLookup(`, `onSettled: handleSettled`, S02's `setAdSignals`/`scrubNumberFromUrl`/`readRestoreEntry` lines, S04's `announce(next.liveMessage)` and `.focus(` lines, and — when S02 shipped it — `LOOKUP_HISTORY_MARK`; no `document.title` line (S04 sets no title). Copy the whole output into the stage summary. Any behavior of S04's `HomePageClient` that is **not** one of: lookup start on a deep link or restore, candidate-B scrub, restore, focus to the status `h2` (the input for an invalid number), one live sentence for a settled result, the same-address entry, or the rendering of the result block — stop and have Task 5 amended to port it.
+  Then compare S04's result block with the copy Task 5 Step 10 moves: `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; git show claude/tipoasis-tracking-renewal-ae0e3a:components/HomePageClient.tsx | Select-String -Pattern 'recommendationStageOf|getDeliveryWaitingMessage|CustomsTimeline|DeliveryTimeline|RecommendedProducts context|aria-label="배송 조회 결과"'`
+  Expected: the definitions and uses of `recommendationStageOf` and `getDeliveryWaitingMessage`, the `CustomsTimeline`/`DeliveryTimeline` elements, `RecommendedProducts context={recommendationStage}` and the `<section aria-label="배송 조회 결과"` line — the block quoted in "Consumed S04 shapes" A4. If S04's merged block differs (a hotfix or an S04 deviation), carry the difference into Task 5 Step 10 (a) and write it into the stage summary under "S04 result block".
+  Then check who imports the S04 constant S06 moves: `git grep -n "INVALID_NUMBER_ERROR_ID" -- components tests`
+  Expected: `components/TrackingForm.tsx` (the definition), `components/status-slot/FailureNotice.tsx` and `tests/e2e/failure-causes.spec.ts` (imports from `@/components/TrackingForm`) and their uses. Any other importer: add it to Task 5 Step 14's re-point list.
 
 - [ ] **Step 10 (S06): Did S02 ship the same-address history entry?** Run: `Select-String -LiteralPath components/HomePageClient.tsx -Pattern "LOOKUP_HISTORY_MARK"`
   Expected: either no output (S02 Task 11 SKIPPED — write "same-address entry: not shipped, Task 5 Step 12 skipped") or one or more lines (write "same-address entry: shipped, Task 5 Step 12 runs").
@@ -817,7 +826,19 @@ Status values: `pending (Task N)` — the new assertion is planned in that task;
 | R7 | "in-transit state keeps shopping links out of the primary flow" | 배송 중은 쇼핑 링크를 주 흐름 밖에 | kept → S07 |
 | R8 | "delivered state leads with store choices" | 배송 완료는 스토어 선두 | kept → S07 |
 
-S02's (`url-privacy`, `session-restore`, `return-link`, `legacy-query-redirect`) and S04's (`status-slot`, `loading-timeline`, `failure-causes`, `cta-consistency`) E2E files select stage-independent hooks and are not changed by S06.
+S02's E2E files (`url-privacy`, `session-restore`, `return-link`, `legacy-query-redirect`) select stage-independent hooks and are not changed by S06. S04's (`status-slot`, `loading-timeline`, `failure-causes`, `cta-consistency`) keep running on the S06 page (its `#tracking-panel` id stays on a wrapper in `TrackingPage`); S06 changes only the rows of section S.
+
+## S — S04 E2E assertions re-pointed by S06 (Task 5 Steps 14 and 16)
+
+The rule of each row is unchanged; only the element moved (spec §3/§7: the form shows only in idle and INVALID modes, and the INVALID error sits at the input).
+
+| Id | S04 file → test | What moved | New assertion (file → test) | Status |
+|---|---|---|---|---|
+| S1 | `failure-causes.spec.ts` (import of `INVALID_NUMBER_ERROR_ID`) | the constant left the deleted `components/TrackingForm.tsx` | same constant and value from `components/lookup/LookupForm.tsx` | pending (Task 5) |
+| S2 | `failure-causes.spec.ts` → "invalid400: the cause's own notice, 톡톡 first in the block, no stores and no server wording" (and, when S04 Task 9 ran, "invalid400 (approval 3): the recovery action leads and 톡톡 stays the first link of the block") | a server INVALID answer renders at the input, not in the status slot | `failure-causes.spec.ts` → "invalid400 (S06): a server INVALID answer reopens the form with the error at the input, 톡톡 first in the error block" (the loops skip `invalid400`) | pending (Task 5) |
+| S3 | `cta-consistency.spec.ts` → "invalid400: no store, showcase, popup, recommendation or sponsored link anywhere on the page" | the error block of a server INVALID answer sits under the form | the same test finds `[data-cta-state="error"]` on the page instead of inside the slot | pending (Task 5) |
+| S4 | `status-slot.spec.ts` → "deep link: focus stays where the customer is once they interacted; the live region still reads the result" | a loading deep link shows the number bar, not the input | the customer's focus is the skip link (Tab); it is still there after the result is read | pending (Task 5) |
+| S5 | `status-slot.spec.ts` → "carrier chips look the same number up again with the chosen carrier" | result modes hide the form | [다른 번호 조회] brings the form back with the chosen carrier | pending (Task 5) |
 
 ## N — new S06 assertions without a legacy counterpart
 
@@ -996,7 +1017,7 @@ If S02 or a later stage added other elements or a `metadata` export to this file
 In `components/HomePageClient.tsx` (S04's version):
 1. Delete the line `import { SiteHeader } from "@/components/SiteHeader";` and the element `<SiteHeader showStorefront={showStorefront} />`.
 2. Delete the line `import { SiteFooter } from "@/components/SiteFooter";` and the element `<SiteFooter />`.
-3. Delete the `LiveAnnouncerProvider` import and its opening and closing tags; keep everything between them.
+3. Replace `import { LiveAnnouncerProvider, useAnnounce } from "@/components/primitives/LiveAnnouncer";` with `import { useAnnounce } from "@/components/primitives/LiveAnnouncer";`, and in the exported wrapper at the end of the file delete the `<LiveAnnouncerProvider>` and `</LiveAnnouncerProvider>` lines, keeping `<HomePageContent initialTrackingNumber={initialTrackingNumber} />` between the wrapper's parentheses.
 4. If `showStorefront` is now unused (TypeScript or eslint reports it), delete its `const showStorefront = …;` line.
 
 Check: `Select-String -LiteralPath components/HomePageClient.tsx -Pattern "SiteHeader|SiteFooter|LiveAnnouncerProvider"` → no output.
@@ -1042,11 +1063,12 @@ Run: `git add components/shell/SiteHeader.tsx "app/(public)/layout.tsx" componen
 - Modify: `app/(public)/page.tsx` (whole file), `app/(public)/[trackingNumber]/page.tsx` (whole file)
 - Delete: `components/HomePageClient.tsx`, `components/TrackingForm.tsx`, `components/LogisticsFlow.tsx`, `components/AssuranceRail.tsx`, `components/ServiceGuide.tsx`
 - Modify: `tests/tracking.spec.ts` (remove the four migrated home tests and S01's format-hint test), `tests/e2e/RULE-MAP.md` (status column), `tests/e2e/home.spec.ts` (append)
+- Modify (S04 files, Addition 12): `components/status-slot/FailureNotice.tsx` (one import line), `tests/e2e/failure-causes.spec.ts`, `tests/e2e/cta-consistency.spec.ts`, `tests/e2e/status-slot.spec.ts` (RULE-MAP section S)
 - Test: `tests/unit/lookup-display.spec.ts` (create), `tests/e2e/deep-link.spec.ts` (create), `tests/e2e/lookup-input.spec.ts` (create)
 
 **Interfaces:**
-- Consumes: Task 1 (`classifyDeepLink`, `parseCarrierParam`, `precheckNumber`); Task 4 (`SiteHeader`, the layout's `LiveAnnouncerProvider`, `.tt-legacy-dark`); S04 `useLookup`, `StatusSlot`/`StatusSlotProps`, `useAnnounce`, `LookupState`, `INITIAL_LOOKUP_STATE`; S03 `deriveLoadingView`, `deriveTrackingView` (dynamic import only), `groupTrackingNumber`, `requestCarrierView`, `CARRIER_NAMES`, `CONCRETE_CARRIER_CODES`, config named exports `lookup`, `notices`, `stateGuide`, `channels`, `siteConfig` (dynamic import only); S02 `scrubNumberFromUrl`, `SCRUB_TIMEOUT_MS`, `readRestoreEntry`, `saveRestoreEntry`, `currentNavigationKind`, `RestoreEntry`, `setAdSignals`, `waitForIdle` (test support); S05 `Button`, `NumberBar`, `TalkLink`, `ToneIcon`.
-- Produces: `TrackingPage(props: { readonly entry: TrackingEntry }): React.JSX.Element` and `LookupController(props: LookupControllerProps): React.JSX.Element` with `LookupControllerProps` exactly as contract §11.9; hooks `data-view-state` (idle/loading/settled/error) on the lookup section, `data-lookup-form="true"`, `data-guide-key="invalidNumber"` on the input error block, `data-cta-state="error"` on `FailureFallback`, `data-ad-exclude="true"` on the lookup section; the INVALID form screen; the deep-link shell (number bar + '조회하고 있어요'); Additions 2, 5, 6, 7, 9. Later tasks extend `LookupForm` (Task 6), `LookupController` (Tasks 6, 7/7F, 8), `lookup-display.ts` and `session.ts` (Task 8), `TrackingPage` (Task 8).
+- Consumes: Task 1 (`classifyDeepLink`, `parseCarrierParam`, `precheckNumber`); Task 4 (`SiteHeader`, the layout's `LiveAnnouncerProvider`, `.tt-legacy-dark`); S04 `useLookup`, `StatusSlot`/`StatusSlotProps`, `useAnnounce`, `LookupState`, `INITIAL_LOOKUP_STATE`, `deriveStatusView` (`components/status-slot/status-view.ts`, dynamic import only; it carries `deriveTrackingView` and `siteConfig`), S04's legacy result block (`CustomsTimeline`, `DeliveryTimeline`, `RecommendedProducts` with `RecommendationStage`); S03 `deriveLoadingView`, `groupTrackingNumber`, `requestCarrierView`, `CARRIER_NAMES`, `CONCRETE_CARRIER_CODES`, config named exports `lookup`, `notices`, `stateGuide`, `channels`; S02 `scrubNumberFromUrl`, `SCRUB_TIMEOUT_MS`, `readRestoreEntry`, `saveRestoreEntry`, `currentNavigationKind`, `RestoreEntry`, `setAdSignals`, `waitForIdle` (test support); S05 `Button`, `NumberBar`, `TalkLink`, `ToneIcon`.
+- Produces: `TrackingPage(props: { readonly entry: TrackingEntry }): React.JSX.Element` and `LookupController(props: LookupControllerProps): React.JSX.Element` with `LookupControllerProps` exactly as contract §11.9; hooks `data-view-state` (idle/loading/settled/error) on the lookup section, `data-lookup-form="true"`, `data-guide-key="invalidNumber"` on the input error block, `data-cta-state="error"` on `FailureFallback`, `data-ad-exclude="true"` on the lookup section; the INVALID form screen; the deep-link shell (number bar + '조회하고 있어요'); Additions 2, 5, 6, 7, 9, 10, 11, 12. Later tasks extend `LookupForm` (Task 6), `LookupController` (Tasks 6, 7/7F, 8), `lookup-display.ts` and `session.ts` (Task 8), `TrackingPage` (Task 8).
 
 - [ ] **Step 1: Write the failing display-table test**
 
@@ -1872,7 +1894,9 @@ import type { DeliveryCarrierCode } from "@/lib/types";
 
 export const TRACKING_INPUT_ID = "tracking-number";
 export const FORMAT_HINT_ID = "tracking-format-help";
-const ERROR_ID = "tracking-number-error";
+/** id of the invalid-number sentence (role="alert"); the value S04 gave it in TrackingForm, which S04's FailureNotice and E2E import (Addition 10). */
+export const INVALID_NUMBER_ERROR_ID = "tracking-invalid-error";
+const ERROR_ID = INVALID_NUMBER_ERROR_ID;
 const DIAGNOSIS_ID = "tracking-number-diagnosis";
 const CARRIER_ID = "tracking-carrier";
 const INPUT_LABEL = "조회번호 (HBL 또는 운송장)";
@@ -2017,15 +2041,20 @@ export function LookupForm({
 }
 ```
 
-- [ ] **Step 10: Create `components/lookup/LegacyResultSection.tsx` and move S04's result block into it**
+- [ ] **Step 10: Create `components/lookup/LegacyResultSection.tsx` with S04's result block**
 
-(a) Create the file:
+(a) Create the file. The details block below `StatusSlot` is S04's `HomePageClient` block ("Consumed S04 shapes" A4; S04 plan Task 6 Step 4 (c) and Task 4 Step 5) with S04's names mapped: `slotState` → `props.state`, `slotView` → `props.view`. One change: its container is a `<div>` without `aria-label="배송 조회 결과"` (Addition 5). If Task 0 Step 9 recorded a different merged block, carry the difference in here.
 
 ```tsx
 "use client";
 
+import { CustomsTimeline } from "@/components/CustomsTimeline";
+import { DeliveryTimeline } from "@/components/DeliveryTimeline";
+import { RecommendedProducts } from "@/components/RecommendedProducts";
+import type { RecommendationStage } from "@/components/RecommendedProducts";
 import { StatusSlot, type StatusSlotProps } from "@/components/status-slot/StatusSlot";
 import type { LookupOutcome, TrackingViewModel } from "@/lib/tracking/types";
+import type { TrackResponseData } from "@/lib/types";
 
 export type LegacyDeriver = (outcome: LookupOutcome, now: Date) => TrackingViewModel;
 
@@ -2038,16 +2067,17 @@ export function getLoadedLegacyDeriver(): LegacyDeriver | null {
 }
 
 /**
- * deriveTrackingView and the full config through a dynamic import (contract §11.1 rule 3): they stay out of the lookup
- * island's static graph. Preloaded when a lookup starts; a failed chunk can be retried. S07 replaces this with
+ * S04's deriveStatusView (deriveTrackingView plus S04's approval-2/3 fallbacks) through a dynamic import (contract §11.1
+ * rule 3): deriveTrackingView, siteConfig and zod stay out of the lookup island's static graph, and the page shows exactly
+ * the views S04's E2E files expect. Preloaded when a lookup starts; a failed chunk can be retried. S07 replaces this with
  * loadResultModule() and deletes the file.
  */
 export function loadLegacyDeriver(): Promise<LegacyDeriver> {
   if (loadedDeriver !== null) return Promise.resolve(loadedDeriver);
   if (pendingDeriver === null) {
-    pendingDeriver = Promise.all([import("@/lib/tracking/derive-view"), import("@/config/site.config")]).then(
-      ([derive, config]) => {
-        const deriver: LegacyDeriver = (outcome, now) => derive.deriveTrackingView(outcome, now, config.siteConfig);
+    pendingDeriver = import("@/components/status-slot/status-view").then(
+      (statusView) => {
+        const deriver: LegacyDeriver = statusView.deriveStatusView;
         loadedDeriver = deriver;
         return deriver;
       },
@@ -2060,29 +2090,74 @@ export function loadLegacyDeriver(): Promise<LegacyDeriver> {
   return pendingDeriver;
 }
 
+// ---- S04's legacy result details (from S04's HomePageClient), unchanged until S07 deletes this file ----
+
+const getDeliveryWaitingMessage = (data: TrackResponseData): string | undefined => {
+  if (data.delivery.events.length > 0) return undefined;
+
+  if (data.delivery.ambiguous) {
+    return "같은 번호가 여러 택배사에서 확인됐습니다. 위에서 택배사를 선택해 다시 조회해 주세요.";
+  }
+
+  if (data.delivery.lookupUnavailable) {
+    return data.delivery.trackingUrl
+      ? "택배사 조회가 지연되고 있습니다. 아래 링크에서 확인해 주세요."
+      : "자동 조회가 지연되고 있습니다. 위에서 택배사를 선택해 다시 조회해 주세요.";
+  }
+
+  if (data.isPending) {
+    return "상품이 아직 국내 도착 전이라 통관·배송 내역이 없습니다. 구매한 쇼핑몰을 선택하거나 톡톡으로 문의해 주세요.";
+  }
+
+  if (data.customs.events.length > 0 && data.currentStatusCode >= 4) {
+    return "택배사 인계를 기다리고 있습니다. 보통 통관 완료 후 0~1영업일 내 인계됩니다.";
+  }
+
+  return undefined;
+};
+
+/** Inline recommendations only where the view places them (spec §8); the legacy list knows pending, in transit and delivered. */
+const recommendationStageOf = (view: TrackingViewModel | null): RecommendationStage | null => {
+  if (view === null || view.mode !== "settled" || view.revenue.recommendations !== "inline") return null;
+  const context = view.revenue.recommendationContext;
+  return context === "pending" || context === "inTransit" || context === "delivered" ? context : null;
+};
+
 /**
- * Transitional result area (S06 → S07): S04's status slot, then the legacy result details exactly as S04's
- * HomePageClient rendered them, on the dark legacy band.
+ * Transitional result area (S06 → S07): S04's status slot, then S04's legacy result details, on the dark legacy band.
+ * The details container has no accessible name: section#tracking is the page's one '배송 조회 결과' region.
  */
 export function LegacyResultSection(props: StatusSlotProps): React.JSX.Element {
+  const settledData = props.state.phase === "settled" ? props.state.outcome.data : null;
+  const recommendationStage = recommendationStageOf(props.view);
   return (
     <div className="tt-legacy-dark flex flex-col gap-4 px-4 py-4">
       <StatusSlot {...props} />
-      {/* S04 result block */}
+      {settledData ? (
+        <div data-ad-exclude="true" className="space-y-4 pb-8">
+          <section className="space-y-3 pt-3" aria-labelledby="tracking-details-title">
+            <div>
+              <h3 id="tracking-details-title" className="text-lg font-bold text-slate-50">상세 진행 내역</h3>
+              <p className="mt-1 text-sm text-slate-400">최근 통관과 국내 배송 내역이 필요한 경우에만 확인하세요.</p>
+            </div>
+            <div className="grid items-start gap-4 lg:grid-cols-2">
+              <div className="order-2 lg:order-1">
+                <CustomsTimeline events={settledData.customs.events} />
+              </div>
+              <div className="order-1 lg:order-2">
+                <DeliveryTimeline delivery={settledData.delivery} waitingMessage={getDeliveryWaitingMessage(settledData)} />
+              </div>
+            </div>
+          </section>
+          {recommendationStage ? <RecommendedProducts context={recommendationStage} /> : null}
+        </div>
+      ) : null}
     </div>
   );
 }
 ```
 
-(b) Replace the comment `{/* S04 result block */}` with the "S04 result block" recorded in Task 0 Step 9, following these rules:
-1. Keep S04's elements, their order, props and conditions exactly — they are what S04's E2E files and the R-rows of `tests/e2e/RULE-MAP.md` assert.
-2. Rename S04's identifiers: S04's lookup state (`state`, `lookup.state` or similar) → `props.state`; S04's view model variable → `props.view`; the settled data S04 read from the settled state → `(props.state.phase === "settled" ? props.state.outcome.data : null)` (keep S04's null checks around it); S04's action callback → `props.onAction`.
-3. Copy the imports those elements need (for example `CustomsTimeline`, `DeliveryTimeline`, `CustomerCta`, `RecommendedProducts`) and every module-level helper they call (for example S04's delivery waiting-message helper) into this file, below the existing imports and above `LegacyDeriver`.
-4. Do not copy `StatusSlot` itself, focus/title/announce code, the scrub/restore/ad-signal code, the same-address history code, the storefront showcase, `ServiceGuide` or the footer.
-
-For orientation only, the block S04 started from (commit `e079461`, `components/HomePageClient.tsx` lines 179–197) rendered, inside the result section: a `<section aria-labelledby="tracking-details-title">` with the heading '상세 진행 내역', `CustomsTimeline events={result.customs.events}` and `DeliveryTimeline delivery={result.delivery} waitingMessage={getDeliveryWaitingMessage(result)}` in a two-column grid, then `CustomerCta variant="result" …` and `RecommendedProducts …`. S04's version is authoritative.
-
-Check: `Select-String -LiteralPath components/lookup/LegacyResultSection.tsx -Pattern "HomePageClient|useAnnounce|document\.title|scrubNumberFromUrl"` → no output.
+(b) Check: `Select-String -LiteralPath components/lookup/LegacyResultSection.tsx -Pattern "HomePageClient|useAnnounce|document\.title|scrubNumberFromUrl|derive-view|site\.config"` → no output (the only derive code arrives through `status-view`'s dynamic import).
 
 - [ ] **Step 11: Create `components/lookup/LookupController.tsx`**
 
@@ -2188,7 +2263,6 @@ export function LookupController({ entry, idleExtras }: LookupControllerProps): 
   const interactedRef = useRef(false);
   const derivedSeqRef = useRef(0);
   const handledSeqRef = useRef<number | null>(null);
-  const announcedLoadingRef = useRef<string | null>(null);
 
   const [inputValue, setInputValue] = useState(() =>
     entry.kind === "deepLink" ? entry.number : entry.kind === "invalidDeepLink" ? entry.input : ""
@@ -2268,7 +2342,9 @@ export function LookupController({ entry, idleExtras }: LookupControllerProps): 
     };
   }, []);
 
-  // A settled result: one live sentence, the document title, and focus to the visible status h2 (spec §5).
+  // A settled lookup: the document title, one live sentence for a result, and focus to the visible status h2 (spec §5).
+  // Errors are read through their own role="alert" sentence, so only results are announced (as S04's HomePageClient did).
+  // The loading sentences ('조회를 시작했어요', the 8 s sentence) are announced by S04's useLookup at its stage changes.
   const settled = display.kind === "slot" && display.derived !== null ? display.derived : null;
   const settledEntry = activeRequest?.entry ?? null;
   useEffect(() => {
@@ -2276,20 +2352,11 @@ export function LookupController({ entry, idleExtras }: LookupControllerProps): 
     handledSeqRef.current = settled.seq;
     if (settled.view !== null) {
       document.title = settled.view.documentTitle;
-      announce(settled.view.liveMessage);
+      if (settled.view.mode === "settled") announce(settled.view.liveMessage);
     }
     if (settledEntry !== null && PASSIVE_ENTRIES.has(settledEntry) && interactedRef.current) return;
     headingRef.current?.focus();
   }, [announce, settled, settledEntry]);
-
-  // Loading: '조회를 시작했어요' on entering the short stage, the 8 s sentence once (spec §5), each once per lookup.
-  const loadingAnnouncement = state.phase === "loading" ? (loading?.announcement ?? null) : null;
-  const loadingKey = state.phase === "loading" && loading !== null ? `${state.startedAt}|${loading.stage}` : null;
-  useEffect(() => {
-    if (loadingKey === null || loadingAnnouncement === null || announcedLoadingRef.current === loadingKey) return;
-    announcedLoadingRef.current = loadingKey;
-    announce(loadingAnnouncement);
-  }, [announce, loadingAnnouncement, loadingKey]);
 
   const pageTitle = pageTitleOf(display, loadingLike);
   useEffect(() => {
@@ -2483,7 +2550,7 @@ export function pushLookupHistoryEntry(): void {
      readonly derived: DerivedView;
    }
    ```
-3. Below `const announcedLoadingRef = useRef<string | null>(null);` add:
+3. Below `const handledSeqRef = useRef<number | null>(null);` add:
    ```ts
    const manualPendingRef = useRef(false);
    const lastShownRef = useRef<ReplayFrame | null>(null);
@@ -2551,7 +2618,7 @@ import type { TrackingEntry } from "@/lib/tracking/types";
 /**
  * Server shell of '/' and '/{번호}' (spec §3 "두 라우트는 같은 서버 셸", §14). The only client island is LookupController.
  * `entry`: home; a valid deep link (painted as the number bar + '조회하고 있어요'); an INVALID deep link (the form with
- * the error, no API call).
+ * the error, no API call). The `tracking-panel` wrapper is transitional (Addition 11): S04's E2E helpers select it.
  */
 export function TrackingPage({ entry }: { readonly entry: TrackingEntry }): React.JSX.Element {
   return (
@@ -2560,7 +2627,9 @@ export function TrackingPage({ entry }: { readonly entry: TrackingEntry }): Reac
       tabIndex={-1}
       className="mx-auto w-full max-w-[var(--tt-column)] bg-tt-surface text-tt-ink outline-none"
     >
-      <LookupController entry={entry} homeNotice={null} idleExtras={<IdleExtras />} />
+      <div id="tracking-panel">
+        <LookupController entry={entry} homeNotice={null} idleExtras={<IdleExtras />} />
+      </div>
     </main>
   );
 }
@@ -2639,10 +2708,15 @@ export default async function TrackingPathPage({ params, searchParams }: Trackin
 }
 ```
 
-- [ ] **Step 14: Delete the replaced components**
+- [ ] **Step 14: Delete the replaced components and re-point what imported them**
 
 Run: `git rm components/HomePageClient.tsx components/TrackingForm.tsx components/LogisticsFlow.tsx components/AssuranceRail.tsx components/ServiceGuide.tsx`
+Re-point S04's two importers of `INVALID_NUMBER_ERROR_ID` (Addition 10; RULE-MAP S1), plus any other importer Task 0 Step 9 listed:
+1. In `components/status-slot/FailureNotice.tsx` replace `import { INVALID_NUMBER_ERROR_ID } from "@/components/TrackingForm";` with `import { INVALID_NUMBER_ERROR_ID } from "@/components/lookup/LookupForm";`.
+2. In `tests/e2e/failure-causes.spec.ts` replace `import { INVALID_NUMBER_ERROR_ID } from "@/components/TrackingForm";` with `import { INVALID_NUMBER_ERROR_ID } from "@/components/lookup/LookupForm";`.
+This also removes the static path `FailureNotice` → `TrackingForm` → `lib/delivery-carriers.ts` (zod) that S03's module-boundaries test would report for `components/lookup/LegacyResultSection.tsx`.
 Check: `git grep -n -e "HomePageClient" -e "TrackingForm" -e "LogisticsFlow" -e "AssuranceRail" -e "ServiceGuide" -- app components lib` → no output.
+Check: `git grep -n -e "@/components/TrackingForm" -e "@/components/HomePageClient" -e "@/components/LogisticsFlow" -e "@/components/AssuranceRail" -e "@/components/ServiceGuide" -- tests` → no output.
 Run: `if (Test-Path .next) { Remove-Item -Recurse -Force .next }; npm run typecheck`
 Expected: exit 0.
 
@@ -2651,7 +2725,7 @@ Expected: exit 0.
 Run (port 43210 free): `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npx playwright test tests/e2e/deep-link.spec.ts tests/e2e/lookup-input.spec.ts tests/e2e/home.spec.ts`
 Expected: deep-link `15 passed, 1 skipped` (the production-only cache test), lookup-input `8 passed`, home `12 passed`.
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit/lookup-display.spec.ts tests/unit/module-boundaries.spec.ts tests/unit/number-input.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
-Expected: all pass. If `module-boundaries.spec.ts` names `components/lookup/LegacyResultSection.tsx → …` through a file under `components/status-slot/` (S04's slot reaches zod, `lib/delivery-carriers.ts` or derive code statically), load the slot lazily instead: in `LegacyResultSection.tsx` replace `import { StatusSlot, type StatusSlotProps } from "@/components/status-slot/StatusSlot";` with
+Expected: all pass. (S04's slot, `CustomerCta`, `ReturnLinkButton`, the legacy timelines and `RecommendedProducts` import no forbidden module once Step 14 re-pointed `FailureNotice`; `status-view.ts` is reached only through `import()`.) If `module-boundaries.spec.ts` still names `components/lookup/LegacyResultSection.tsx → …` through a file under `components/status-slot/` (a merged S04 file reaches zod, `lib/delivery-carriers.ts` or derive code statically), load the slot lazily instead: in `LegacyResultSection.tsx` replace `import { StatusSlot, type StatusSlotProps } from "@/components/status-slot/StatusSlot";` with
 ```tsx
 import dynamic from "next/dynamic";
 import type { StatusSlotProps } from "@/components/status-slot/StatusSlot";
@@ -2660,7 +2734,7 @@ const StatusSlot = dynamic(() => import("@/components/status-slot/StatusSlot").t
 ```
 and run both commands again (the slot renders only after a lookup starts, so nothing painted by the server changes).
 
-- [ ] **Step 16: Remove the migrated legacy tests and record the migration**
+- [ ] **Step 16: Remove the migrated legacy tests, re-point S04's moved assertions and record both**
 
 In `tests/tracking.spec.ts` delete, each from its first line through its closing `});` (for the loop: through the loop's closing `}`):
 1. the test starting `test("home uses customer language without brand, robot, or AI copy", async ({ page }) => {`;
@@ -2671,10 +2745,96 @@ In `tests/tracking.spec.ts` delete, each from its first line through its closing
 Check: `Select-String -LiteralPath tests/tracking.spec.ts -Pattern "home uses customer language|format hint instead|semantic motion is finite|layout keeps motion inside" ` → no output.
 In `tests/e2e/RULE-MAP.md` set the Status of rows H1, F1, L1 and L2 to `migrated (Task 5)` and of row M1 to `migrated (Task 5); budget pending (Task 9)`.
 
+Re-point the S04 assertions whose element S06 moved (RULE-MAP section S; approval 2 covers these structural re-points, and each rule keeps its assertion):
+
+(a) S2 — `tests/e2e/failure-causes.spec.ts`. Replace
+```ts
+for (const fixture of Object.keys(CAUSE_BY_FIXTURE) as FailureFixture[]) {
+```
+with
+```ts
+// S06: a server INVALID answer is shown at the input, not in the slot; its test follows this loop (RULE-MAP S2).
+for (const fixture of (Object.keys(CAUSE_BY_FIXTURE) as FailureFixture[]).filter((key) => key !== "invalid400")) {
+```
+If the file contains `for (const fixture of Object.keys(APPROVED_PRIMARY) as FailureFixture[]) {` (S04 Task 9 ran, approval 3), replace it with
+```ts
+for (const fixture of (Object.keys(APPROVED_PRIMARY) as FailureFixture[]).filter((key) => key !== "invalid400")) {
+```
+Directly above the line `test("an invalid number keeps focus in the input and describes the error there", async ({ page }) => {` insert:
+```ts
+test("invalid400 (S06): a server INVALID answer reopens the form with the error at the input, 톡톡 first in the error block", async ({ page }) => {
+  const view = expectedFailure("invalidNumber", FAKE.domestic);
+  await page.clock.setFixedTime(FIXTURE_NOW);
+  await mockTrack(page, "invalid400");
+  await page.goto("/");
+  await lookUp(page, FAKE.domestic);
+  await expect(page.locator('[data-view-state="error"]')).toHaveCount(1);
+  const block = page.locator('[data-guide-key="invalidNumber"]');
+  await expect(block.getByRole("alert")).toHaveText(view.title);
+  await expect(block.getByRole("heading")).toHaveCount(0);
+  await expect(page.getByLabel(INPUT_LABEL, { exact: true })).toBeFocused();
+  const cta = page.locator('[data-cta-state="error"]');
+  await expect(cta.getByRole("heading", { level: 3 })).toHaveText(view.nextAction.heading ?? "");
+  await expect(cta.getByRole("link").first()).toHaveAttribute("href", siteConfig.channels.talk.url);
+  // The form's [조회하기] is the one filled button of the INVALID screen (Open issue 5).
+  await expect(page.locator('[data-slot="button"][data-variant="primary"]')).toHaveCount(1);
+  await expect(page.locator('a[rel~="sponsored"]')).toHaveCount(0);
+  await expect(page.locator("[data-affiliate-group], [data-recommended-products], [data-storefront-showcase]")).toHaveCount(0);
+  const message = serverMessageOf("invalid400");
+  if (message !== null) await expect(page.getByText(message)).toHaveCount(0);
+});
+
+```
+
+(b) S3 — `tests/e2e/cta-consistency.spec.ts`. Replace
+```ts
+    await expect(statusSlot(page).locator('[data-cta-state="error"]')).toBeVisible();
+```
+with
+```ts
+    // S06: a server INVALID answer shows its error block under the form, outside the slot (RULE-MAP S3).
+    await expect(page.locator('[data-cta-state="error"]')).toBeVisible();
+```
+
+(c) S4 — `tests/e2e/status-slot.spec.ts`. Replace
+```ts
+  const input = page.getByLabel(INPUT_LABEL, { exact: true });
+  await input.click();
+  await held.release(0, data);
+  await expect(liveRegion(page)).toHaveText(expectedResult(data, FIXTURE_NOW, "deepLink").liveMessage);
+  await expect(input).toBeFocused();
+```
+with
+```ts
+  // S06: a loading deep link shows the number bar, not the input; the customer tabs to the skip link (RULE-MAP S4).
+  const skipLink = page.getByRole("link", { name: "본문으로 건너뛰기" });
+  await page.keyboard.press("Tab");
+  await expect(skipLink).toBeFocused();
+  await held.release(0, data);
+  await expect(liveRegion(page)).toHaveText(expectedResult(data, FIXTURE_NOW, "deepLink").liveMessage);
+  await expect(skipLink).toBeFocused();
+```
+and delete the line `  INPUT_LABEL,` from that file's `../support/status-slot` import (no other use is left; `npx eslint` would report it).
+
+(d) S5 — `tests/e2e/status-slot.spec.ts`. Replace
+```ts
+  await expect(page.getByRole("combobox", { name: CARRIER_LABEL })).toHaveValue("CJ");
+```
+with
+```ts
+  // S06: result modes show the number bar; [다른 번호 조회] brings the form back with the chosen carrier (RULE-MAP S5).
+  await page.getByRole("button", { name: "다른 번호 조회" }).click();
+  await expect(page.getByRole("combobox", { name: CARRIER_LABEL })).toHaveValue("CJ");
+```
+
+Run: `npx eslint tests/e2e/failure-causes.spec.ts tests/e2e/cta-consistency.spec.ts tests/e2e/status-slot.spec.ts; npm run typecheck`
+Expected: eslint prints nothing; `tsc` exits 0.
+In `tests/e2e/RULE-MAP.md` set the Status of rows S1–S5 to `re-pointed (Task 5)`.
+
 - [ ] **Step 17: Run the whole suite, lint and build**
 
 Run (port 43210 free): `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npx playwright test`
-Expected: 0 failed — in particular S02's `url-privacy`, `session-restore`, `return-link`, `legacy-query-redirect`, S04's `status-slot`, `loading-timeline`, `failure-causes`, `cta-consistency`, S01's `seo-routes` and `internal-isolation`, and the remaining `tests/tracking.spec.ts` tests (C1, P1, S1 and the R rows) pass unchanged.
+Expected: 0 failed — in particular S02's `url-privacy`, `session-restore`, `return-link`, `legacy-query-redirect`, S01's `seo-routes` and `internal-isolation`, and the remaining `tests/tracking.spec.ts` tests (C1, P1, S1 and the R rows) pass unchanged; S04's `status-slot`, `loading-timeline`, `failure-causes`, `cta-consistency` pass with only the Step 14/16 re-points (they reach the form, the slot and the CTA through `#tracking-panel`, which `TrackingPage` keeps).
 Run: `npm run lint; npm run typecheck`
 Expected: both exit 0.
 Run: `npm run build`
@@ -2684,7 +2844,7 @@ Expected: exit 0; the route table shows `○ /` with a revalidate time of `5m` a
 
 Run:
 ```powershell
-git add components/lookup components/shell/TrackingPage.tsx "app/(public)/page.tsx" "app/(public)/[trackingNumber]/page.tsx" tests/unit/lookup-display.spec.ts tests/e2e/deep-link.spec.ts tests/e2e/lookup-input.spec.ts tests/e2e/home.spec.ts tests/e2e/RULE-MAP.md tests/tracking.spec.ts
+git add components/lookup components/shell/TrackingPage.tsx "app/(public)/page.tsx" "app/(public)/[trackingNumber]/page.tsx" tests/unit/lookup-display.spec.ts tests/e2e/deep-link.spec.ts tests/e2e/lookup-input.spec.ts tests/e2e/home.spec.ts tests/e2e/RULE-MAP.md tests/tracking.spec.ts tests/e2e/failure-causes.spec.ts tests/e2e/cta-consistency.spec.ts tests/e2e/status-slot.spec.ts
 git add -u components
 git commit -m "feat: serve / and /{number} from one tracking shell with the lookup island"
 ```
@@ -3539,7 +3699,10 @@ export function TrackingPage({ entry }: { readonly entry: TrackingEntry }): Reac
           </p>
         </noscript>
       )}
-      <LookupController entry={entry} homeNotice={homeNotice} idleExtras={<IdleExtras />} />
+      {/* Transitional wrapper (Addition 11): S04's E2E helpers select #tracking-panel until S07 re-points them. */}
+      <div id="tracking-panel">
+        <LookupController entry={entry} homeNotice={homeNotice} idleExtras={<IdleExtras />} />
+      </div>
     </main>
   );
 }
@@ -3931,8 +4094,30 @@ export const TimelineStep = ({ label, datetime, detail, state }: TimelineStepPro
 );
 ```
 
-In `components/CustomerCta.tsx` remove the floating variant (spec §14 "CustomerCta floating 변형" 삭제): in the props type keep only the `variant: "result"` member; delete `const isFloating = variant === "floating";`; replace each `isFloating ? A : B` with `B` and delete each `isFloating && X` / `!isFloating && X` term (keeping `X` for the `!isFloating` case). In the `e079461` text these are `isFloating ? "mt-4 p-3 sm:ml-auto sm:w-80" : "p-4 sm:p-5"` → `"p-4 sm:p-5"`, `cn("space-y-1", !isFloating && "max-w-3xl")` → `"space-y-1 max-w-3xl"`, `isFloating ? "text-base" : "text-lg sm:text-xl"` → `"text-lg sm:text-xl"`, and the grid's `isFloating && "grid-cols-1"` → removed. S04 reworked this file; apply the same removal to S04's text.
-Check: `Select-String -LiteralPath components/CustomerCta.tsx -Pattern "floating|isFloating"` → no output.
+In `components/CustomerCta.tsx` remove the floating variant (spec §14 "CustomerCta floating 변형" 삭제). After S04 (its Task 5 Step 5 and Task 6 Step 4 (b)) the file holds the view-driven block (`ViewCta`, used by S04's `StatusSlot` as `variant="view"`) plus a legacy half whose only public member left is the unused `LegacyCtaProps = { variant: "floating"; state: "idle" }`. Remove that legacy half:
+1. Delete the `LegacyCtaProps` type together with its doc comment `/** Only the unused floating variant is left for S06 to delete; results use variant "view". */`.
+2. Replace the `type CustomerCtaProps =` union (`| LegacyCtaProps` and the `variant: "view"` member) with
+   ```tsx
+   type CustomerCtaProps = {
+     readonly variant: "view";
+     readonly view: TrackingViewModel;
+     readonly onAction: (action: ResultAction) => void;
+   };
+   ```
+3. Delete everything from `export type CustomerCtaState = "idle" | "error" | "pending" | "inTransit" | "delivered";` through the `};` that closes `const LegacyCta = …` (that is `CustomerCtaState`, `ResultCustomerCtaState`, `linkByKey`, `CtaLinkKey`, `CtaContent`, `contentByState`, `borderByState`, the comment `// The render type stays wide …` and `LegacyCta`), keeping the line `// ---- View-driven "지금 할 일" block (S04; deleted by S07 with the file) ----` and everything below it.
+4. Replace
+   ```tsx
+   export const CustomerCta = (props: CustomerCtaProps) =>
+     props.variant === "view" ? <ViewCta view={props.view} onAction={props.onAction} /> : <LegacyCta {...props} />;
+   ```
+   with
+   ```tsx
+   export const CustomerCta = ({ view, onAction }: CustomerCtaProps) => <ViewCta view={view} onAction={onAction} />;
+   ```
+5. Delete the imports only the legacy half used: `import { ExternalLink, MessageCircle, ShoppingBag, Store } from "lucide-react";`, `import { COUPANG_STORE_URL, NAVER_STORE_URL, TALK_URL } from "@/lib/storefront";` and `import { cn } from "@/lib/utils";`.
+Check: `Select-String -LiteralPath components/CustomerCta.tsx -Pattern "floating|isFloating|LegacyCta|lucide-react|lib/storefront"` → no output.
+Check: `git grep -n -e "CustomerCtaState" -e "ResultCustomerCtaState" -- app components lib tests` → no output.
+Run: `npx eslint components/CustomerCta.tsx` → prints nothing (if it names another now-unused import, delete that import too).
 
 Delete the unused legacy files: `git rm components/StatusBanner.tsx components/ui/badge.tsx`
 Check: `git grep -n -e "StatusBanner" -e "ui/badge" -- app components lib` → no output.
@@ -4187,15 +4372,15 @@ Stop the server and clear the flags (Conventions).
 
 - [ ] **Step 3: Add the INVALID deep-link stage screen**
 
-In `tests/tools/stage-screens.spec.ts` append this entry as the last element of the `SCENARIOS` array (after the entries S01 and later stages added):
+In `tests/tools/stage-screens.spec.ts` append this entry as the last element of the `SCENARIOS` array, after S04's last entry `{ name: "deeplink-ambiguous", … }` (add a comma after that entry, which S04 wrote without one):
 
 ```ts
   // S06: INVALID deep link — server-rendered form with the error, no API call
-  { name: "deeplink-invalid", path: `/${FAKE.deepLinkInvalid}` },
+  { name: "deeplink-invalid", path: `/${FAKE.deepLinkInvalid}` }
 ```
 
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/tools/stage-screens.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
-Expected: every test skipped (no `PW_SHOTS`), 0 failed; the count grew by 5 (one scenario × five widths).
+Expected: `60 skipped` (S01's 7, S04's 4 and this scenario × 5 widths; the tool runs only with `PW_SHOTS`), 0 failed.
 
 - [ ] **Step 4: Typecheck, lint and commit**
 
@@ -4279,7 +4464,7 @@ Run: `git add tests/e2e/home.spec.ts; git commit -m "test: run axe on the S06 lo
 - [ ] **G4. Build.** `npm run build` → exit 0. Route table: `ƒ /[trackingNumber]` always; `/` is `ƒ` in S01 (it still reads `searchParams`), `○ /` from S02 on, and `○ /` with `Revalidate 5m` from S06 on.
 - [ ] **G5. Dev-mode E2E.** `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npm run test:e2e` → "N passed", 0 failed (skips allowed only for tests guarded by `PW_MODE`, `PW_SHOTS`, `PW_VISUAL`, or an approval-gated `test.skip` naming the approval).
 - [ ] **G6. Production-mode E2E.** Re-run `npm run build` if `next start` reports a missing or stale build. Background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`; wait for `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` = `200`; then `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test` → 0 failed, including `tests/budgets/*`.
-- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S06'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-results/stage-screens/S06-after/` at 320, 375, 768, 1024, 1440. Compare with `S06-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
+- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S06'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-artifacts/stage-screens/S06-after/` at 320, 375, 768, 1024, 1440. Compare with `S06-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 - [ ] **G8. Budgets.** Paste the measured numbers of every budget this plan lists (from the G6 output) into the stage summary. Any budget over its fail line fails the gate.
 - [ ] **G9. Code review.** Invoke the `code-review` skill on `git diff claude/tipoasis-tracking-renewal-ae0e3a...HEAD`. Fix every CRITICAL and HIGH finding; if code changed, re-run G2–G6.
 - [ ] **G10. Verification.** Invoke `superpowers:verification-before-completion`; paste each command and its result line into the stage summary.
@@ -4289,15 +4474,15 @@ Run: `git add tests/e2e/home.spec.ts; git commit -m "test: run axe on the S06 lo
 **S06 notes on the standard gate above**
 - G4: `○ /` with a revalidate time of `5m`, `ƒ /[trackingNumber]`; no other route changes.
 - G5/G6: the dev-mode skips are the production-only tests (`deep-link.spec.ts` "production caching", every `tests/budgets/*` test) and, when approval 13 is pending, nothing else (Task 11 adds no test then).
-- G7: the PNGs land in `test-artifacts/stage-screens/S06-after/` (S01 Addition 1). Compare `home-*`, `deeplink-*` and the new `deeplink-invalid-*` with `S06-before/`; the legacy bands (footer, showcase, result details) are expected to look as before.
+- G7: the output path above is the roadmap §7 text with S01's Addition 1 applied (Addition 8). Check: `(Get-ChildItem test-artifacts/stage-screens/S06-after -Filter *.png).Count` prints `60`; the before-set has 55 because Task 10 added `deeplink-invalid` — say so when sending both sets. Compare `home-*` and `deeplink-*` with `S06-before/`; the legacy bands (footer, showcase, result details) are expected to look as before.
 - G8 budget lines: `[html-budget]` (2 lines), `[lcp-budget]`, `[fcp-budget]`, `[cls-budget]`, the `[geometry]` line(s) of Task 7 or 7F, and the three test names of `tests/budgets/motion-budget.spec.ts`.
 - G11: this stage's files are the File Structure table above plus `tests/e2e/RULE-MAP.md`; `git status --short` shows nothing else.
-- Stage summary also lists: approvals 1, 2, 13 and which of Task 7 / 7F and Task 11 / fallback ran; the S04 result block that Task 5 Step 10 moved; whether Task 5 Step 12 (same-address entry) ran; any quoted text that earlier stages had reformatted; the contract deviations (Additions 1–9) and the open issues below.
+- Stage summary also lists: approvals 1, 2, 13 and which of Task 7 / 7F and Task 11 / fallback ran; whether S04's merged result block matched Task 5 Step 10 (Task 0 Step 9); the S04 E2E re-points of RULE-MAP section S; whether Task 5 Step 12 (same-address entry) ran; any quoted text that earlier stages had reformatted; the contract deviations (Additions 1–12) and the open issues below.
 
 ## Open issues for the operator and later stages
 
-1. **S04 plan was missing when this plan was written.** Task 5 Step 10 moves S04's result block by rule rather than by quoted code, and "Consumed S04 shapes" A1–A4 are checked in Task 0 Step 9. A reviewer who has S04's final plan should replace Step 10 (b) with S04's exact JSX before execution.
-2. **`stateGuide` and `siteConfig` in the initial bundle.** `LookupController` and `FailureFallback` import the `stateGuide` named export (INVALID copy, document titles), and the dynamic `import("@/config/site.config")` in `LegacyResultSection` cannot split a module that is also imported statically. S07 owns the JS budget (`/` app ≤ 25 KB): if it is exceeded, pass the few INVALID strings from `TrackingPage` as props instead.
+1. **S04's E2E files change in S06 (RULE-MAP section S).** S04's plan was written for the R2 page; the contract DOM of S06 (form only in idle/INVALID, the INVALID error at the input) moves three elements its specs point at, and S06 deletes `components/TrackingForm.tsx`, which exported `INVALID_NUMBER_ERROR_ID`. Task 5 re-points exactly those (Additions 10–12) and keeps `#tracking-panel` on a `TrackingPage` wrapper. S07's selector table (its Task 8 Step 12) assumes S06 removed that id; with the id kept, S07's "drop the prefix" row still applies, and S07 may delete the wrapper once `tests/support/status-slot.ts` no longer selects it.
+2. **`stateGuide` and `siteConfig` in the initial bundle.** `LookupController` and `FailureFallback` import the `stateGuide` named export (INVALID copy, document titles) — that is, `config/site.config.ts` — statically; the dynamic import of S04's `status-view.ts` in `LegacyResultSection` moves only the derive code and S04's fallbacks out of the initial chunk. S07 owns the JS budget (`/` app ≤ 25 KB): if it is exceeded, pass the few INVALID strings from `TrackingPage` as props instead.
 3. **`/ads.txt` is a real 404 after the three-way split** (S01 open issue). AdSense expects `public/ads.txt`; not in the File Map — operator decision.
 4. **An INVALID deep link never unlocks the ad loader in its document** (the scrub result is not reported to the ad signals), even if the customer then looks up a valid number in the same tab. This follows spec §7 INVALID "로더가 아직 없으면 넣지 않음"; S08's `afterAllowedResult` policy may revisit it.
 5. **Approval 3 weight on the INVALID screen:** 톡톡 stays a secondary outline there because [조회하기] is the screen's one filled button; approval 3's fallback ('톡톡 is the filled primary on every error screen') is applied by S04/S07 to the result-area error cards, not to the form's INVALID state.
@@ -4307,7 +4492,7 @@ Run: `git add tests/e2e/home.spec.ts; git commit -m "test: run axe on the S06 lo
 ## Self-Review
 
 - **Spec coverage.** §3 routes: `/` static with `revalidate = 300` and no `searchParams` (Task 5 Step 13, S02 test "'/' stays static"), deep-link three-way split with `?c=` and `noindex`, title without the number, private/no-store (Tasks 1, 5), same server shell for both entrances (Task 5), modes as component state and [다른 번호 조회] as a reset (Task 5, `home.spec.ts` "mode changes"), candidate B and restore re-wired from S02 (Task 5 Steps 7, 11, 12), noscript GET form → 307 → shell + notice (Tasks 5, 8). §4 first view: 48 px header with '통관·배송 조회' and '문의' (Task 4), notice line re-filtered after mount (Task 8), h1, input attributes and no mobile autofocus (Task 5), format hint and '번호는 어디서 찾나요?' (Task 5), carrier combobox and [조회하기] (Task 5), paste parsing with [되돌리기] and the O↔0/I↔1 question (Tasks 2, 6), client pre-check without a request (Tasks 1, 5), 바로가기 row with the disclosure first, 44 px outlines, talk-only while invalid, hidden in loading/result, ≤ 550 px at 375×667 (Task 7; fallback 7F), below the fold '보통 이렇게 걸려요' then the showcase (Task 8), deletions of hero copy, LogisticsFlow, AssuranceRail, infinite animations, header store links (Tasks 4, 5, 9). §5: button label only for 0–0.4 s, inputs never disabled, abort on a new submit, one live region, focus to the visible h2 except after deep-link interaction, `role=alert` only on the error sentence, INVALID at the input with focus kept there (Tasks 4, 5). §7 idle, loading (deep-link SSR card), INVALID rows (Tasks 5, 7). §8: 톡톡 at most three places (header, row/error block, footer), `isAffiliate` decides disclosure and `rel` (Task 7). §9 notices re-filtered after mount, not announced (Task 8). §12: no infinite animation, reduced motion 0, 320 px no horizontal scroll, targets 44 px, HTML ≤ 35 KB, LCP ≤ 2.0 s Slow 4G, deep-link first paint ≤ 1.0 s Fast 4G, CLS ≤ 0.05 (Tasks 5, 9, 10); axe only with approval 13 (Task 11). §13: framer-motion removed, body on tokens, no glow/blur/grid (Task 9). §14: component boundaries (`TrackingPage` server, `LookupController` island), deletions (popup under approval 1, LogisticsFlow, AssuranceRail, StatusBanner, CustomerCta floating, framer-motion), test contract items 1–3 (RULE-MAP first, hooks, `toBeInViewport` at 390×844/375×812/360×780 with trial clicks) (Tasks 3, 5, 7, 9). §16 items 1, 2, 13 gate Tasks 7/7F, the stage, and Task 11.
-- **Placeholder scan.** Every code step carries complete code. The one step that moves code by rule is Task 5 Step 10 (b) (S04's result block, unknown when this plan was written); it states the exact source (Task 0 Step 9 output), the renames and what must not be copied, and Open issue 1 asks a reviewer to inline S04's JSX. Task 5 Step 12 and Tasks 7/7F/11 are conditional on recorded decisions, each with both branches spelled out.
-- **Type consistency.** Contract names are used as written: `TrackingEntry`, `LookupControllerProps`, `TrackingPage`, `SiteHeader`, `normalizeInput`, `classifyDeepLink`, `parseCarrierParam`, `PasteExtraction`, `extractFromPastedText`, `ConfusableHint`, `detectConfusables`, `PrecheckResult`, `precheckNumber`, `useLookup`/`UseLookupOptions`/`UseLookupResult`, `StatusSlot`/`StatusSlotProps`, `LiveAnnouncerProvider`/`useAnnounce`, `scrubNumberFromUrl`/`SCRUB_TIMEOUT_MS`, `readRestoreEntry`/`saveRestoreEntry`/`currentNavigationKind`/`RestoreEntry`, `setAdSignals`, `deriveLoadingView`, `deriveTrackingView`, `groupTrackingNumber`, `requestCarrierView`, `CARRIER_NAMES`, `CONCRETE_CARRIER_CODES`, `pickNotice`/`activeNotices`/`toNoticeView`, `Button`/`buttonClassName`, `NumberBar`, `TalkLink`, `ToneIcon`, `NoticeBanner`. S06-private names keep one spelling across tasks: `computeDisplay`, `viewModeOf`, `outcomeKey`, `stillActiveHomeNotice`, `LookupDisplay`, `DisplayInput`, `DerivedView`, `InvalidInput`, `InvalidInputView`, `LegacyDeriver`, `loadLegacyDeriver`, `getLoadedLegacyDeriver`, `getRestoreSnapshot`, `getServerRestoreSnapshot`, `markRestoreConsumed`, `subscribeToNothing`, `getClientNowSnapshot`, `getServerNowSnapshot`, `INPUT_ASSIST_ID`, `SHORTCUT_REGION_LABEL`, `NO_NOTICE_TIME`, `RESULT_READY`, `INPUT_LABEL`. Test counts: `number-input.spec.ts` 9 → 17; `lookup-display.spec.ts` 6 → 7; `home.spec.ts` 4 → 12 → 17 (Task 7) or 15 (Task 7F) → 19/17 (Task 8) → 21/19 (Task 9) → +2 with approval 13; `lookup-input.spec.ts` 8 → 13 → 14; `deep-link.spec.ts` 16 (15 in dev).
+- **Placeholder scan.** Every code step carries complete code, including S04's result block in Task 5 Step 10 (taken from S04's plan; Task 0 Step 9 compares it with the merged file). Task 5 Step 12, Task 5 Step 16 (a) (S04 Task 9's approval-3 loop, present only when it ran) and Tasks 7/7F/11 are conditional on recorded decisions, each with both branches spelled out.
+- **Type consistency.** Contract names are used as written: `TrackingEntry`, `LookupControllerProps`, `TrackingPage`, `SiteHeader`, `normalizeInput`, `classifyDeepLink`, `parseCarrierParam`, `PasteExtraction`, `extractFromPastedText`, `ConfusableHint`, `detectConfusables`, `PrecheckResult`, `precheckNumber`, `useLookup`/`UseLookupOptions`/`UseLookupResult`, `StatusSlot`/`StatusSlotProps`, `LiveAnnouncerProvider`/`useAnnounce`, `scrubNumberFromUrl`/`SCRUB_TIMEOUT_MS`, `readRestoreEntry`/`saveRestoreEntry`/`currentNavigationKind`/`RestoreEntry`, `setAdSignals`, `deriveLoadingView`, `groupTrackingNumber`, `requestCarrierView`, `CARRIER_NAMES`, `CONCRETE_CARRIER_CODES`, `pickNotice`/`activeNotices`/`toNoticeView`, `Button`/`buttonClassName`, `NumberBar`, `TalkLink`, `ToneIcon`, `NoticeBanner`; S04's own exports as its plan writes them: `deriveStatusView` (`components/status-slot/status-view.ts`), `INVALID_NUMBER_ERROR_ID` (value kept, now in `LookupForm.tsx`), `RecommendationStage`, the E2E helpers `lookUp`, `statusSlot`, `liveRegion`, `holdTrack`, `INPUT_LABEL`, `CARRIER_LABEL`. S06-private names keep one spelling across tasks: `computeDisplay`, `viewModeOf`, `outcomeKey`, `stillActiveHomeNotice`, `LookupDisplay`, `DisplayInput`, `DerivedView`, `InvalidInput`, `InvalidInputView`, `LegacyDeriver`, `loadLegacyDeriver`, `getLoadedLegacyDeriver`, `getRestoreSnapshot`, `getServerRestoreSnapshot`, `markRestoreConsumed`, `subscribeToNothing`, `getClientNowSnapshot`, `getServerNowSnapshot`, `INPUT_ASSIST_ID`, `SHORTCUT_REGION_LABEL`, `NO_NOTICE_TIME`, `RESULT_READY`, `INPUT_LABEL`. Test counts: `number-input.spec.ts` 9 → 17; `lookup-display.spec.ts` 6 → 7; `home.spec.ts` 4 → 12 → 17 (Task 7) or 15 (Task 7F) → 19/17 (Task 8) → 21/19 (Task 9) → +2 with approval 13; `lookup-input.spec.ts` 8 → 13 → 14; `deep-link.spec.ts` 16 (15 in dev).
 - **Review Focus.** (1) pasted text with several digit runs → Task 2 unit rows + Task 6 E2E; (2) deep-link path variants → Task 1 rows + Task 5 `deep-link.spec.ts`; (3) interaction during a deep-link load → Task 5 focus test; (4) submit before scripts → Task 5 no-JS test + Task 8 noscript notice; (5) stale cached notice / clock off → Task 8 unit + E2E. Extra pins: 320 px cargo number, late answer after [번호 변경].
-- **Stage constraints kept.** S02/S04 E2E files are not edited; every removed legacy assertion has its RULE-MAP row and a passing replacement first; no file of a later stage is touched; `config/site.config.ts` and its schema/types/test change only through Task 8 (Addition 3); no real number appears (all digits come from `FAKE`, `FAKE_GROUPED`, zero-prefixed forms or the fake mobile number).
+- **Stage constraints kept.** S02 E2E files are not edited; S04's are edited only by the RULE-MAP section S re-points (Task 5 Steps 14 and 16) and `FailureNotice.tsx` only by its import path (Additions 10–12); every removed legacy assertion has its RULE-MAP row and a passing replacement first; no file of a later stage is touched; `config/site.config.ts` and its schema/types/test change only through Task 8 (Addition 3); no real number appears (all digits come from `FAKE`, `FAKE_GROUPED`, zero-prefixed forms or the fake mobile number).

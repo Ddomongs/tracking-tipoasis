@@ -101,7 +101,7 @@ Every task in every stage plan implicitly includes these. Values are copied from
 - `invalidNumber` failures are shown by the lookup form area (S06 owns the invalid-input error block with `data-guide-key="invalidNumber"`, contract §11.13); `ResultSlot` renders nothing for them. `FailureCard` still renders invalid views so the CS preview can show every state.
 - Every existing E2E business rule keeps an assertion. The S07 rows of `tests/e2e/RULE-MAP.md` are written before any old assertion is removed, and old tests are removed only after their new assertions pass (spec §14 test contract 1; Task 8).
 - `/internal/result-kit` is a test harness: internal route group (basic auth, `noindex`, no ads), renders only the view model a test hands it through `window.__ttResultKit`, and is never linked from a public page.
-- Stage screenshots go to `test-artifacts/stage-screens/S07-{before,after}/` (S01 "Additions to the contract" item 1); read `test-results/…` in the verbatim Task 0 / gate text as `test-artifacts/…`.
+- Stage screenshots go to `test-artifacts/stage-screens/S07-{before,after}/` (S01 "Additions to the contract" item 1: Playwright empties `test-results/` at the start of every run, so Task 0 Step 6 would delete before-screens written there). Task 0 Step 5 and gate G7 below are the roadmap §6/§7 text with that one path applied, as S03, S04 and S06 did.
 - No real or unidentified tracking number, phone number or fragment of one appears in code, tests, test titles, commit messages or screenshots; tests take numbers from `tests/fixtures/tracking-fixtures.ts` and `tests/fixtures/derive-scenarios.ts` only.
 
 ## Review Focus
@@ -149,11 +149,12 @@ Everything below is additive; no §11 name is renamed or retyped. Each item goes
 | `components/status-slot/LoadingTimeline.tsx` → `components/result/LoadingCard.tsx` | Move + rewrite (7) | Initial-bundle loading card for every stage; finite spinner |
 | `components/result/ResultSlot.tsx` | Create (8) | Initial-bundle island replacing `LegacyResultSection` |
 | `components/lookup/LookupController.tsx` | Modify (8, 9) | Render `ResultSlot`; drop S06's settle derivation/focus/title/announce; legacy recommendations through `next/dynamic` |
+| `components/lookup/lookup-display.ts`, `tests/unit/lookup-display.spec.ts` | Modify (Task 9 Part A, applied in Task 8 Step 8 (h)) | One result display instead of S06's `pending`/`slot` split |
 | `tests/e2e/RULE-MAP.md` | Modify (8) | S07 rule → assertion rows |
 | `tests/unit/normalizer.spec.ts` | Create (8) | The normalizer assertions moved out of `tests/tracking.spec.ts` |
 | `tests/tracking.spec.ts` | Delete (8) | Every remaining rule has a new assertion |
 | `tests/privacy.spec.ts` | Modify (8) | The stale test moves to `result-states.spec.ts` |
-| `tests/e2e/status-slot.spec.ts`, `loading-timeline.spec.ts`, `failure-causes.spec.ts`, `cta-consistency.spec.ts` | Modify (8) | Selectors moved to the R3 DOM; no assertion or expected value dropped |
+| `tests/e2e/status-slot.spec.ts`, `loading-timeline.spec.ts`, `failure-causes.spec.ts`, `cta-consistency.spec.ts`, `tests/support/status-slot.ts` | Modify (8, 10) | Selectors moved to the R3 DOM (the helper's `statusSlot` and a new `RESULT_SLOT_CONTENT`); no assertion or expected value dropped; expectations through `deriveResultView` (10) |
 | `tests/e2e/result-states.spec.ts` | Create (8), Modify (13) | Every §7 row end to end through deep links and manual lookups |
 | `tests/e2e/result-layout.spec.ts` | Create (8), Modify (9) | Focus, live sentence, title, fill without jump; then order, first view, B field cap, desktop, 320 px |
 | `components/lookup/LegacyResultSection.tsx`, `components/status-slot/*`, `components/CustomerCta.tsx`, `CustomsTimeline.tsx`, `DeliveryTimeline.tsx`, `TimelineStep.tsx`, `ReturnLinkButton.tsx` | Delete (10) | Legacy result UI |
@@ -188,14 +189,14 @@ Execution order: Task 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 �
   Expected: build exits 0. Start the production server in a background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`
   Wait until `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` prints `200`.
   Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='before'; $env:PW_STAGE='S07'; npx playwright test tests/tools/stage-screens.spec.ts`
-  Expected: PNGs in `test-results/stage-screens/S07-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
+  Expected: PNGs in `test-artifacts/stage-screens/S07-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
 - [ ] **Step 6: Baseline suite.** With the server still running: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test`
   Expected: record "N passed / M skipped / 0 failed" in the stage summary. Then stop the server (Step 4 command) and clear the flags: `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 
 **S07 notes on the standard steps above**
 - Step 1: the "Gated by" list is 2, 3, 4, 13. Approval 2 is BLOCKING (Step 7 below). Approvals 3, 4 and 13 only gate Tasks 13, 14 and 15.
 - Step 2: expected merges are `merge: S03 …`, `merge: S05 …`, `merge: S06 …`, and (through them) `merge: S01 …`, `merge: S02 …`, `merge: S04 …`.
-- Step 5: the PNGs land in `test-artifacts/stage-screens/S07-before/` (S01 addition 1). The tool has S01's seven scenarios plus whatever S04 and S06 appended.
+- Step 5: the path is S01 Addition 1's (roadmap amendment requested). The tool has S01's seven scenarios plus whatever S04 and S06 appended.
 
 - [ ] **Step 7 (S07): Approval 2 is decided.** In the roadmap §4 ledger, read row 2 ("Home restructure + test contract").
   Expected: `approved`. If it says `pending`, STOP: the roadmap marks approval 2 as blocking for S07 ("the operator must decide before they start"); write "S07 blocked on approval 2" in the stage summary and hand back to the operator. If it says `rejected`, STOP as well: the fallback ("new state sentences fixed to the current test copy, no config-driven copy") contradicts this plan's design, and S07 must be re-planned — write "S07 needs a re-plan under the approval-2 fallback" and hand back.
@@ -205,8 +206,8 @@ Execution order: Task 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 �
   Then run: `Test-Path tests/tracking.spec.ts, components/CustomerCta.tsx, components/CustomsTimeline.tsx, components/DeliveryTimeline.tsx, components/TimelineStep.tsx, components/ReturnLinkButton.tsx`
   Expected: six lines `True` (S06 keeps them for `LegacyResultSection`). A `False` is fine only for `tests/tracking.spec.ts` (S06 may have emptied and deleted it); note it — Task 8 then has nothing to delete there.
 - [ ] **Step 9 (S07): Record the S04/S06 surface Task 8 replaces.** Run:
-  `Select-String -Path components/lookup/LookupController.tsx -Pattern 'LegacyResultSection|LoadingTimeline|FailureNotice|deriveTrackingView|derive-view|useAnnounce|announce\(|document\.title|headingRef|\.focus\(|onSettled|setAdSignals|RecommendedProducts|useLookup\(|onAction|LoadingConfig' | ForEach-Object { "$($_.LineNumber): $($_.Line.Trim())" }`
-  Expected: a numbered list. Copy it into the stage summary under "LookupController before S07"; Task 8 Step 7 uses it to find (a) the `useLookup(...)` call and the `LoadingConfig` value it receives, (b) the `<LegacyResultSection …/>` element and its props, (c) the result action handler, (d) the status-heading ref, (e) every statement that uses a derived view on settle (title, announcement, focus, ad signals).
+  `Select-String -Path components/lookup/LookupController.tsx -Pattern 'LegacyResultSection|LegacyDeriver|LoadingTimeline|FailureNotice|deriveTrackingView|derive-view|useAnnounce|announce\(|document\.title|headingRef|\.focus\(|onSettled|handleSettled|handleAction|computeDisplay|setAdSignals|RecommendedProducts|useLookup\(|onAction|LoadingConfig' | ForEach-Object { "$($_.LineNumber): $($_.Line.Trim())" }`
+  Expected: a numbered list. S06's plan (Task 5 Step 11) writes these as `const { state, loading, submit, retry, cancel, reset } = useLookup({ config: LOADING_CONFIG, onSettled: handleSettled });`, `const handleAction = useCallback(`, `const headingRef = useRef<HTMLHeadingElement | null>(null);`, `<LegacyResultSection` and the `getLoadedLegacyDeriver`/`loadLegacyDeriver` import; if a line differs, the recorded spelling is what Task 8 Step 8 edits. Copy it into the stage summary under "LookupController before S07"; Task 8 Step 8 uses it to find (a) the `useLookup(...)` call and the `LoadingConfig` value it receives, (b) the `<LegacyResultSection …/>` element and its props, (c) the result action handler, (d) the status-heading ref, (e) every statement that uses a derived view on settle (title, announcement, focus, ad signals).
   Run: `Get-ChildItem -Recurse -Include *.ts,*.tsx app, components, lib | Select-String -Pattern 'status-slot/|LegacyResultSection|CustomerCta|CustomsTimeline|DeliveryTimeline|TimelineStep|ReturnLinkButton' | ForEach-Object { "$($_.Path.Replace((Get-Location).Path + '\', '')):$($_.LineNumber)" }`
   Expected: importers only inside `components/status-slot/`, `components/lookup/LegacyResultSection.tsx`, `components/lookup/LookupController.tsx` and the legacy components themselves. Record the list; Task 10 deletes every file on it except `LookupController.tsx`.
 - [ ] **Step 10 (S07): Record the tests Task 8 migrates.** Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test --list tests/tracking.spec.ts tests/privacy.spec.ts tests/e2e/status-slot.spec.ts tests/e2e/loading-timeline.spec.ts tests/e2e/failure-causes.spec.ts tests/e2e/cta-consistency.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
@@ -3483,13 +3484,15 @@ git commit -m "feat: add the initial-bundle LoadingCard with static skeletons an
 **Files:**
 - Create: `components/result/ResultSlot.tsx`
 - Modify: `components/lookup/LookupController.tsx` (imports, one module-level constant, the result handler, the `<LegacyResultSection …/>` element, S06's settle-time view code — lines recorded in Task 0 Step 9)
+- Modify: `components/lookup/lookup-display.ts`, `tests/unit/lookup-display.spec.ts` (Task 9 Steps 1 and 4, applied in Step 8 (h))
+- Modify (only when Step 11 finds an S04 ledger fallback still active): the Task 10 Part A files (`components/result/approvals.ts` created, `components/result/result-module.ts`, `components/result/FailureCard.tsx`, `tests/unit/result-approvals.spec.ts` created)
 - Modify: `tests/e2e/RULE-MAP.md` (append the S07 section)
 - Create: `tests/unit/normalizer.spec.ts`
 - Create: `tests/e2e/result-states.spec.ts`
 - Create: `tests/e2e/result-layout.spec.ts` (focus, live sentence, title, fill)
 - Delete: `tests/tracking.spec.ts`
 - Modify: `tests/privacy.spec.ts` (remove the stale test)
-- Modify: `tests/e2e/status-slot.spec.ts`, `tests/e2e/loading-timeline.spec.ts`, `tests/e2e/failure-causes.spec.ts`, `tests/e2e/cta-consistency.spec.ts` (selectors only, per the Step 12 table)
+- Modify: `tests/e2e/status-slot.spec.ts`, `tests/e2e/loading-timeline.spec.ts`, `tests/e2e/failure-causes.spec.ts`, `tests/e2e/cta-consistency.spec.ts` and S04's helper `tests/support/status-slot.ts` (selectors only, per the Step 12 table)
 
 **Interfaces:**
 - Consumes: `useLookup(options): UseLookupResult` (`state`, `loading`, `submit`, `retry`, `cancel`, `reset`; S04), `useAnnounce()` (S04), `setAdSignals(patch)` (S02), `LookupState` (`lib/tracking/lookup-state.ts`, S04), `TrackingEntry`, `LookupOutcome`, `LoadingViewModel`, `ResultAction`, `TrackingViewModel` (S03), `LoadingConfig` (S03), `deriveLoadingView` (S03), `loadResultModule`, `preloadResultModule`, `ResultModule` (Task 1), `LoadingCard` (Task 7), `TalkLink` (S05), `channels` (config); test fixtures `trackData`, `mockTrack`, `successBody`, `FAKE`, `FIXTURE_NOW`, `FailureFixture` (S01) and `success`, `failure`, `customsWaitingData`, `inTransitData`, `OCTOBER_NOW` (S03).
@@ -4233,6 +4236,8 @@ interface Shown {
 const FIRST_PAINT_NOW = new Date(0);
 /** Lookups the customer did not start on this screen: focus moves only if they have not interacted meanwhile (spec §5). */
 const QUIET_ENTRIES: ReadonlySet<LookupEntry> = new Set<LookupEntry>(["deepLink", "restore", "autoRetryOnline"]);
+/** What counts as the customer interacting (the same four events S06's LookupController used): taps, keys, wheel and touch scrolls. */
+const INTERACTION_EVENTS = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
 
 function isSettled(state: LookupState): state is SettledState {
   return state.phase === "settled" || state.phase === "error";
@@ -4320,12 +4325,10 @@ export function ResultSlot({
     const preloadOnIntent = (event: FocusEvent): void => {
       if (event.target instanceof Element && event.target.closest("[data-lookup-form]") !== null) preloadResultModule();
     };
-    window.addEventListener("pointerdown", markInteraction, true);
-    window.addEventListener("keydown", markInteraction, true);
+    for (const type of INTERACTION_EVENTS) window.addEventListener(type, markInteraction, { capture: true, passive: true });
     document.addEventListener("focusin", preloadOnIntent);
     return () => {
-      window.removeEventListener("pointerdown", markInteraction, true);
-      window.removeEventListener("keydown", markInteraction, true);
+      for (const type of INTERACTION_EVENTS) window.removeEventListener(type, markInteraction, { capture: true });
       document.removeEventListener("focusin", preloadOnIntent);
     };
   }, []);
@@ -4413,7 +4416,7 @@ const LegacyRecommendedProducts = dynamic(
 );
 ```
 
-(c) Inside the component, next to the other handlers (the `useLookup(...)` result is called `lookup` below; use the name LookupController already has; add `useState` to the `react` import if it is missing):
+(c) Inside the component, next to the other handlers (S06 destructures the `useLookup(...)` result into `state`, `loading`, `submit`, `retry`, `cancel`, `reset` and already imports `useState` from `react`):
 
 ```tsx
   const [settledView, setSettledView] = useState<TrackingViewModel | null>(null);
@@ -4424,32 +4427,31 @@ const LegacyRecommendedProducts = dynamic(
   };
 
   const renderRecommendations = (view: TrackingViewModel, outcome: LookupOutcome): React.ReactNode =>
-    outcome.kind === "success" && view.revenue.recommendations !== "none" ? (
-      <LegacyRecommendedProducts
-        statusCode={outcome.data.currentStatusCode}
-        isPending={
-          outcome.data.isPending === true || outcome.data.delivery.lookupUnavailable === true || outcome.data.delivery.ambiguous === true
-        }
-      />
+    outcome.kind === "success" &&
+    view.revenue.recommendations === "inline" &&
+    (view.revenue.recommendationContext === "pending" ||
+      view.revenue.recommendationContext === "inTransit" ||
+      view.revenue.recommendationContext === "delivered") ? (
+      <LegacyRecommendedProducts context={view.revenue.recommendationContext} />
     ) : null;
 ```
 
-If `components/RecommendedProducts.tsx` no longer has the props `{ statusCode: StatusCode; isPending?: boolean }` (S04 may have changed them — read `RecommendedProductsProps`), pass exactly the prop expressions `LegacyResultSection` passed to it (recorded in Task 0 Step 9) instead.
+S04 Task 6 gave the legacy list the props `{ context: RecommendationStage }` (`"pending" | "inTransit" | "delivered"`) and showed it only where the view places inline recommendations (S04's `recommendationStageOf`); the condition above is the same rule, so customs rows (`"optional"`), overdue and problem rows show no legacy list. The statement keeps its first line and its closing `) : null;` exactly as written: S08 Task 3 finds it by them. Check S04's props first: `Select-String -Path components/RecommendedProducts.tsx -Pattern 'readonly context: RecommendationStage|export type RecommendationStage'` → two lines. If instead it prints nothing and the file still declares `readonly statusCode: StatusCode;` (S04 Task 6 was executed differently), replace only the `<LegacyRecommendedProducts … />` element with `<LegacyRecommendedProducts statusCode={outcome.data.currentStatusCode} isPending={view.revenue.recommendationContext === "pending"} />` and record it in the stage summary.
 
-(d) In the result-action handler (the function passed to `LegacyResultSection`'s `onAction`), make sure these two branches exist; add them if missing:
+(d) The result-action handler is S06's `handleAction` (the function passed to `LegacyResultSection`'s `onAction`). S06 Task 5 Step 11 already gives it both branches the result area needs; keep them exactly as S06 wrote them:
 
 ```tsx
-      case "chooseCarrier":
-        if (lookup.state.phase === "settled" || lookup.state.phase === "error") {
-          lookup.submit({ number: lookup.state.outcome.request.number, carrier: action.carrier, entry: "carrierChip" });
-        }
-        return;
-      case "cancel":
-        lookup.cancel();
-        return;
+        case "cancel":
+          openForm("cancel", activeRequest);
+          return;
+        case "chooseCarrier":
+          if (activeRequest === null) return;
+          setCarrier(action.carrier);
+          beginLookup({ number: activeRequest.number, carrier: action.carrier, entry: "carrierChip" });
+          return;
 ```
 
-(If the handler is not a `switch`, add the same two cases as `if (action.kind === "chooseCarrier") { … return; }` and `if (action.kind === "cancel") { lookup.cancel(); return; }` at its top.)
+`openForm("cancel", …)` cancels the lookup, keeps the number in the input and moves focus there (spec §5 [조회 취소]); `beginLookup` saves the restore entry and submits. Only if Task 0 Step 9 recorded a handler without one of these branches, add the missing branch in this form (as `if (action.kind === "…") { …; return; }` at its top when the handler is not a `switch`).
 
 (e) Replace the whole `<LegacyResultSection … />` element with:
 
@@ -4457,25 +4459,31 @@ If `components/RecommendedProducts.tsx` no longer has the props `{ statusCode: S
           <ResultSlot
             entry={entry}
             loadingConfig={LOADING_CONFIG}
-            state={lookup.state}
-            loading={lookup.loading}
-            onAction={handleResultAction}
+            state={state}
+            loading={loading}
+            onAction={handleAction}
             headingRef={headingRef}
             onView={handleView}
             renderRecommendations={renderRecommendations}
           />
 ```
 
-where `entry` is the `LookupControllerProps.entry` value, `LOADING_CONFIG` is the `LoadingConfig` value LookupController passes to `useLookup({ config })`, `handleResultAction` is the handler of step (d), and `headingRef` is the status-heading ref LookupController already had — use LookupController's own names for all four.
+These are S06's names: `entry` (`LookupControllerProps.entry`), `LOADING_CONFIG` (the `LoadingConfig` passed to `useLookup({ config })`), `state` and `loading` (from `useLookup`), `handleAction` (step (d)) and `headingRef` (the status-heading ref). In the `ReplayFrame` variant (S06 Task 5 Step 12 shipped the same-address entry) write `state={shownState}`. If Task 0 Step 9 recorded other spellings, use those.
 
-(f) Delete S06's settle-time view code recorded in Task 0 Step 9 (e): the view derivation (any `deriveTrackingView` call or `import("@/lib/tracking/derive-view")`, and the state that held its result), `document.title` assignments for results, announcements of `liveMessage` on settle, the focus move to `headingRef` on settle, and any direct rendering of the SSR loading card. Keep the loading announcements (`loading.announcement`), the URL scrub, session restore, and ad-signal wiring that does not use the view. Wherever S06 read its derived view (for example the number bar's `carrier.barLabel` in settled/error modes), read `settledView` instead.
+(f) Delete S06's settle-time view code recorded in Task 0 Step 9 (e): the view derivation, the result `document.title` assignment, announcements of `liveMessage` on settle, the focus move to `headingRef` on settle, and any direct rendering of the loading card. In S06's file these are: the `handleSettled` callback (and `onSettled: handleSettled` in the `useLookup` call — `ResultSlot` derives on settle), `deriveSafely`, the `getLoadedLegacyDeriver`/`loadLegacyDeriver`/`LegacyDeriver` names of the `@/components/lookup/LegacyResultSection` import (the whole import line goes with `LegacyResultSection`) and the `void loadLegacyDeriver().catch(() => undefined);` line in `beginLookup` (`ResultSlot` preloads the result module), `derived`/`setDerived`, `derivedSeqRef`, `handledSeqRef`, the `settled`/`settledEntry` constants with the effect that sets the result title, announces and focuses, and the `settled.view === null` branch that rendered `FailureFallback guideKey="serverError"` (`ResultSlot` shows its module-failure block instead). Delete `PASSIVE_ENTRIES`, `interactedRef` and its `INTERACTION_EVENTS` effect too: they served only that focus rule, and `ResultSlot` tracks interaction itself. Keep `announce` (S06 Task 6 announces the paste notice with it), the loading announcements (S04's `useLookup` makes them), the URL scrub, session restore, `openForm`, `beginLookup`, ad-signal wiring that does not use the view, and S06's `pageTitleOf` with its `pageTitle` effect and title constants: they set only the home, INVALID and '조회 중' titles of the form and loading displays (it returns `null` for a settled result, whose title `ResultSlot` sets), and because a parent's effect runs after its child's, they win over `ResultSlot`'s restore of the load-time title — so after [다른 번호 조회] on a deep link the home form shows the home title, not the deep link's '조회 중 · 배송 조회'. Wherever S06 read its derived view (the number bar's `carrierLabel` reads `settled?.view?.carrier.barLabel`), read `settledView?.carrier.barLabel` instead.
 
 (g) The number bar and the result slot sit in the same dynamic area as before (`[data-view-state]`); do not move them.
 
-Run: `Select-String -Path components/lookup/LookupController.tsx -Pattern 'LegacyResultSection|LoadingTimeline|deriveTrackingView|derive-view|document\.title|liveMessage'`
+(h) S06's display table cannot work without the `derived` input step (f) removed: `computeDisplay` (S06 Task 5 Step 3) returns `pending` until a derived view with the outcome's key arrives, and `LegacyResultSection`'s slot display is where the element of step (e) sits. So apply Task 9 Steps 1, 4 and 5 now, in that order (the `lookup-display.spec.ts` rewrite, the new display table, and the always-mounted result area in `LookupController`; Task 9 Step 5 (d) replaces this step's `settledView` lines with the `SettledViewRecord` version, and its (g) replaces the expression around step (e)'s element). Write "Task 9 Part A done in Task 8" into the stage summary; Task 9 then starts at Step 2.
+
+Run: `Select-String -Path components/lookup/LookupController.tsx -Pattern 'LegacyResultSection|LegacyDeriver|LoadingTimeline|PendingCard|deriveTrackingView|derive-view|documentTitle|liveMessage|handleSettled|outcomeKey'`
 Expected: no output.
-Run: `npm run typecheck; npm run lint`
-Expected: both exit 0, no new warnings.
+Run: `Select-String -Path components/lookup/LookupController.tsx -Pattern 'document\.title'`
+Expected: exactly one line, `if (pageTitle !== null) document.title = pageTitle;` (S06's form and loading titles).
+Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit/lookup-display.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
+Expected: `7 passed`.
+Run: `if (Test-Path .next) { Remove-Item -Recurse -Force .next }; npm run typecheck; npm run lint`
+Expected: both exit 0, no new warnings (an unused-variable error names S06 code step (f) left behind: delete it).
 
 - [ ] **Step 9: Run the new E2E to verify it passes**
 
@@ -4489,18 +4497,23 @@ If "an invalid number: …" fails because `[data-cta-state="error"]` has count 0
    `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $titles = npx playwright test --list tests/tracking.spec.ts | ForEach-Object { if ($_ -match '\.ts:\d+:\d+\s›\s(.+)$') { $Matches[1] } }; $map = Get-Content tests/e2e/RULE-MAP.md -Raw -Encoding UTF8; $titles | Where-Object { -not $map.Contains($_) }; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
    Expected: no output (every remaining title appears in a RULE-MAP row — S06's or S07's). A printed title means a rule without a new assertion: add its row in Step 2's section and its assertion to `result-states.spec.ts` before going on.
 2. Delete the file: `git rm tests/tracking.spec.ts`
-3. In `tests/privacy.spec.ts`, delete the whole block that starts with `test("a stale shipment shows a verification prompt instead of a delivery estimate", async ({ page }) => {` and ends with its closing `});` (rule S07-10 now lives in `result-states.spec.ts`). Remove any import that becomes unused.
+3. In `tests/privacy.spec.ts`, delete the whole block that starts with `test("a stale shipment shows a verification prompt instead of a delivery estimate", async ({ page }) => {` and ends with its closing `});` (rule S07-10 now lives in `result-states.spec.ts`). Then remove the imports only that test used — S04 Addition 8 names them: `deriveStatusView` (the `@/components/status-slot/status-view` import line), `resultCopy`, `TrackResponseData`, `FIXTURE_NOW` and `mockTrack` (drop a name from a shared import line; drop the line when nothing is left on it).
+Run: `Select-String -Path tests/privacy.spec.ts -Pattern 'status-slot/|deriveStatusView|a stale shipment'; npx eslint tests/privacy.spec.ts`
+Expected: no output from either (an unused-import warning names a name still to remove).
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npx playwright test tests/privacy.spec.ts`
 Expected: all passed (only the policy tests remain).
 
 - [ ] **Step 11: Run S04's E2E files against the R3 DOM**
 
+First check which of S04's ledger fallbacks the four specs still compute: they build their expected views with S04's `deriveStatusView` (`deriveTrackingView` + `applyApprovalFallbacks(view, STATUS_SLOT_APPROVALS)`), while the page now renders plain `deriveTrackingView` until Task 10 Part A.
+Run: `Select-String -Path components/status-slot/status-view.ts -Pattern 'STATUS_SLOT_APPROVALS: StatusSlotApprovals = \{ approval2: true, approval3: true \}'`
+Expected: one line only when approvals 2 and 3 are both granted and S04's Tasks 9 and 10 flipped the constant. With the ledger as it stands (approval 3 `pending`) it prints nothing: `failure-causes.spec.ts` › "the filled primary on an error follows the approval-3 ledger" would expect `talk` where the page shows the cause's recovery action (and, if S04's approval-2 flip never ran, the settled-state specs would expect S04's legacy wording). Those are expectation-source differences, not S07 regressions: apply Task 10 Steps 1–5 now (Part A: `approvals.ts`, `deriveResultView` in `ResultSlot`, the S04 specs pointed at `deriveResultView`; Step 5's check prints only `tests\unit\status-view.spec.ts` lines because Step 10 above already removed the other importers), run its Step 6 (unit and E2E runs, RULE-MAP rows S07-13 to S07-15) after Step 12 below, skip its Step 7 commit (Step 14 below commits those files), and write "Task 10 Part A done in Task 8" into the stage summary.
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npx playwright test tests/e2e/status-slot.spec.ts tests/e2e/loading-timeline.spec.ts tests/e2e/failure-causes.spec.ts tests/e2e/cta-consistency.spec.ts`
 Expected: either all passed (S04 selected only contract hooks) or failures whose error names a locator. Go to Step 12 for each failure.
 
 - [ ] **Step 12: Rewrite only the selectors S04 used for its transitional DOM**
 
-For each failing locator apply the matching row; never delete an assertion and never change an expected value (text, count, attribute value, request body). If a failure is a wrong value rather than a missing element, it is a rule regression in S07 code — fix the code, not the test. If a failing locator matches no row, stop and report it in the stage summary.
+For each failing locator apply the matching row; never delete an assertion and never change an expected value (text, count, attribute value, request body). If a failure is a wrong value rather than a missing element and no row below names that assertion (the spinner, `data-action-*` and loading-card rows move a value check to another element or spelling), it is a rule regression in S07 code — fix the code, not the test. If a failing locator matches no row, stop and report it in the stage summary.
 
 | Selector in S04's E2E | What it meant | R3 selector |
 |---|---|---|
@@ -4513,8 +4526,24 @@ For each failing locator apply the matching row; never delete an assertion and n
 | `getByRole("button", { name: "다시 볼 링크 복사" })` inside an S04 container | return link | unchanged name; scope to `[data-cta-state]` |
 | `[data-loading-stage]`, `[data-failure-cause]`, `[data-guide-key]`, `[data-overdue]`, `[data-cta-state]`, `[data-eta-kind]`, `[data-live-region]` | contract hooks (§11.13) | unchanged |
 | the status `h2` found by role inside an S04 container | status heading | `page.locator("[data-result-view] h2")` (settled/error) or `page.locator("[data-loading-stage] h2")` (loading) |
+| S04's `statusSlot` helper (`tests/support/status-slot.ts`: `page.locator("#tracking-panel [data-status-slot]")`) | the one R2 status slot | `page.locator("#tracking-panel [data-view-state]")` (S06 `section#tracking`). The `#tracking-panel` prefix stays valid: S06 Addition 11 keeps `<div id="tracking-panel">` around `LookupController` in `TrackingPage` and S07 does not remove it, so the other `#tracking-panel …` selectors (`form[aria-busy]`, `[data-affiliate-disclosure]`, S04's `submitButton`) keep working unchanged |
+| `expect(statusSlot(page)).toHaveCount(0)` | the slot shows nothing (a manual lookup's first 0.4 s; after [조회 취소]; a late answer after cancel) | `expect(page.locator(RESULT_SLOT_CONTENT)).toHaveCount(0)` — add `export const RESULT_SLOT_CONTENT = "[data-loading-stage], [data-result-view], [data-result-pending], [data-result-module-failure]";` (every root `ResultSlot` can render) to `tests/support/status-slot.ts` and import it where used; the expected count stays 0 |
+| `[data-status-slot="V"]` or `toHaveAttribute("data-status-slot", V)`, V = `loading` / `error` / `settled` | the slot's phase | `[data-view-state="V"]` / `toHaveAttribute("data-view-state", V)` — the same three values (S06 contract hook); on `statusSlot(page)` itself: `expect(statusSlot(page)).toHaveAttribute("data-view-state", V)` |
+| `toContainText(<grouped number>)` / `toContainText(lookup.copy.carrierAuto)` on S04's loading card (`statusSlot(page).locator("[data-loading-stage]")`) | the loading screen shows the number and '택배사 자동 확인' | the same assertion on `page.locator("[data-number-bar]")` — S06's `NumberBar` above the result area carries both (`requestCarrierView(…).barLabel` while loading); S07's `LoadingCard` does not repeat them (spec §6: the number bar is the one place for the number) |
+| `getByRole("group", { name: "택배사 선택" })` then `.getByRole("button")` / `.getByRole("button", { name: N })` | the carrier chips | `.getByRole("radio")` / `.getByRole("radio", { name: N })` — S07's `CarrierChooser` is `fieldset[data-carrier-chooser]` with legend '택배사 선택' and five radios named by the carrier (spec §12 "carriers as fieldset + radio"); count 5 and the names stay |
+| `[data-cta-state="delivered"] details` with text '받지 못하셨나요?' (S04 kept 미수령 안내 inside 지금 할 일) | 미수령 안내 | `page.locator("details[data-delivered-help]")` — S07's `DeliveredHelp` sits right after 처리 내역 and [받지 못하셨나요?] in 지금 할 일 opens it; its `summary` text and body lines are unchanged |
+| `getByRole("heading", { name: "국내 배송 진행 상황" })` or '상세 진행 내역' inside the result region (the legacy `DeliveryTimeline` / details headings) | the on-demand history is inside the one '배송 조회 결과' region | `locator("details[data-history]")` in the same region, `toBeVisible()` — the legacy timelines are gone (Task 10); the history is S07's `HistoryDetails` '처리 내역 N건 보기' |
+| `[data-action-weight="W"]` or `toHaveAttribute("data-action-weight", W)`, W = `primary` / `secondary` / `text` (S04 Addition 4) | the action's weight | `[data-slot="button"][data-variant="W"]` / `toHaveAttribute("data-variant", W)` (S05 `Button`, `ButtonLink`, `TalkLink`, `CopyButton` all carry both) |
+| `[data-action-kind="K"]` for an `ActionKind` K (to click it or read it) | the control of action K | the control named by the view's action of kind K: take `a` = the `ActionView` with `kind === K` among `view.nextAction.primary`, `view.nextAction.secondary`, `view.nextAction.worry?.talk` and `view.auxiliaryLine?.action` of the view the test already computes (S04's `deriveStatusView(…)` until Task 10, `deriveResultView(…)` after it; if the test has none, `deriveResultView(<the outcome it mocks>, FIXTURE_NOW)`), then `getByRole("button", { name: a.label, exact: true })` when `a.href === null`, else `getByRole("link", { name: a.external ? `${a.label} 새 창으로 열기` : a.label, exact: true })` |
+| `toHaveAttribute("data-action-kind", K)` on a located control | which action it is | `toHaveAccessibleName(<the name the row above gives for kind K>)` — the expected kind stays the same, only its spelling moves from the hook to the name |
+| `[data-action-kind="store"]` (S04's store links) | a store link | `[data-affiliate-group] a` |
+| `toHaveAttribute("data-spinner", "on")` / `"off"` | the spinner turns / has stopped | `[data-spinner]` `toHaveCount(1)` / `toHaveCount(0)` (`LoadingCard` renders the spinner element only while it turns, Task 7) |
+| `[data-loading-skeleton]` (S04: one element, value `true`) | the static skeleton | `[data-loading-skeleton="journey"]` (`LoadingCard` has three: `journey`, `eta`, `next-action`) |
+| `[data-carrier-choice="C"]` | one carrier chip | `page.locator("[data-carrier-chooser]").getByRole("radio", { name: <the view's carrierChoices entry with code C>.name })` |
+| `[data-worry-line]`, `[data-inquiry-preview]`, `[data-last-event]`, `textarea[data-copy-fallback]` (value `true`) | worry line, copied inquiry text, last event, copy fallback box | unchanged (same hooks and values in `NextActionBlock`, `ActionControl`, `LastEventLine`, S05 `CopyButton` and `ReturnLinkAction`) |
 
-Re-run Step 11 until all pass. List every replaced selector (file, old → new) in the stage summary and in the S07-12 row's "New assertion" cell of `tests/e2e/RULE-MAP.md`.
+Selectors written as strings inside `page.evaluate` follow the same rows. One known case fails as a wrong value, not as a missing locator: `status-slot.spec.ts` › "a manual result fills the slot under the form: …" reads `document.querySelector("#tracking-panel [data-status-slot] [data-guide-key]")` and `document.querySelector("#tracking-panel [data-status-slot] [data-cta-state]")`, so `expect(cardBeforeCta).toBe(true)` receives `false`. Re-point both strings by the slot-root row to `#tracking-panel [data-view-state] [data-guide-key]` and `#tracking-panel [data-view-state] [data-cta-state]`; this is a selector fix, not a rule regression. Check that no other string selector is left: `Select-String -Path tests/e2e/*.spec.ts, tests/support/status-slot.ts -Pattern 'data-status-slot'` → no output.
+When the rewritten selector lives in `tests/support/status-slot.ts` (S04's helpers), edit it there once; the four specs keep importing it. Re-run Step 11 until all pass. List every replaced selector (file, old → new) in the stage summary and in the S07-12 row's "New assertion" cell of `tests/e2e/RULE-MAP.md`. If Step 11 applied Task 10 Part A, run Task 10 Step 6 now.
 
 - [ ] **Step 13: Run the whole suite in dev mode**
 
@@ -4526,17 +4555,17 @@ Expected: all passed (the boundary test in `result-module.spec.ts` now also scan
 - [ ] **Step 14: Commit**
 
 ```powershell
-git add components/result/ResultSlot.tsx components/lookup/LookupController.tsx tests/e2e/RULE-MAP.md tests/unit/normalizer.spec.ts tests/e2e/result-states.spec.ts tests/e2e/result-layout.spec.ts tests/privacy.spec.ts tests/e2e/status-slot.spec.ts tests/e2e/loading-timeline.spec.ts tests/e2e/failure-causes.spec.ts tests/e2e/cta-consistency.spec.ts
+git add components/result/ResultSlot.tsx components/lookup/LookupController.tsx components/lookup/lookup-display.ts tests/unit/lookup-display.spec.ts tests/e2e/RULE-MAP.md tests/unit/normalizer.spec.ts tests/e2e/result-states.spec.ts tests/e2e/result-layout.spec.ts tests/privacy.spec.ts tests/e2e/status-slot.spec.ts tests/e2e/loading-timeline.spec.ts tests/e2e/failure-causes.spec.ts tests/e2e/cta-consistency.spec.ts tests/support/status-slot.ts
 git commit -m "feat: switch the page to the lazy result view and migrate the result tests to rules and hooks"
 ```
 
-(`git rm` in Step 10 already staged the deletion of `tests/tracking.spec.ts`.)
+(`git rm` in Step 10 already staged the deletion of `tests/tracking.spec.ts`; `lookup-display.ts` and its spec changed in Step 8 (h). When Step 11 applied Task 10 Part A, run `git add components/result/approvals.ts components/result/result-module.ts components/result/FailureCard.tsx tests/unit/result-approvals.spec.ts` before the commit.)
 
 ---
 
 ### Task 9: The live result page — one result area in the lookup island, then the page layout
 
-Task 8 moved derivation, title, announcement and focus into `ResultSlot`, but S06's display table still waits for a derived view before it leaves its `pending` card (`computeDisplay` → `settledDisplay(outcome, derived)`), and S06 mounts the result slot only in its `slot` display. Part A (Steps 1–7) replaces that split with one result area that is always mounted (so focus in the lookup form can preload the result module, Additions item 2) and keys the number bar's carrier label to the settle it belongs to. Part B (Steps 8–13) gives the result modes their page layout: the status field right under the number bar (B field cap), the 560 + 320 px desktop grid beyond S06's 560 px main column, and the first-view and 320 px checks. If Task 8's executor already reshaped some of this to make Task 8 Step 9 pass, replace that interim code with the code below; the checks in Steps 5 and 11 name what must be gone.
+Task 8 moved derivation, title, announcement and focus into `ResultSlot`, but S06's display table waits for a derived view before it leaves its `pending` card (`computeDisplay` → `settledDisplay(outcome, derived)`), and S06 mounts the result slot only in its `slot` display. Part A (Steps 1–7) replaces that split with one result area that is always mounted (so focus in the lookup form can preload the result module, Additions item 2) and keys the number bar's carrier label to the settle it belongs to. Part B (Steps 8–13) gives the result modes their page layout: the status field right under the number bar (B field cap), the 560 + 320 px desktop grid beyond S06's 560 px main column, and the first-view and 320 px checks. Task 8 Step 8 (h) already applied Steps 1, 4 and 5 (Task 8 cannot compile without them): start at Step 2; in Step 3 the unit run prints `7 passed` and the three new E2E tests may already pass (record which); run Step 5's two checks as regression checks, then Step 6. If Task 8's executor reshaped anything differently, replace that interim code with the code below; the checks in Steps 5 and 11 name what must be gone.
 
 **Files:**
 - Modify: `components/lookup/lookup-display.ts` (whole file; S06-owned, S06 Addition 2 lets S07 change it)
@@ -5142,7 +5171,7 @@ git commit -m "feat: lay the live result out under the number bar with the deskt
 
 ### Task 10: The approval-3 fallback moves into the result module; the legacy result UI is deleted
 
-S04 kept the ledger fallbacks in `components/status-slot/status-view.ts` (`deriveStatusView` = `deriveTrackingView` + `applyApprovalFallbacks`), and every S04 E2E computes its expectations with it (S04 contract deviation 1: "S07's `FailureCard` must make the same ledger decision"). Task 8 switched the page to `deriveTrackingView` alone, so while approval 3 is not granted the R3 page would show the approval-3 weights without the approval. Part A (Steps 1–7) moves the talk-first transform into the lazy result module with a ledger-checked flag and points S04's tests at it; approval 2 is granted (Task 0 Step 7), so S04's wording overlay is retired, not moved. Part B (Steps 8–13) deletes every legacy result file.
+S04 kept the ledger fallbacks in `components/status-slot/status-view.ts` (`deriveStatusView` = `deriveTrackingView` + `applyApprovalFallbacks`), and every S04 E2E computes its expectations with it (S04 contract deviation 1: "S07's `FailureCard` must make the same ledger decision"). Task 8 switched the page to `deriveTrackingView` alone, so while approval 3 is not granted the R3 page would show the approval-3 weights without the approval. Part A (Steps 1–7) moves the talk-first transform into the lazy result module with a ledger-checked flag and points S04's tests at it; approval 2 is granted (Task 0 Step 7), so S04's wording overlay is retired, not moved. Part B (Steps 8–13) deletes every legacy result file. When the stage summary says "Task 10 Part A done in Task 8" (Task 8 Step 11 found an S04 fallback still active), start at Step 8.
 
 **Files:**
 - Create: `components/result/approvals.ts`
@@ -5384,7 +5413,8 @@ with
 With the Edit tool:
 1. In `tests/e2e/status-slot.spec.ts` and `tests/e2e/cta-consistency.spec.ts` replace `import { deriveStatusView } from "@/components/status-slot/status-view";` with `import { deriveResultView } from "@/components/result/approvals";`, then replace every `deriveStatusView(` with `deriveResultView(` (replace_all).
 2. In `tests/e2e/failure-causes.spec.ts` replace `import { STATUS_SLOT_APPROVALS, deriveStatusView } from "@/components/status-slot/status-view";` with `import { RESULT_APPROVALS, deriveResultView } from "@/components/result/approvals";`, then replace every `STATUS_SLOT_APPROVALS.approval3` with `RESULT_APPROVALS.approval3`, every `STATUS_SLOT_APPROVALS.approval2` (if S04 Task 10 left any) with `true` (approval 2 is granted — Task 0 Step 7), and every `deriveStatusView(` with `deriveResultView(` (replace_all each).
-3. If Task 0 Step 10 listed another test that imports `@/components/status-slot/status-view`, apply the same two replacements there.
+3. If S04's approval-2 task (S04 Task 10) ran, `tests/e2e/status-slot.spec.ts` imports `import { LEGACY_RESULT_COPY, deriveStatusView } from "@/components/status-slot/status-view";` instead of the line in item 1: replace that line with `import { deriveResultView } from "@/components/result/approvals";`, and in its test "approval 2: results show the configured wording, with no pre-renewal overlay" replace `LEGACY_RESULT_COPY.customsWaitingTitle` with `"통관대기"` and `LEGACY_RESULT_COPY.sentences.customsWaiting` with `"정상 통관 대기 상태입니다. 지금은 별도 문의 없이 조금만 기다려 주세요."` — the values of S04's `LEGACY_RESULT_COPY`, which the page must still never show; the assertions and their expected values stay as they are.
+4. If Task 0 Step 10 listed another test that imports `@/components/status-slot/status-view`, apply the same replacements there.
 
 Run: `Get-ChildItem -Recurse -Include *.ts tests | Select-String -Pattern 'status-slot/|STATUS_SLOT_APPROVALS|deriveStatusView' | ForEach-Object { "$($_.Path.Replace((Get-Location).Path + '\', '')):$($_.LineNumber)" }`
 Expected: only `tests\unit\status-view.spec.ts` lines (deleted in Part B). `../support/status-slot` imports do not match (no slash after the name) and stay: S04's E2E helpers keep serving those four specs.
@@ -6284,7 +6314,7 @@ git commit -m "test: run axe on the loading card and the key result rows"
 - [ ] **G4. Build.** `npm run build` → exit 0. Route table: `ƒ /[trackingNumber]` always; `/` is `ƒ` in S01 (it still reads `searchParams`), `○ /` from S02 on, and `○ /` with `Revalidate 5m` from S06 on.
 - [ ] **G5. Dev-mode E2E.** `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npm run test:e2e` → "N passed", 0 failed (skips allowed only for tests guarded by `PW_MODE`, `PW_SHOTS`, `PW_VISUAL`, or an approval-gated `test.skip` naming the approval).
 - [ ] **G6. Production-mode E2E.** Re-run `npm run build` if `next start` reports a missing or stale build. Background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`; wait for `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` = `200`; then `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test` → 0 failed, including `tests/budgets/*`.
-- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S07'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-results/stage-screens/S07-after/` at 320, 375, 768, 1024, 1440. Compare with `S07-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
+- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S07'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-artifacts/stage-screens/S07-after/` at 320, 375, 768, 1024, 1440. Compare with `S07-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 - [ ] **G8. Budgets.** Paste the measured numbers of every budget this plan lists (from the G6 output) into the stage summary. Any budget over its fail line fails the gate.
 - [ ] **G9. Code review.** Invoke the `code-review` skill on `git diff claude/tipoasis-tracking-renewal-ae0e3a...HEAD`. Fix every CRITICAL and HIGH finding; if code changed, re-run G2–G6.
 - [ ] **G10. Verification.** Invoke `superpowers:verification-before-completion`; paste each command and its result line into the stage summary.
@@ -6295,10 +6325,10 @@ git commit -m "test: run axe on the loading card and the key result rows"
 - G4: `○ /` with `Revalidate 5m` and `ƒ /[trackingNumber]` as in S06; the only new route is `/internal/result-kit` (behind the `/internal` basic auth and `noindex`; either `○` or `ƒ` is fine).
 - G5: allowed skips are every `tests/budgets/*` test (production only, including the three of `js-budget.spec.ts`), the stage-screens tool (no `PW_SHOTS`) and S06's production-only deep-link cache test. When approval 13 is not granted `tests/e2e/result-a11y.spec.ts` does not exist (Task 15 SKIPPED), so it adds no skip.
 - G6: `tests/budgets/js-budget.spec.ts` (3 tests) runs here next to S01's, S05's and S06's budgets, which must stay green: the result area may not break the home HTML, LCP, deep-link first paint, CLS or font budgets.
-- G7: the PNGs land in `test-artifacts/stage-screens/S07-after/` (S01 Addition 1). Every `deeplink-*` shot changes (the R3 result area replaces the R2 slot and the legacy details); `home-*`, `deeplink-invalid-*` and `privacy-*` must look as in `S07-before/` (the result area renders nothing in form modes). The six S07 scenarios (Task 12) exist only in the after-set; at 1024 and 1440 px every settled result shows the 560 px result beside the 320 px side column.
+- G7: the path is S01 Addition 1's. Every `deeplink-*` shot changes (the R3 result area replaces the R2 slot and the legacy details); `home-*`, `deeplink-invalid-*` and `privacy-*` must look as in `S07-before/` (the result area renders nothing in form modes). The six S07 scenarios (Task 12) exist only in the after-set; at 1024 and 1440 px every settled result shows the 560 px result beside the 320 px side column.
 - G8 budget lines: the five `[js-budget]` lines (platform floor, `'/'` initial with its target/warning annotation, `'/'` app, result chunk, `'/{번호}'` through the result) from Task 11; `[budget] result fill CLS at 375x812` from Task 8; the ten `[budget] 지금 할 일 top at 375x812 (…)` lines and the two `[budget] status field at 375x812 (…)` lines from Task 9; and, unchanged since S06/S05, `[html-budget]`, `[lcp-budget]`, `[fcp-budget]`, `[cls-budget]`, `[font-budget]`. Fail lines: `'/'` initial above 175 KB, app above 25 KB, result chunk above 30 KB, `'/{번호}'` above 195 KB, CLS above 0.05, status field above 300 px, 지금 할 일 starting lower than 420 px in the plain states, or its sentence ending lower than 812 px in any key state.
-- G11: this stage's files are the File Structure table above plus "Additions to the contract (continued)" items 10–14 below; `tests/support/status-slot.ts` shows up only if Task 8 Step 12 re-pointed its selectors.
-- Stage summary also lists: the statuses of approvals 2, 3, 4 and 13 and which of Tasks 13, 14, 15 ran or were SKIPPED (with the fallback evidence: Task 15's manual checklist results); the Task 0 records (Steps 9 and 10); the selectors Task 8 Step 12 replaced; any edit Task 2 Step 4 or Step 9 made to S03's `tests/fixtures/config-fixtures.ts` or `tests/unit/config.spec.ts`; whether Task 9 Step 11 needed the `StatusCard` gap lever; whether Task 8 needed Task 9 Part A early; the contract deviations (Additions 1–19) and the open issues below.
+- G11: this stage's files are the File Structure table above plus "Additions to the contract (continued)" items 10–14 below; `tests/support/status-slot.ts` is modified by Task 8 Step 12 (its `statusSlot` locator names `data-status-slot`, which no R3 element carries).
+- Stage summary also lists: the statuses of approvals 2, 3, 4 and 13 and which of Tasks 13, 14, 15 ran or were SKIPPED (with the fallback evidence: Task 15's manual checklist results); the Task 0 records (Steps 9 and 10); the selectors Task 8 Step 12 replaced; any edit Task 2 Step 4 or Step 9 made to S03's `tests/fixtures/config-fixtures.ts` or `tests/unit/config.spec.ts`; whether Task 9 Step 11 needed the `StatusCard` gap lever; "Task 9 Part A done in Task 8" and whether Task 8 Step 11 also applied Task 10 Part A early; the contract deviations (Additions 1–19) and the open issues below.
 
 ---
 
@@ -6309,7 +6339,7 @@ Additive; no §11 name is renamed or retyped. Reported as contract deviations to
 10. **`components/result/approvals.ts` (C S07, lazy chunk only):** `interface ResultApprovals { readonly approval3: boolean }`, `RESULT_APPROVALS` (kept equal to the roadmap §4 ledger by `tests/unit/result-approvals.spec.ts`), `applyResultApprovals(view: TrackingViewModel, approvals: ResultApprovals): TrackingViewModel`, `deriveResultView(outcome: LookupOutcome, now: Date): TrackingViewModel`. `result-module.ts` exports `deriveResultView` as a fourth name next to the three in §11.9, and `ResultSlot` renders its views. The approval-3 fallback is a view transform, as in S04's R2 slot (S04 contract deviation 1), not the config change S03 Addition 10 proposed: S03's `derive-view.spec.ts` stays pinned to the approval-3 proposal against `siteConfig`, and customers keep R2's '톡톡으로 문의하기' as the filled primary until approval 3. The Task 6 `FailureCard` doc comment is corrected in Task 10 Step 4.
 11. **`components/lookup/lookup-display.ts` reshaped (S06-owned; S06 Addition 2 lets S07 change it):** `LookupDisplay = { kind: "form"; busy; invalid } | { kind: "result"; request }`; `DisplayInput` without `derived`; `DerivedView` and `outcomeKey` are removed; `InvalidInput`, `computeDisplay`, `viewModeOf` and `stillActiveHomeNotice` keep their names. `tests/unit/lookup-display.spec.ts` is rewritten with the same seven rows. File Map rows for both gain "M S07".
 12. **`LookupController` (M S07) beyond Task 8:** `div[data-result-area]` (new hook) is always mounted around `ResultSlot` and is `display: contents` while the form shows; the settled view is kept as `SettledViewRecord { settledAt; view }` so the number bar never shows a previous lookup's carrier; result modes use `SECTION_RESULT_CLASS` — no gap under the number bar and, from 1024 px, `lg:-mx-[calc((var(--tt-side)_+_2rem)/2)]` so the result grid gets 560 + 320 px while `TrackingPage`'s 560 px `<main>` (S06) and the home column stay as they are.
-13. **File Map deletions beyond §10.3 (D S07):** `components/lookup/PendingCard.tsx` (C S06), `components/status-slot/status-view.ts` and `components/status-slot/SlotParts.tsx` (S04-private, deleted with the folder), `tests/unit/status-view.spec.ts` (C S04; rows moved per RULE-MAP S07-13/S07-14). **Kept, unlike S04 Addition 3:** `tests/support/status-slot.ts` — S04's four E2E specs still import its helpers after Task 8 moved their selectors.
+13. **File Map deletions beyond §10.3 (D S07):** `components/lookup/PendingCard.tsx` (C S06), `components/status-slot/status-view.ts` and `components/status-slot/SlotParts.tsx` (S04-private, deleted with the folder), `tests/unit/status-view.spec.ts` (C S04; rows moved per RULE-MAP S07-13/S07-14). **Kept (S04 Addition 3 agrees):** `tests/support/status-slot.ts` — S04's four E2E specs still import its helpers after Task 8 moved their selectors; S07 modifies it (M S07: `statusSlot` re-pointed to `#tracking-panel [data-view-state]`, new export `RESULT_SLOT_CONTENT`). S06's transitional `<div id="tracking-panel">` (S06 Addition 11) stays in `TrackingPage`; S07 does not edit that file.
 14. **File Map additions and modifications:** C S07 `components/result/approvals.ts`, `tests/unit/result-approvals.spec.ts`; M S07 `tests/e2e/status-slot.spec.ts`, `tests/e2e/failure-causes.spec.ts`, `tests/e2e/cta-consistency.spec.ts` (their view import, besides Task 8's selectors), `tests/e2e/result-states.spec.ts` (Tasks 10 and 14 besides 8), `components/result/StatusCard.tsx` (only if Task 9 Step 11 used the gap lever), `components/result/FailureCard.tsx` (Task 10 comment), `components/result/HelpItems.tsx`, `SideColumn.tsx`, `NextActionBlock.tsx`, `ResultView.tsx` (Task 14, approval 4).
 15. **Help ids and the pending help line (Task 14, approval 4; private to `components/result/`):** `helpDetailsId(prefix: string, helpId: string): string` and `HelpItems({ items, idPrefix? })` in `HelpItems.tsx`; `SideColumnProps.helpIdPrefix?: string`; `interface HelpLink { id: string; helpId: string; label: string }` and `NextActionBlockProps.helpLink?: HelpLink | null` in `NextActionBlock.tsx`; hook `data-help-link` (value = config help id, `order-check`).
 16. **JS budget basis (Task 11):** module `<script src>` files of the server HTML, gzip level 9 per file, 1 KB = 1024 B (Phase 1's `m-bytes.cjs` basis); "app" = `/` module files that `/privacy` does not load; "result chunk" = first-party scripts requested after focus enters `[data-lookup-form]`; `/[번호]` total = the deep link's HTML module scripts plus every first-party script requested until `[data-result-view]` shows. `ZodError` and `data-primary-end` must not occur in `/`'s initial chunks.
@@ -6319,13 +6349,13 @@ Additive; no §11 name is renamed or retyped. Reported as contract deviations to
 
 ## Open issues for the operator and later stages
 
-1. **Task 8 and S06's display table.** Task 8 Step 8 was written before S06's final `lookup-display.ts` was read: it removes S06's derived-view state but leaves the `pending`/`slot` split that waits for it, so Task 8 Step 9 cannot pass on Task 8's edits alone. Task 9 Part A is the definitive change; the executor may apply Task 9 Steps 4–5 during Task 8 Step 8 and record "Task 9 Part A done in Task 8" (Task 9's tests then run as regression checks).
-2. **Client-side titles in form modes.** Task 8 Step 8 requires no `document.title` assignment in `LookupController`. After S07, `ResultSlot` restores the title the document loaded with while idle or loading (the metadata title '조회 중 · 배송 조회' for deep links, the home title on `/`) and sets the result titles; a client-side INVALID keeps the previous title (the SSR metadata of an INVALID deep link is unchanged). If an S06 E2E asserts client-side titles for a manual lookup or a client-side INVALID, Task 8 Step 13 surfaces it; the fix is a form-mode title effect in `LookupController` (it runs after `ResultSlot`'s child effect, so it wins).
+1. **Task 8 and S06's display table (resolved in review).** S06's final `lookup-display.ts` keeps the `pending`/`slot` split that waits for a derived view, which Task 8 Step 8 (f) removes. Task 8 Step 8 (h) therefore applies Task 9 Steps 1, 4 and 5 inside Task 8 and records "Task 9 Part A done in Task 8"; Task 9 starts at Step 2. Likewise Task 8 Step 11 applies Task 10 Part A early whenever S04's `STATUS_SLOT_APPROVALS` still holds a `false` (approval 3 is `pending` in the ledger today), because S04's specs compute their expectations through S04's fallbacks.
+2. **Client-side titles in form modes (resolved in review).** `ResultSlot` sets the result titles and restores the load-time title while idle or loading; `LookupController` keeps S06's `pageTitleOf` effect (home, INVALID and '조회 중' titles for the form and loading displays, `null` for results), which runs after `ResultSlot`'s child effect and so wins. Task 8 Step 8 (f) keeps it and checks that it is the only `document.title` assignment left in `LookupController`.
 3. **Spec wording for approval 3.** §16 item 3 names [번호 수정] as the recovery action for '응답 없음'; §7 'error · 응답 없음' names [다시 조회] as the main action. S03's config (`noResponse.primaryAction: "retry"`) and RULE-MAP row S07-16 follow §7. The operator should confirm this when recording approval 3.
 4. **Approval 4 fallback wording.** The ledger fallback says "add the '주문내역에서 확인' help" (S03 ships the help item either way), while spec §16 item 4 "거절하면" only keeps the copy and destinations. S07 gates only the help line inside 지금 할 일 (Task 14); the help item in the help list is not gated.
 5. **Field cap on notice days.** The ≤ 300 px field / ≤ 420 px 지금 할 일 checks run on the October in-transit and the delivered results. On notice days the customs-waiting field also holds the '안내' line and the holiday badge (spec §7 customsWaiting shows both), so it is taller by design; the first-view test still requires 지금 할 일 inside 812 px there. Reaching 420 px on notice days would need the '안내' line outside the field, which spec §6 ("카드 안 '안내' 한 줄") does not allow without an operator decision.
 6. **Legacy recommendation card until S08.** Recommendations are S04's `RecommendedProducts`, loaded through `next/dynamic` (Task 8); it keeps its own dark card and an 11 px badge. `tests/e2e/result-a11y.spec.ts` excludes `[data-recommended-products]` for that reason; S08's `RecommendationList` replaces it and must drop the exclusion.
-7. **CS preview (S09).** To show exactly what customers see, S09 should render `ResultView` with `deriveResultView` views from `loadResultModule()` (Addition 10) and pass `failureCause` (Addition 1).
+7. **CS preview (S09).** To show exactly what customers see, S09 renders `ResultView` with `deriveResultView` views (Addition 10) and passes `failureCause` (Addition 1). S09 imports `ResultView` and `deriveResultView` statically on the internal page instead of through `loadResultModule()` (S09 contract deviation 1): `/internal/cs-helper` has no JS budget and its preview must render synchronously, and the lazy-chunk rule (§11.1 rule 3) and this stage's `result-module.spec.ts` scan cover only the public initial-bundle files. That static import is therefore not a violation of this plan. It stays acceptable only while S07's `js-budget.spec.ts` numbers for `/`, the result chunk and `/{번호}` do not grow when S09 merges (S09's G8 re-checks them); if they grow, S09 switches `ScreenAndReply` and its bulk derive to `loadResultModule()` (S09 open issue 1).
 8. **JS budget risk.** The lookup island imports the whole `config/site.config.ts` (S06 open issue 2). If Task 11 measures the app part above 25 KB, the known fix changes `LookupControllerProps` (contract §11.9), so Task 11 stops and reports instead of changing the contract.
 9. **Approval 3's ledger test and parallel branches.** `tests/unit/result-approvals.spec.ts` reads the ledger file on the branch under test; a release branch cut before the ledger row changes keeps the old flag, which is correct, but whoever records approval 3 must run Task 13 on the integration branch before the next release or that unit test fails there.
 

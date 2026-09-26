@@ -188,7 +188,7 @@ Reported to the roadmap owner; nothing here renames or changes a §11 name or si
 **S01 notes on the standard steps above**
 - Step 1: the "Gated by" list is approval 11 only. Its fallback is part of Task 12.
 - Step 2: S01 depends on nothing. Expected: the log shows `e079461 docs: add renewal roadmap, shared contract and R4 server-path plan` (or a later commit); no `merge: SNN …` commit is required.
-- Step 5: `tests/tools/stage-screens.spec.ts` does not exist yet. Do Step 5's build now (it doubles as the baseline build), skip its screenshot command, and run the screenshot command at the end of Task 1 (Task 1 Step 8). The PNGs land in `test-artifacts/stage-screens/S01-before/`, not `test-results/…` (Additions to the contract, item 1). Step 5 above and gate G7 already carry this path; they are otherwise verbatim copies of roadmap §6/§7, whose text still says `test-results/…` until the roadmap owner applies the proposed amendment.
+- Step 5: `tests/tools/stage-screens.spec.ts` does not exist yet. Do Step 5's build now (it doubles as the baseline build), skip its screenshot command, and run the screenshot command at the end of Task 1 (Task 1 Step 8). The PNGs land in `test-artifacts/stage-screens/S01-before/`, not `test-results/…` (Additions to the contract, item 1). Step 5 above and gate G7 already carry this path; they are verbatim copies of roadmap §6/§7, which carry the same `test-artifacts/…` path since the roadmap applied this amendment.
 - Step 6: record the baseline count; before S01 the suite has only the top-level `tests/*.spec.ts` files.
 
 - [ ] **Step 7 (S01): Check for a hotfix that already removed the real example numbers.** Run (PowerShell):

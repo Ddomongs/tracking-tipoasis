@@ -105,10 +105,10 @@ Every task in every stage plan implicitly includes these. Values are copied from
 Conditions the spec implies but no requirement line names; each is pinned by a test in the owning task.
 
 1. **A second submit before the first answer, or a late first answer** (Enter pressed twice, the number corrected mid-lookup, a slow first answer arriving after the second): only the latest request settles the slot, a late answer changes nothing, and the failure streak counts only the same number. Pinned: Task 1 "late answers after cancel or settle change nothing", "a different number starts a new streak at 1"; Task 4 E2E "a new submit aborts the previous request and ignores its late answer".
-2. **Answers that are not what the contract promises** (an HTML 502, a 200 HTML page, a JSON error with the wrong content type, an empty body, `{ "success": true }` without data): each maps to a cause, nothing crashes, and no server wording reaches the screen. Pinned: Task 2 units "a 200 HTML page is not JSON", "a JSON error body is read as JSON even with a wrong content type", "an empty body is not JSON"; Task 5 E2E table over all eight failure fixtures.
-3. **Connection flapping** (offline failure, the connection returns, the automatic re-lookup fails offline again): exactly one automatic re-lookup, never a loop. Pinned: Task 5 E2E "offline: one automatic re-lookup when the connection returns, never a second in a row".
-4. **A customer who scrolls, taps or types while a deep link is still loading**: focus stays where the customer is; the live region still reads the result. Pinned: Task 6 E2E "deep link: focus stays where the customer is once they interacted".
-5. **In-app browsers that refuse the clipboard** (roadmap Review Focus 3, S04 part): [문의 내용 복사하고 톡톡 열기] still opens 톡톡 and a read-only, pre-selected box shows the inquiry text. Pinned: Task 6 E2E "blocked clipboard shows the inquiry in a selectable box".
+2. **Answers that are not what the contract promises** (an HTML 502, a 200 HTML page, a JSON error with the wrong content type, an empty body, `{ "success": true }` whose `data` is missing or incomplete): each maps to a cause, nothing crashes, and no server wording reaches the screen. Pinned: Task 2 units "a 200 HTML page is not JSON and reads as a temporary gateway problem", "a JSON error body is read as JSON even with a wrong content type", "an empty body is not JSON", and the "`<fixture>`: mapped to what the client observed, never to the server message" rows `badGatewayHtml502` (the HTML 502) and `contractViolation200` (S01's `{ "success": true, "data": { "trackingNumber": … } }`, which fails the schema); Task 5 E2E "`<fixture>`: the cause's own notice, 톡톡 first in the block, no stores and no server wording" (one row per `FailureFixture`, all eight).
+3. **Connection flapping** (offline failure, the connection returns, the automatic re-lookup fails offline again): exactly one automatic re-lookup, never a loop. Pinned: Task 5 E2E "offline: one automatic re-lookup when the connection returns" and "offline: the automatic re-lookup happens once, never a second time in a row".
+4. **A customer who scrolls, taps or types while a deep link is still loading**: focus stays where the customer is; the live region still reads the result. Pinned: Task 6 E2E "deep link: focus stays where the customer is once they interacted; the live region still reads the result".
+5. **In-app browsers that refuse the clipboard** (roadmap Review Focus 3, S04 part): [문의 내용 복사하고 톡톡 열기] still opens 톡톡 and a read-only, pre-selected box shows the inquiry text. Pinned: Task 6 E2E "blocked clipboard shows the inquiry in a read-only, pre-selected box".
 
 ## Additions to the contract
 
@@ -116,7 +116,7 @@ Reported to the roadmap owner; nothing here renames or retypes a §11 name.
 
 1. **`lib/tracking/lookup-state.ts` also exports `lastRequestOf(state: LookupState): LookupRequest | null`** (the request [다시 조회] repeats; `useLookup.retry` uses it).
 2. **`LookupState.startedAt`/`settledAt` and `LookupEvent.at` carry `performance.now()` values** (monotonic milliseconds, faked by `page.clock` in tests), not epoch time. The wall-clock `now` for KST judgments is passed separately to `onSettled`.
-3. **S04-private files (File Map additions; deleted by S07 with `components/status-slot/` and the S04 E2E rewrite):** `components/status-slot/status-view.ts` (`StatusSlotApprovals`, `STATUS_SLOT_APPROVALS`, `LEGACY_RESULT_COPY`, `applyApprovalFallbacks`, `deriveStatusView`), `components/status-slot/SlotParts.tsx` (`RECOVERY_KINDS`, `TONE_BORDER`, `actionClassName`, `ActionControl`, `NumberLine`, `ChipLine`, `NoticeLine`, `AuxiliaryLine`), `tests/support/status-slot.ts` (E2E helpers), `tests/unit/status-view.spec.ts`. File Map row changes: `tests/unit/mismatch-storage.spec.ts` gains "M S04" (import path only).
+3. **S04-private files (File Map additions; S07 deletes `components/status-slot/` and `tests/unit/status-view.spec.ts` and keeps `tests/support/status-slot.ts` for the S04 E2E specs it migrates — S07 contract deviation 13):** `components/status-slot/status-view.ts` (`StatusSlotApprovals`, `STATUS_SLOT_APPROVALS`, `LEGACY_RESULT_COPY`, `applyApprovalFallbacks`, `deriveStatusView`), `components/status-slot/SlotParts.tsx` (`RECOVERY_KINDS`, `TONE_BORDER`, `actionClassName`, `ActionControl`, `NumberLine`, `ChipLine`, `NoticeLine`, `AuxiliaryLine`), `tests/support/status-slot.ts` (E2E helpers), `tests/unit/status-view.spec.ts`. File Map row changes: `tests/unit/mismatch-storage.spec.ts` gains "M S04" (import path only).
 4. **S04-private `data-*` hooks** (S07 rewrites the selectors): `data-status-slot` (`loading` | `error` | `settled`) on the slot root, `data-action-kind` + `data-action-weight` on every action control, `data-spinner` (`on` | `off`), `data-loading-skeleton`, `data-worry-line`, `data-inquiry-preview`, `data-carrier-choice`, `data-last-event`, `data-copy-fallback` (same name S02's `ReturnLinkButton` uses). S04 also puts S05's hook names on its transitional markup with the contract values: `data-tone`, `data-station`, `data-station-state`, `data-issue`, `data-spine-current`, `data-affiliate-group`, `data-affiliate-disclosure`, `data-link-placement`, `data-notice-kind`.
 5. **Transitional component props (S04-private):** `TrackingForm` becomes controlled (`value`, `onValueChange`, `carrier`, `onCarrierChange`, `onSubmit`, `busy`, `invalid`, `inputRef`, `surface`) and exports `INVALID_NUMBER_ERROR_ID`; S02's transitional props (`onSuccess`, `onError`, `onLoading`, `onSubmitted`, `initialTrackingNumber`, `initialCarrier`) and `TrackingFormSubmitSource` are removed (their behavior moves into `HomePageClient`). `CustomerCta` gains `variant: "view"` (`{ view, onAction }`) and exports `INLINE_HELP_IDS`; its legacy `variant: "result"` is removed in Task 6; `variant: "floating"` stays for S06 to delete. `RecommendedProducts` props become `{ context: "pending" | "inTransit" | "delivered" }` (exported type `RecommendationStage`).
 
@@ -126,7 +126,7 @@ Reported to the roadmap owner; nothing here renames or retypes a §11 name.
 2. **Approval-2 fallback is a wording overlay (`LEGACY_RESULT_COPY`) in the transitional slot, not a `stateGuide` edit,** because S03's `derive-view.spec.ts`, `config.spec.ts` and `cs-reply.spec.ts` pin the spec §7 copy through `FIXTURE_CONFIG = { ...siteConfig }`. The internal CS reply keeps the spec copy.
 3. **`components/HomePageClient.tsx` (legacy, deleted by S06) imports `siteConfig` and `deriveTrackingView` statically** (through `status-view.ts`); roadmap §11.7 reserves `siteConfig` for the lazy result chunk and server code. S06/S07's `LookupController` uses `loadResultModule()`.
 4. **One transitional stage-authored string outside the config:** '아래 문의 내용을 길게 눌러 복사해 주세요.' (`CopyInquiryButton` fallback label), mirroring S02's `ReturnLinkButton`; S07 replaces the component with S05's `CopyButton` and config copy.
-5. **Stage screens live in `test-artifacts/stage-screens/`** (S01 addition 1): wherever the verbatim Task 0 Step 5 or gate G7 says `test-results/stage-screens/…`, read `test-artifacts/stage-screens/…`.
+5. **Stage screens live in `test-artifacts/stage-screens/`** (S01 addition 1): Task 0 Step 5 and gate G7 below are the roadmap §6/§7 text with that one path applied (`test-artifacts/stage-screens/S04-<before|after>/` where the roadmap says `test-results/stage-screens/…`). Roadmap amendment requested: apply the same path in §6 Step 5 and §7 G7.
 
 ## File Structure
 
@@ -190,14 +190,14 @@ Execution order: Task 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → gate
   Expected: build exits 0. Start the production server in a background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`
   Wait until `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` prints `200`.
   Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='before'; $env:PW_STAGE='S04'; npx playwright test tests/tools/stage-screens.spec.ts`
-  Expected: PNGs in `test-results/stage-screens/S04-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
+  Expected: PNGs in `test-artifacts/stage-screens/S04-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
 - [ ] **Step 6: Baseline suite.** With the server still running: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test`
   Expected: record "N passed / M skipped / 0 failed" in the stage summary. Then stop the server (Step 4 command) and clear the flags: `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 
 **S04 notes on the standard steps above**
 - Step 1: the "Gated by" list is approvals 2 and 3. Their fallbacks are built into Tasks 3 and 6 (`STATUS_SLOT_APPROVALS = { approval2: false, approval3: false }`); Task 9 (approval 3) and Task 10 (approval 2) run only when the ledger says `approved`.
 - Step 2: expected `merge: S02 …` and `merge: S03 …` (and `merge: S01 …` below them).
-- Step 5: the PNGs land in `test-artifacts/stage-screens/S04-before/` (S01 addition 1).
+- Step 5: the output path above is the roadmap §6 text with S01's addition 1 applied (`test-artifacts/`, not `test-results/`: Playwright empties `test-results/` at the start of every run, so Step 6 would delete the before-set). Expect 35 PNGs (S01's 7 scenarios × 5 widths); the four S04 scenarios are appended only in Task 7. Check: `(Get-ChildItem test-artifacts/stage-screens/S04-before -Filter *.png).Count` prints `35`.
 
 - [ ] **Step 7 (stage-specific): The artifacts S04 consumes exist.** Run:
   `Test-Path -LiteralPath tests/fixtures/tracking-fixtures.ts, tests/fixtures/config-fixtures.ts, tests/fixtures/derive-scenarios.ts, lib/site.ts, lib/clipboard.ts, lib/cs/mismatch-storage.ts, lib/privacy/session-restore.ts, lib/privacy/url-scrub.ts, lib/ads/ad-signals.ts, components/ReturnLinkButton.tsx, config/site.config.ts, lib/tracking/types.ts, lib/tracking/classify-failure.ts, lib/tracking/loading-view.ts, lib/tracking/derive-view.ts, lib/tracking/carriers.ts, lib/tracking/template.ts, lib/cs/cs-reply.ts, tests/unit/module-boundaries.spec.ts`
@@ -1082,7 +1082,7 @@ import type { DeliveryCarrierCode, TrackResponseData } from "@/lib/types";
 import { FAILURE_RESPONSES, FIXTURE_NOW, successBody } from "../fixtures/tracking-fixtures";
 import type { FailureFixture } from "../fixtures/tracking-fixtures";
 
-/** Helpers for the S04 status-slot E2E (S07 rewrites these specs for the R3 DOM and deletes this file). */
+/** Helpers for the S04 status-slot E2E (S07 rewrites these specs for the R3 DOM and keeps this file for them). */
 
 export const INPUT_LABEL = "조회번호 (HBL 또는 운송장)";
 export const CARRIER_LABEL = "국내 택배사";
@@ -4115,6 +4115,45 @@ with
   await expect(summary.getByText("배송 이력 확인 필요")).toBeVisible();
 ```
 
+Approval-4 case (the pending recheck sentence). Run: `Select-String -LiteralPath docs/superpowers/plans/2026-09-26-renewal-00-roadmap.md -Pattern '^\| 4 \|'`
+Expected: one line; read its Status cell (the third cell). `pending`/`rejected` → nothing to do here: `durations.pendingRecheck` still equals '정보 반영까지 시간이 걸릴 수 있어 2~3시간 뒤 다시 확인해 주세요.' and the pending test keeps that literal. `approved` → S03 Task 15 changed `durations.pendingRecheck` and left the old literal in `tests/tracking.spec.ts` (its Step 5, before S04 is merged: the legacy component still hard-codes the sentence, so the test stays as it is), while the slot now renders `view.nextAction.note` = the new sentence; approval 4 is the approval for this one sentence, so replace the literal with the config value (S03 Task 15 Step 5 rule for later-stage files). In `tests/tracking.spec.ts` replace
+```ts
+  await expect(summary.getByText("정보 반영까지 시간이 걸릴 수 있어 2~3시간 뒤 다시 확인해 주세요.")).toBeVisible();
+```
+with
+```ts
+  await expect(summary.getByText(durations.pendingRecheck)).toBeVisible();
+```
+and insert `import { durations } from "@/config/site.config";` as its own line directly above `import type { StatusCode, TrackResponseData } from "@/lib/types";` (not between that line and the fixture import below it: Task 10 (a) edits those two lines as one block). Write "approval 4 approved: pending recheck assertion reads `durations.pendingRecheck` (rule 도착 전 재확인 안내 unchanged)" into the stage summary.
+
+Approval-8 case (the holiday date shift). Run: `Select-String -LiteralPath docs/superpowers/plans/2026-09-26-renewal-00-roadmap.md -Pattern '^\| 8 \|'`
+Expected: one line; read its Status cell (the third cell). `pending`/`rejected` → nothing to do here: the slot shows the normalizer's estimate dates. `approved` → S03 Task 17 set `calendar.shiftEstimates: true`, so the slot moves a displayed estimate that falls on a holiday or a non-delivery day to the next delivery business day. Exactly one pre-renewal literal is affected: in "tracking result leads with delivery date and keeps customs estimate secondary" the estimate 7/17 is 제헌절 (a Friday in S03's 2026 calendar), so the slot shows 7/20 (월) when `calendar.carrierDeliversSaturday` is `false` (the spec §17 Q1 default) or 7/18 (토) when it is `true`. The other dated assertions do not change: 7/14, 7/16, 7/20 and 7/23 are business days, and the overdue test's '7월 17일 (금)' stays absent. Approval 8 is the approval for this date change (spec §16 item 8). In `tests/tracking.spec.ts` replace
+```ts
+  await expect(deliveryEstimate.getByText(/7월 17일/)).toBeVisible();
+```
+with (`carrierDeliversSaturday: false`)
+```ts
+  await expect(deliveryEstimate.getByText(/7월 20일/)).toBeVisible();
+```
+or (`carrierDeliversSaturday: true`)
+```ts
+  await expect(deliveryEstimate.getByText(/7월 18일/)).toBeVisible();
+```
+and write "approval 8 approved: the 7/17 estimate assertion reads the shifted date (rule 결과 요약: 도착 예상 선두 unchanged)" into the stage summary.
+
+Approval-9 case (the affiliate disclosure). Run: `Select-String -LiteralPath docs/superpowers/plans/2026-09-26-renewal-00-roadmap.md -Pattern '^\| 9 \|'`
+Expected: one line; read its Status cell (the third cell). `pending`/`rejected` → nothing to do here: `disclosures.coupang` still equals '쿠팡 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.', which the view-driven block now renders. `approved` → S03 Task 16 changed `disclosures.coupang` while the legacy `CustomerCta` still hard-coded the old sentence, so it left the two CTA literals in `tests/tracking.spec.ts` (its Step 4 edits them only after S04 is merged); now the block renders `disclosures.coupang`, and spec §16 item 9 ('E2E 고지 문언을 한 번 교체') is the approval for this one replacement. In `tests/tracking.spec.ts` use the Edit tool with `replace_all: true` to replace
+```ts
+  await expect(
+    cta.getByText("쿠팡 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.")
+  ).toBeVisible();
+```
+(2 occurrences: "pending state offers inquiry and purchase-channel choices" and "delivered state leads with store choices") with
+```ts
+  await expect(cta.getByText(disclosures.coupang)).toBeVisible();
+```
+and import the name on its own line directly above `import type { StatusCode, TrackResponseData } from "@/lib/types";`: `import { disclosures } from "@/config/site.config";`, or — when the approval-4 case above already added `import { durations } from "@/config/site.config";` there — change that line to `import { disclosures, durations } from "@/config/site.config";`. Write "approval 9 approved: the CTA disclosure assertions read `disclosures.coupang` (rule 고지 선행 unchanged)" into the stage summary.
+
 Use the Grep tool with pattern `data-tracking-result-summary|data-delivery-estimate|data-customs-estimate|data-motion-visual="result"` over `tests/`. Expected: matches only in `tests/e2e/status-slot.spec.ts` (its "legacy summary is gone" check).
 
 - [ ] **Step 6: Run the tests to verify they pass**
@@ -4630,8 +4669,8 @@ Expected: one commit including the staged deletion of `lib/services/cs-reply-tem
 - Test: `tests/unit/status-view.spec.ts` (the approval-3 ledger test, one import line, one appended block), `tests/e2e/failure-causes.spec.ts` (one import line, appended tests)
 
 **Interfaces:**
-- Consumes: `STATUS_SLOT_APPROVALS`, `deriveStatusView`, `applyApprovalFallbacks` (Task 3); `FailureNotice` (root `data-failure-cause`, recovery row), `CustomerCta` `variant: "view"` (톡톡 first; recovery kinds left to the card) (Task 5); `ActionKind`, `FailureCause` (S03 `lib/tracking/types.ts`); `failure` (S03 `tests/fixtures/derive-scenarios.ts`); `mockTrack`, `FailureFixture`, `FAKE`, `FIXTURE_NOW` (S01); `holdTrack`, `openPaused`, `PAUSED_NOW`, `lookUp`, `statusSlot` (Task 4); the Task 5 test-local `CAUSE_BY_FIXTURE` and `expectedFailure`.
-- Produces: `STATUS_SLOT_APPROVALS.approval3 === true`. Error screens then render `deriveTrackingView`'s own weights (S03 config rows, spec §7 and §16 item 3 as approved): the cause's recovery action is the one filled button inside the failure card — [번호 수정] for invalidNumber and notFound, [다시 조회] for temporaryDelay (429 with its countdown, 503/504, non-JSON), offline and noResponse; serverError (500 and contract violations) keeps [문의 내용 복사하고 톡톡 열기] as the filled primary; 톡톡 stays the first link of `[data-cta-state="error"]` (an outlined action, or on NOT_FOUND the worry line's text link); a second failure in a row still promotes copy-and-talk (S03). No name, type or hook changes.
+- Consumes: `STATUS_SLOT_APPROVALS`, `deriveStatusView`, `applyApprovalFallbacks` (Task 3); `FailureNotice` (root `data-failure-cause`, recovery row), `CustomerCta` `variant: "view"` (톡톡 first; recovery kinds left to the card) (Task 5); `ActionKind`, `FailureCause` (S03 `lib/tracking/types.ts`); `siteConfig.channels.talk.url`, `siteConfig.stateGuide.noResponse.primaryAction`, `lookup.timeoutMs` (S03 `config/site.config.ts`, already imported by the Task 5 spec); `failure` (S03 `tests/fixtures/derive-scenarios.ts`); `mockTrack`, `FailureFixture`, `FAKE`, `FIXTURE_NOW` (S01); `holdTrack`, `openPaused`, `PAUSED_NOW`, `lookUp`, `statusSlot` (Task 4); the Task 5 test-local `CAUSE_BY_FIXTURE` and `expectedFailure`.
+- Produces: `STATUS_SLOT_APPROVALS.approval3 === true`. Error screens then render `deriveTrackingView`'s own weights (S03 config rows, spec §7 and §16 item 3 as approved): the cause's recovery action is the one filled button inside the failure card — [번호 수정] for invalidNumber and notFound, [다시 조회] for temporaryDelay (429 with its countdown, 503/504, non-JSON) and offline, and for noResponse whatever S03's `stateGuide.noResponse.primaryAction` names (`"retry"` as shipped per spec §7; `"fixNumber"` if the approval-3 decision follows §16 item 3's proposal); serverError (500 and contract violations) keeps [문의 내용 복사하고 톡톡 열기] as the filled primary; 톡톡 stays the first link of `[data-cta-state="error"]` (an outlined action, or on NOT_FOUND the worry line's text link); a second failure in a row still promotes copy-and-talk (S03). No name, type or hook changes.
 
 - [ ] **Step 1: Confirm approval 3 is recorded in the roadmap approval ledger; if not, stop.**
 
@@ -4648,7 +4687,7 @@ The approved wording (spec §16 item 3 제안): '모든 오류에서 [data-cta-s
 | `failure-causes.spec.ts` › "`<fixture>`: the cause's own notice, 톡톡 first in the block, no stores and no server wording" | 블록 첫 링크 톡톡, 채움 버튼 1개, 스토어 0 | same | none |
 | `failure-causes.spec.ts` › "the filled primary on an error follows the approval-3 ledger" | reads the ledger | reads the ledger | none (now expects `fixNumber`) |
 | `failure-causes.spec.ts` › "`<fixture>` (approval 3): the recovery action leads and 톡톡 stays the first link of the block" (8 rows) | — | 카드에 원인별 복구 조작 먼저; SERVER_ERROR는 문의 내용 복사가 주 버튼 | added |
-| `failure-causes.spec.ts` › "client timeout (approval 3): …" | — | 응답 없음: [다시 조회] 주, [번호 수정] 보조 (spec §7 'error · 응답 없음') | added |
+| `failure-causes.spec.ts` › "client timeout (approval 3): …" | — | 응답 없음: S03 `stateGuide.noResponse.primaryAction`이 주, 나머지 복구 조작이 보조 (shipped: [다시 조회] 주·[번호 수정] 보조, spec §7 'error · 응답 없음'; §16 item 3 제안대로 [번호 수정]으로 정하면 S03 행만 바뀜) | added |
 | `status-view.spec.ts` › ledger row | approval 3 pending | approval 3 approved | flipped; plus "error views are deriveTrackingView's own" |
 
 - [ ] **Step 3: Write the failing unit tests**
@@ -4759,17 +4798,21 @@ for (const fixture of Object.keys(APPROVED_PRIMARY) as FailureFixture[]) {
   });
 }
 
-test("client timeout (approval 3): [다시 조회] leads the card, [번호 수정] follows, 톡톡 stays the first link", async ({ page }) => {
+test("client timeout (approval 3): the row's recovery action leads the card, the other follows, 톡톡 stays the first link", async ({ page }) => {
+  // Spec §7 'error · 응답 없음': 주 행동 [다시 조회], 보조 [번호 수정] — S03 ships noResponse.primaryAction "retry". §16 item 3's
+  // proposal names [번호 수정] for 응답 없음; if the operator's approval-3 decision says so, S03's follow-up sets the row to
+  // "fixNumber" and the two swap here without a test edit. (Typed as string: the config literal type would make the comparison fail tsc.)
+  const lead: string = siteConfig.stateGuide.noResponse.primaryAction;
+  const follow = lead === "fixNumber" ? "retry" : "fixNumber";
   const held = await holdTrack(page);
   await openPaused(page);
   await lookUp(page, FAKE.domestic);
   await held.waitForRequests(1);
   await page.clock.runFor(lookup.timeoutMs);
-  // Spec §7 'error · 응답 없음': 주 행동 [다시 조회](번호 확인 문장 바로 뒤), 보조 [번호 수정].
-  expect(expectedFailure("clientTimeout", FAKE.domestic, PAUSED_NOW).nextAction.primary?.kind).toBe("retry");
+  expect(expectedFailure("clientTimeout", FAKE.domestic, PAUSED_NOW).nextAction.primary?.kind).toBe(lead);
   const notice = statusSlot(page).locator('[data-failure-cause="clientTimeout"]');
-  await expect(notice.locator('[data-action-weight="primary"]')).toHaveAttribute("data-action-kind", "retry");
-  await expect(notice.locator('[data-action-kind="fixNumber"]')).toHaveAttribute("data-action-weight", "secondary");
+  await expect(notice.locator('[data-action-weight="primary"]')).toHaveAttribute("data-action-kind", lead);
+  await expect(notice.locator(`[data-action-kind="${follow}"]`)).toHaveAttribute("data-action-weight", "secondary");
   await expect(statusSlot(page).locator('[data-cta-state="error"]').getByRole("link").first()).toHaveAttribute(
     "href",
     siteConfig.channels.talk.url
@@ -4782,7 +4825,7 @@ test("client timeout (approval 3): [다시 조회] leads the card, [번호 수�
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit/status-view.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
 Expected: FAIL — `2 failed`: "ledger: approval 3 is approved (roadmap §4)" (`expect(received).not.toBe(expected)`, received `false`) and "approval 3 granted: …" (first message `invalidNumber × 1`: the transformed view's `primary.kind` is `"talk"`, deriveTrackingView's is `"fixNumber"`). Every other test in the file passes.
 Run (port 43210 free): `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npx playwright test tests/e2e/failure-causes.spec.ts`
-Expected: FAIL — `7 failed`: the approval-3 rows for `invalid400`, `notFound404`, `rateLimited429`, `upstreamTimeout504`, `unavailable503`, `badGatewayHtml502` (each at its first `expect`: expected `"fixNumber"` or `"retry"`, received `"talk"`) and "client timeout (approval 3): …" (expected `"retry"`, received `"talk"`). The `serverError500` and `contractViolation200` rows already pass (copy-and-talk leads under either ledger value), and the 18 Task 5 tests pass.
+Expected: FAIL — `7 failed`: the approval-3 rows for `invalid400`, `notFound404`, `rateLimited429`, `upstreamTimeout504`, `unavailable503`, `badGatewayHtml502` (each at its first `expect`: expected `"fixNumber"` or `"retry"`, received `"talk"`) and "client timeout (approval 3): …" (expected the row's action — `"retry"` as S03 ships it — received `"talk"`). The `serverError500` and `contractViolation200` rows already pass (copy-and-talk leads under either ledger value), and the 18 Task 5 tests pass.
 
 - [ ] **Step 6: Record the approval in the slot's ledger**
 
@@ -4834,7 +4877,7 @@ Every row keeps its business rule; the literal wording moves to the view model (
 
 | Test | Business rule | Literal assertions removed | View/hook assertions that replace them |
 |---|---|---|---|
-| tracking › "tracking result leads with delivery date and keeps customs estimate secondary" | 결과 요약: 상태 → 도착 예상 → 통관 예상 보조 | h2 '통관대기'; '배송 완료 예상일'; `/7월 17일/`; `/^통관완료 예상일 .*7월 14일/`; '정상 통관 대기 상태입니다…' | status h2 = `view.title`; `[data-eta-kind="date"]` shows `view.eta.label`, `view.eta.date.label`, `view.eta.caption`; Node: `eta.date.key` = 2026-07-17 and the caption contains '7월 14일'; 지금 할 일 shows `view.nextAction.sentence`; spine `aria-current` count 1 (kept) |
+| tracking › "tracking result leads with delivery date and keeps customs estimate secondary" | 결과 요약: 상태 → 도착 예상 → 통관 예상 보조 | h2 '통관대기'; '배송 완료 예상일'; `/7월 17일/`; `/^통관완료 예상일 .*7월 14일/`; '정상 통관 대기 상태입니다…' | status h2 = `view.title`; `[data-eta-kind]` equals `view.eta.kind` (`holidayAffected`: 7/17 is 제헌절 in S03's 2026 calendar) and shows `view.eta.label`, `view.eta.date.label`, `view.eta.caption`; Node: `eta.date.key` = 2026-07-17 (the shifted date after Task 6's approval-8 case) and the caption contains '7월 14일'; 지금 할 일 shows `view.nextAction.sentence`; spine `aria-current` count 1 (kept) |
 | tracking › "an overdue customs estimate is recalculated and remains readable on mobile" | 오래된 예상일 재계산 | h2 '통관대기' | status h2 = `view.title`; the recalculated dates (data) and the 390 px overflow check kept |
 | tracking › "pickup status names the carrier pickup and prioritizes the delivery estimate" | 기사님 픽업 문언, 예상일 우선 | h2, reason, sentence, '배송 완료 예상일', `/7월 16일/`, `/^통관 완료일 .*7월 14일/` | h2 = `view.title` and contains 'CJ대한통운'; reason and sentence from the view; ETA label/date/caption from the view; Node: `eta.date.key` = 2026-07-16, caption contains '7월 14일' |
 | tracking › "pending state offers inquiry and purchase-channel choices" | 도착 전 → 문의 + 구매처, 고지 선행 | h2 '통관 정보 등록 전'; '정보 등록 후 안내'; the recheck sentence; CTA h3; 톡톡/네이버/쿠팡 link names; `rel` sponsored; the disclosure sentence | h2 = `view.title`; `[data-eta-kind="pendingInfo"]` = `view.eta.text`; `view.nextAction.sentence` and `view.nextAction.note` (the recheck sentence, `durations.pendingRecheck`); CTA h3 = `view.nextAction.heading`; 톡톡 link named from `channels.talk.labels.cta`; each `view.nextAction.stores` link by label with its `href` and `rel` by `isAffiliate`; disclosure = `disclosures.coupang` and before the sponsored link; the recommendations dialog part is unchanged (S08) |
@@ -4866,6 +4909,8 @@ import type { TrackingViewModel } from "@/lib/tracking/types";
 import type { StatusCode, TrackResponseData } from "@/lib/types";
 import { FAKE, FIXTURE_NOW, mockTrack } from "./fixtures/tracking-fixtures";
 ```
+
+If Task 6 Step 5's approval-9 case put `disclosures` on a separate `@/config/site.config` import line above this block, remove it from that line in the same edit so the name is imported once: `import { disclosures } from "@/config/site.config";` is deleted, `import { disclosures, durations } from "@/config/site.config";` becomes `import { durations } from "@/config/site.config";`.
 
 (b) Replace
 
@@ -4931,11 +4976,12 @@ with
 
 ```ts
   const view = resultView(data, new Date("2026-07-13T12:00:00+09:00"));
-  if (view.eta.kind !== "date") throw new Error(`unexpected ETA kind ${view.eta.kind}`);
+  // 7/17 is 제헌절 in S03's 2026 calendar, so the estimate carries the holiday badge (kind "holidayAffected", no D-n).
+  if (view.eta.kind !== "date" && view.eta.kind !== "holidayAffected") throw new Error(`unexpected ETA kind ${view.eta.kind}`);
   expect(view.eta.date.key).toBe("2026-07-17");
   expect(view.eta.caption ?? "").toContain("7월 14일");
   await expect(summary.locator("[data-guide-key]").getByRole("heading", { level: 2 })).toHaveText(view.title);
-  await expect(deliveryEstimate).toHaveAttribute("data-eta-kind", "date");
+  await expect(deliveryEstimate).toHaveAttribute("data-eta-kind", view.eta.kind);
   await expect(deliveryEstimate.getByText(view.eta.label, { exact: true })).toBeVisible();
   await expect(deliveryEstimate.getByText(view.eta.date.label, { exact: true })).toBeVisible();
   await expect(deliveryEstimate.getByText(view.eta.caption ?? "", { exact: true })).toBeVisible();
@@ -4946,6 +4992,8 @@ with
   await expect(deliveryEstimate.getByText(/^통관완료 예상일 .*7월 14일/)).toBeVisible(); // approval-2 literal
   await expect(summary.getByText("정상 통관 대기 상태입니다. 지금은 별도 문의 없이 조금만 기다려 주세요.")).toBeVisible(); // approval-2 literal
 ```
+
+(If Task 6 Step 5's approval-8 case was applied, the old block's date line reads `/7월 20일/` (or `/7월 18일/`) instead of `/7월 17일/`: match that line, carry it over with the `// approval-2 literal` marker in place of the `/7월 17일/` line, and pin the same shifted key in Node — `expect(view.eta.date.key).toBe("2026-07-20");` (or `"2026-07-18"`) instead of `"2026-07-17"`.)
 
 (e) "an overdue customs estimate…" — replace
 
@@ -5083,7 +5131,7 @@ test("pending state offers inquiry and purchase-channel choices", async ({ page 
   await expect(cta.getByText("쿠팡 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.")).toBeVisible(); // approval-2 literal
 ```
 
-(If approval 4 was granted before this stage and the recheck line of this test already reads `durations.pendingRecheck` instead of the '2~3시간' literal — the approval-4 case in the Self-Review — the old block contains that line; carry it over unchanged and do not mark it: it reads the config, so Step 6 keeps it and its `durations` import stays used.)
+(If approval 4 was granted before this stage and the recheck line of this test already reads `durations.pendingRecheck` instead of the '2~3시간' literal — Task 6 Step 5's approval-4 case — the old block contains that line; carry it over unchanged and do not mark it: it reads the config, so Step 6 keeps it and its `durations` import stays used. Likewise, if Task 6 Step 5's approval-9 case was applied, the old block ends with `  await expect(cta.getByText(disclosures.coupang)).toBeVisible();` instead of the three-line disclosure literal: match that line, and leave out the marked disclosure-literal line of the new block — the new `[data-affiliate-disclosure]` assertion already reads `disclosures.coupang`.)
 
 (i) In transit — replace
 
@@ -5194,7 +5242,7 @@ test("delivered state leads with store choices", async ({ page }) => {
   await expect(cta.getByText("쿠팡 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.")).toBeVisible(); // approval-2 literal
 ```
 
-(The test's last line — `[data-recommended-products="delivered"]` visible — stays.)
+(The test's last line — `[data-recommended-products="delivered"]` visible — stays. If Task 6 Step 5's approval-9 case was applied, the old block ends with `  await expect(cta.getByText(disclosures.coupang)).toBeVisible();` instead of the three-line disclosure literal: match that line, and leave out the marked disclosure-literal line of the new block.)
 
 - [ ] **Step 4: Add the view assertions next to the literal ones in `tests/privacy.spec.ts`**
 
@@ -5441,7 +5489,7 @@ Expected: one commit. Write "Task 10 DONE — approval 2 approved; the page rend
 - [ ] **G4. Build.** `npm run build` → exit 0. Route table: `ƒ /[trackingNumber]` always; `/` is `ƒ` in S01 (it still reads `searchParams`), `○ /` from S02 on, and `○ /` with `Revalidate 5m` from S06 on.
 - [ ] **G5. Dev-mode E2E.** `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npm run test:e2e` → "N passed", 0 failed (skips allowed only for tests guarded by `PW_MODE`, `PW_SHOTS`, `PW_VISUAL`, or an approval-gated `test.skip` naming the approval).
 - [ ] **G6. Production-mode E2E.** Re-run `npm run build` if `next start` reports a missing or stale build. Background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`; wait for `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` = `200`; then `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test` → 0 failed, including `tests/budgets/*`.
-- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S04'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-results/stage-screens/S04-after/` at 320, 375, 768, 1024, 1440. Compare with `S04-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
+- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S04'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-artifacts/stage-screens/S04-after/` at 320, 375, 768, 1024, 1440. Compare with `S04-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 - [ ] **G8. Budgets.** Paste the measured numbers of every budget this plan lists (from the G6 output) into the stage summary. Any budget over its fail line fails the gate.
 - [ ] **G9. Code review.** Invoke the `code-review` skill on `git diff claude/tipoasis-tracking-renewal-ae0e3a...HEAD`. Fix every CRITICAL and HIGH finding; if code changed, re-run G2–G6.
 - [ ] **G10. Verification.** Invoke `superpowers:verification-before-completion`; paste each command and its result line into the stage summary.
@@ -5450,8 +5498,8 @@ Expected: one commit. Write "Task 10 DONE — approval 2 approved; the page rend
 
 **S04 notes on the gate steps above**
 - G4: the expected route table is `ƒ /[trackingNumber]` and `○ /`. S04 adds only client code and static config reads; a `ƒ /` means a server read of `searchParams`, `headers()` or `cookies()` crept into `app/(public)/page.tsx` or its imports — find it with `git diff claude/tipoasis-tracking-renewal-ae0e3a...HEAD -- app` and remove it before going on.
-- G5: `npm run test:e2e` is `playwright test`, so it also runs `tests/unit/*` (module boundaries, the real-number guard, the reducer, the fetcher, the status view). S04 adds no `test.skip`: Tasks 9 and 10 add their tests only when their approval is recorded. Approval-4 case: if G5 (or an earlier run in Task 6) fails only at `tests/tracking.spec.ts` › "pending state offers inquiry and purchase-channel choices" on the literal '정보 반영까지 시간이 걸릴 수 있어 2~3시간 뒤 다시 확인해 주세요.' because approval 4 was granted and S03 Task 15 changed `durations.pendingRecheck`, replace that one literal with `durations.pendingRecheck` (add `durations` to an `@/config/site.config` import) as S03 Task 15 Step 6 prescribes, re-run, and record it in the stage summary.
-- G7: the PNGs land in `test-artifacts/stage-screens/S04-after/` (S01 addition 1; read every `test-results/stage-screens/…` path above that way). Task 7 appended four scenarios (`deeplink-serverError`, `deeplink-rateLimited`, `deeplink-stale`, `deeplink-ambiguous`), so the after-set has 55 PNGs (11 scenarios × 5 widths) while the before-set from Task 0 has none of those four; say so when sending both sets.
+- G5: `npm run test:e2e` is `playwright test`, so it also runs `tests/unit/*` (module boundaries, the real-number guard, the reducer, the fetcher, the status view). S04 adds no `test.skip`: Tasks 9 and 10 add their tests only when their approval is recorded. Approvals 4, 8 and 9: Task 6 Step 5's approval-4/8/9 cases replace the affected `tests/tracking.spec.ts` literals when the approval was granted before this stage. If G5 still fails only on one of them — the recheck sentence '정보 반영까지 시간이 걸릴 수 있어 2~3시간 뒤 다시 확인해 주세요.' (approval 4, S03 Task 15 Step 5 changed `durations.pendingRecheck`), `/7월 17일/` (approval 8, S03 Task 17 shifts displayed estimates) or the old CTA disclosure sentence (approval 9, S03 Task 16 changed `disclosures.coupang`) — because the ledger changed after Task 6 ran, apply that case now exactly as written there (and, if Task 10 already ran, edit its view-based line instead of the deleted literal), re-run, and record it in the stage summary.
+- G7: the output path above is the roadmap §7 text with S01's addition 1 applied (contract deviation 5). Check: `(Get-ChildItem test-artifacts/stage-screens/S04-after -Filter *.png).Count` prints `55`. Task 7 appended four scenarios (`deeplink-serverError`, `deeplink-rateLimited`, `deeplink-stale`, `deeplink-ambiguous`), so the after-set has 55 PNGs (11 scenarios × 5 widths) while the before-set from Task 0 has none of those four; say so when sending both sets.
 - G8: S04's budgets (roadmap §9) are behavioural. Paste the G6 result lines of: `loading-timeline.spec.ts` › "a slow but valid answer (29.19 s before the server fix) still shows its result" (the delay used is `Math.min(29_190, lookup.timeoutMs - 4_000)` ms; write the number), "one polite live region is in the server HTML and stays the only one"; focus: `status-slot.spec.ts` › "a manual result fills the slot under the form…", "deep link: the result takes focus when the customer has not touched the page", "deep link: focus stays where the customer is once they interacted…", and `failure-causes.spec.ts` › "an invalid number keeps focus in the input and describes the error there". S01's font-preload budget in `tests/budgets/*` must stay green. JS size budgets start at S07; note in the summary that `components/HomePageClient.tsx` imports `siteConfig` and `deriveTrackingView` statically until S06/S07 (contract deviation 3).
 - G9: ask the review to check in particular: no `setState` during render or in effects without a guard (`react-hooks/*`), clocks read only in callbacks/effects, one filled button per screen, `role="alert"` never on a focused heading, no server `message` text reaching the DOM, and `fetchTrack` being the only `/api/track` caller in `components/` and `lib/tracking/`.
 - [ ] **G10a (S04, run before G11): Leftovers and invariants.**
@@ -5459,10 +5507,10 @@ Expected: one commit. Write "Task 10 DONE — approval 2 approved; the page rend
   Expected: no output.
   Run: `git grep -n "관리자에게" -- components lib`
   Expected: no output (the server wording lives only in `app/api/track/route.ts`, which S04 does not touch).
-  Run: `git grep -n -e "aria-live" -e "role=.status" -- app components`
-  Expected: exactly one line, in `components/primitives/LiveAnnouncer.tsx`. A line from another file breaks spec §5 "one polite live region" — remove it (S05 primitives must not render live regions either, contract §11.9). (The patterns use `.` for the quote character: PowerShell 5.1 strips embedded double quotes from native-command arguments.)
-  Run: `git grep -n "role=.alert" -- app components`
-  Expected: exactly two lines, both in `components/status-slot/FailureNotice.tsx` (the invalid-number sentence and the error reason).
+  Run: `git grep -n -e "aria-live=" -e "role=.status" -- app components`
+  Expected: exactly one line, in `components/primitives/LiveAnnouncer.tsx` (the `<div data-live-region="polite" role="status" aria-live="polite" …>` line; the file's header comment says "aria-live" without `=` and does not match). A line from another file breaks spec §5 "one polite live region" — remove it (S05 primitives must not render live regions either, contract §11.9). (The patterns use `.` for the quote character: PowerShell 5.1 strips embedded double quotes from native-command arguments.)
+  Run: `git grep -n -E "<[a-z]+ [^>]*role=.alert" -- app components`
+  Expected: exactly two lines, both in `components/status-slot/FailureNotice.tsx` (the invalid-number sentence and the error reason). The pattern needs a JSX opening tag before the attribute, so the comments that mention the rule (`LiveAnnouncer.tsx` header, the `INVALID_NUMBER_ERROR_ID` doc comment in `TrackingForm.tsx`, the `FailureNotice.tsx` header) do not match.
   Run: `git grep -n "fetch(" -- components lib/tracking`
   Expected: exactly one line, `lib/tracking/fetch-track.ts: … const response = await fetch(TRACK_ENDPOINT, {` — no component calls `fetch` (the page goes through `useLookup`, the internal helper through `fetchTrack`).
 - G11: `git diff --name-status claude/tipoasis-tracking-renewal-ae0e3a...HEAD` must list exactly —
@@ -5512,14 +5560,15 @@ Expected: one commit. Write "Task 10 DONE — approval 2 approved; the page rend
 
 No scope item is without a task.
 
-**2. Placeholder scan.** Searched the plan for "TBD", "TODO", "implement later", "similar to Task", "add appropriate", "handle edge cases": none. Every code step shows the code; every run step names the PowerShell command and the expected result. Conditional steps (Task 0 Step 10's `S02-HISTORY-ENTRY` blocks, the approval gates, the approval-4 case) say exactly what to do in each branch.
+**2. Placeholder scan.** Searched the plan for "TBD", "TODO", "implement later", "similar to Task", "add appropriate", "handle edge cases": none. Every code step shows the code; every run step names the PowerShell command and the expected result. Conditional steps (Task 0 Step 10's `S02-HISTORY-ENTRY` blocks, the approval gates, Task 6 Step 5's approval-4/8/9 cases) say exactly what to do in each branch.
 
 **3. Type and name consistency.** Checked across tasks: `LookupState`, `LookupEvent`, `INITIAL_LOOKUP_STATE`, `lookupReducer`, `lastRequestOf` (1 → 4); `FetchTrackResult`, `fetchTrack` (2 → 4, 8); `StatusSlotApprovals`, `STATUS_SLOT_APPROVALS`, `LEGACY_RESULT_COPY`, `applyApprovalFallbacks`, `deriveStatusView` (3 → 4–7, 9, 10); `LiveAnnouncerProvider`, `useAnnounce`, `UseLookupOptions`, `UseLookupResult`, `useLookup`, `StatusSlotProps`, `INVALID_NUMBER_ERROR_ID` (4 → 5–7); `RECOVERY_KINDS`, `TONE_BORDER`, `actionClassName`, `ActionControl`, `INLINE_HELP_IDS` (5 → 6); `CAUSE_BY_FIXTURE`, `expectedFailure` (Task 5 test-local → Task 9); `expectedResult`, `showResult` (Task 6 test-local → Task 10); support helpers `statusSlot`, `liveRegion`, `lookUp`, `openPaused`, `holdTrack`, `PAUSED_NOW`, `manualRequest` (4 → 5–10). Contract names are used as §11 spells them (`deriveTrackingView(outcome, now, config)`, `buildCsReply(view, { now, notices })`, `classifyFailure`, `ActionKind`, `FailureCause`, `FailureFixture`, `GAP3_06_VARIANTS`, `mockTrack(page, response, options)`). Tasks 9 and 10 edit disjoint anchors (`approval3: false };` vs `{ approval2: false,`; different import lines; `BOTH_PENDING` stays referenced by both ledger tests), so either may run first or alone.
 
 **4. Review Focus.** The five items at the top are each pinned by a named test (Tasks 1, 2, 4, 5, 6). Tasks 9–10 add no new input class; the one new failure mode they introduce — running the two gated tasks in either order — is handled by the disjoint edits above.
 
 **Cross-stage notes and open issues found while writing Tasks 9–Final**
-- **Spec wording on 응답 없음 (approval 3).** Spec §16 item 3's proposal lists "INVALID·NOT_FOUND·응답 없음은 [번호 수정]", while the §7 row 'error · 응답 없음' says 주 행동 [다시 조회], 보조 [번호 수정]; S03's config follows §7 (`noResponse.primaryAction: "retry"`). Task 9 pins §7. If the operator's approval means [번호 수정] for 응답 없음, S03's config row changes and Task 9's `client timeout (approval 3)` expectation changes with it.
-- **Approval 4 while approval 2 is pending.** Task 6 keeps the pending test's '2~3시간' literal (S03 copy equals it only while approval 4 is pending). If approval 4 is granted first, that literal must read `durations.pendingRecheck` (S03 Task 15 Step 6); Task Final's G5 note and Task 10 (h) carry the instruction.
+- **Spec wording on 응답 없음 (approval 3).** Spec §16 item 3's proposal lists "INVALID·NOT_FOUND·응답 없음은 [번호 수정]", while the §7 row 'error · 응답 없음' says 주 행동 [다시 조회], 보조 [번호 수정]; S03's config follows §7 (`noResponse.primaryAction: "retry"`). Task 9's `client timeout (approval 3)` test reads that row (`siteConfig.stateGuide.noResponse.primaryAction`), so if the operator's approval means [번호 수정] for 응답 없음 only S03's config row (and its Task 11 expectation) changes; S04 needs no edit.
+- **Approvals 4, 8 and 9 while approval 2 is pending.** Task 6 keeps pre-renewal literals that equal S03's shipped values only while those approvals are pending: the '2~3시간' recheck sentence (approval 4), the 7/17 estimate date (approval 8 shifts it off 제헌절) and the CTA disclosure sentence (approval 9). If one was granted before S04, Task 6 Step 5's matching case replaces exactly that literal (the approval itself covers the one change: S03 Task 15 Step 5, Task 17, Task 16 Step 4); Task 10 (a), (d), (h) and (j) say how to carry the changed lines over, and Task Final's G5 note covers an approval that lands mid-stage.
+- **7/17 is a holiday in S03's 2026 calendar (제헌절).** The pre-renewal "tracking result leads…" fixture's estimate therefore derives as `holidayAffected` with the badge '제헌절 영향 · 1일 늦어질 수 있어요'; the legacy overlay keeps its label and caption (Task 3 `legacyEta`), and Task 10 (d) accepts `date` or `holidayAffected` and compares `data-eta-kind` with `view.eta.kind`.
 - **S07 clean-up of the imports added by Task 10** (addition 8).
 - **The approval-3 decision must be mirrored by S07's `FailureCard`** (contract deviation 1): S07 derives with `deriveTrackingView`, which is the approval-3 behaviour; while approval 3 is pending S07 needs the talk-first transform too.

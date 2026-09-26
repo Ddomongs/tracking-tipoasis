@@ -97,11 +97,12 @@ Every task in every stage plan implicitly includes these. Values are copied from
 - Numbers: the desk shows and copies only what staff paste. The preview uses only `0000 0000 0001` and `TEST 0000 0001` (spec §10); tests use only `tests/fixtures/tracking-fixtures.ts` and `tests/fixtures/derive-scenarios.ts`. No lookup result, number or reply is stored in the browser or on the server (the desk says '조회 결과와 복사 이력은 저장하지 않습니다.').
 - The bulk run calls `/api/track` only through S04's `fetchTrack`, one number at a time, never two at once, with at least 1000 ms between request starts (spec §10 "분당 60건 제한"), at most 20 numbers per run.
 - "The customer's screen" on the desk is S07's `ResultView` with `readOnly` and `frame="mobile"`, rendering `deriveResultView(outcome, now)` (S07 addition 10: the exact view the customer page renders, approval-3 fallback included) under S05's `NumberBar`. CS replies are S03's `buildCsReply(view, { now, notices: siteConfig.notices })` over that same view. The desk never re-words a state.
+- Ledger fallbacks of earlier stages: S04's `components/status-slot/status-view.ts` (`deriveStatusView`, `applyApprovalFallbacks`, `LEGACY_RESULT_COPY`) was deleted with `components/status-slot/` by S07 and is never imported here; the only ledger transform left is S07's approval-3 fallback inside `deriveResultView`, which every desk view goes through. S04's legacy helper derived with plain `deriveTrackingView`; the reply text is the same either way because `buildCsReply` reads no action weights. Approval 2 is `approved` whenever S09 starts (S07 stops without it), so the migration of the legacy CS helper suite (Tasks 7–10) follows its rule → assertion order without a separate gate.
 - Customer phone numbers are displayed only as `maskPhone(phone)` ('010-****-1234'); the full number leaves the page only through the explicit [휴대폰 번호 복사] action.
 - Staff-only copy (labels, notes, headings of the desk) is Korean and lives in the S09 component that renders it; customer-facing wording comes only from `config/site.config.ts`, `lib/cs/cs-templates.ts` and S07's `ResultView`. §11.11 selector strings are used verbatim: '배송 안내' '통관부호 불일치' '안내표 미리보기' '공지 현황', '짧게 복사' '자세히 복사' '고객 링크 복사', '전체 삭제', '이 브라우저에 7일 보관'.
 - Styling uses S05 tokens and primitives only (`Button`, `CopyButton`, `NumberBar`, `StatusChip`, `tt-*` Tailwind keys, `.tt-focus`). No `components/ui/*`, no lucide icons, no glow, gradient or blur. The desk follows the page's `html[data-style]` like every other page.
 - Lint is eslint-config-next 16 with eslint-plugin-react-hooks 7 (`set-state-in-effect`, `refs`, `purity`, `static-components` are errors): no `setState` in an effect body, no `ref.current` during render, no `Date.now()`/`new Date()` during render (the desk's reference time is a `useSyncExternalStore` snapshot read once on the client; stored ISO strings are read with `parseInstant`), no component declared inside a component.
-- Stage screenshots go to `test-artifacts/stage-screens/S09-{before,after}/` (S01 "Additions to the contract" item 1); read `test-results/…` in the verbatim Task 0 / gate text as `test-artifacts/…`.
+- Stage screenshots go to `test-artifacts/stage-screens/S09-{before,after}/` (S01 "Additions to the contract" item 1: Playwright empties `test-results/` at the start of every run, so Task 0 Step 6 would delete a before-set written there). Task 0 Step 5 and gate G7 below carry this path; they are otherwise verbatim copies of roadmap §6/§7.
 - Approval 14 decides only where mismatch drafts are kept (tab-only `sessionStorage` + 7-day opt-in, versus S01's 14-day `localStorage`). Masking, the status field, zod validation and [전체 삭제] ship either way.
 - No real or unidentified tracking number, phone number or fragment of one appears in code, tests, test titles, commit messages or screenshots. Numbers that tests need in bulk are generated at runtime from the `0000` prefix.
 
@@ -134,7 +135,7 @@ Everything below is additive; no §11 name is renamed or retyped. Each item goes
 1. **The desk imports S07's `ResultView` and `deriveResultView` statically** instead of through `loadResultModule()` (S07 open issue 7). The internal page has no JS budget, the preview must render synchronously for screenshots, and the public result chunk stays lazy (S07's `tests/unit/result-module.spec.ts` checks only S07's initial-bundle files; S07's `tests/budgets/js-budget.spec.ts` still runs in G6).
 2. **Approval 13 gates an S09 task (Task 15)** although roadmap §4 row 13 lists only S05/S06/S07/S08/S11; the spec's §10 names the preview tab as an axe regression surface.
 3. **`tests/e2e/RULE-MAP.md` gains section I** for the internal suite (File Map lists only S06/S07). If S08 appended its own section first, S09's section goes after it; a merge conflict at the end of that file is resolved by keeping both sections.
-4. **Stage screens live in `test-artifacts/stage-screens/`** (S01 addition 1).
+4. **Stage screens live in `test-artifacts/stage-screens/`** (S01 addition 1): Task 0 Step 5 and gate G7 are the roadmap §6/§7 text with `test-artifacts/stage-screens/S09-<before|after>/` in place of `test-results/stage-screens/…`. Roadmap amendment requested: apply the same path in §6 Step 5 and §7 G7.
 
 ## File Structure
 
@@ -200,14 +201,14 @@ Execution order: Task 0 → 1 → 2 → … → 13 → gated Task 14 (approval 1
   Expected: build exits 0. Start the production server in a background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`
   Wait until `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` prints `200`.
   Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='before'; $env:PW_STAGE='S09'; npx playwright test tests/tools/stage-screens.spec.ts`
-  Expected: PNGs in `test-results/stage-screens/S09-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
+  Expected: PNGs in `test-artifacts/stage-screens/S09-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
 - [ ] **Step 6: Baseline suite.** With the server still running: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test`
   Expected: record "N passed / M skipped / 0 failed" in the stage summary. Then stop the server (Step 4 command) and clear the flags: `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 
 **S09 notes on the standard steps above**
 - Step 1: the "Gated by" list is 14 and 13. Approval 14 `pending`/`rejected` → Task 14 is SKIPPED and the desk keeps S01's 14-day `localStorage` store (spec §16 item 14 "거절하면: 14일 TTL로 localStorage를 유지합니다(다른 판정안). 서브도메인 분리는 하지 않습니다."). Approval 13 `pending`/`rejected` → Task 15 is SKIPPED (spec §16 item 13 "거절하면 … 접근성은 수동으로 점검합니다").
 - Step 2: expected merges are `merge: S03 …`, `merge: S04 …`, `merge: S07 …` and, through them, `merge: S01 …`, `merge: S02 …`, `merge: S05 …`, `merge: S06 …`.
-- Step 5: the PNGs land in `test-artifacts/stage-screens/S09-before/` (S01 addition 1). The tool has no internal scenario yet; Task 13 adds four, so they appear only in `S09-after/`.
+- Step 5: the output path above is the roadmap §6 text with S01's addition 1 applied (contract deviation 4). The tool has no internal scenario yet; Task 13 adds four, so they appear only in `S09-after/`. Check: `(Get-ChildItem test-artifacts/stage-screens/S09-before -Filter *.png).Count` prints `90` (18 scenarios × 5 widths: S01 7, S04 4, S06 1, S07 6), or `110` when S08's four style scenarios (S08 Task 15; S08 runs in parallel with S09) merged first; record which in the stage summary.
 
 - [ ] **Step 7 (S09): The artifacts this stage consumes exist.** Run:
   `Test-Path -LiteralPath lib/cs/mismatch-storage.ts, lib/cs/mismatch-templates.ts, lib/cs/cs-reply.ts, lib/cs/cs-templates.ts, lib/tracking/fetch-track.ts, lib/tracking/derive-view.ts, lib/tracking/classify-failure.ts, lib/tracking/number-input.ts, lib/tracking/inquiry-copy.ts, lib/tracking/carriers.ts, lib/tracking/notices.ts, lib/tracking/time.ts, lib/tracking/number-format.ts, components/result/ResultView.tsx, components/result/approvals.ts, components/primitives/Button.tsx, components/primitives/CopyButton.tsx, components/primitives/NumberBar.tsx, components/primitives/StatusChip.tsx, components/InternalCsHelper.tsx, "app/(internal)/internal/cs-helper/page.tsx", tests/internal-cs-helper.spec.ts, tests/fixtures/derive-scenarios.ts, tests/fixtures/config-fixtures.ts, tests/e2e/RULE-MAP.md, tests/unit/mismatch-storage.spec.ts`
@@ -268,9 +269,10 @@ test("ten-digit mobiles and Seoul numbers keep their own prefix", () => {
 });
 
 test("the hidden middle never leaks", () => {
-  const masked = maskPhone(joined("010", "5678", "1234"));
+  // A middle block starting with 0 is never assigned to a Korean mobile line, so this cannot be anyone's number.
+  const masked = maskPhone(joined("010", "0987", "1234"));
   expect(masked).toBe("010-****-1234");
-  expect(masked).not.toContain("5678");
+  expect(masked).not.toContain("0987");
 });
 
 test("too short to tell apart: every digit is hidden", () => {
@@ -509,7 +511,7 @@ test.describe("summarizeBulkView", () => {
 });
 ```
 
-(The `holidayAffected` literal carries S03's `holidayName` addition. If `npm run typecheck` reports that `holidayName` does not exist on that variant, S03 shipped without it: remove that one property from the literal and note it in the stage summary.)
+(The `holidayAffected` literal carries `holidayName`, which S03 addition 4 makes a required field of that variant; the `today` literal uses S03 addition 5's label '오늘 예상'.)
 
 - [ ] **Step 2: Run it to verify it fails**
 
@@ -4693,7 +4695,7 @@ Create `docs/ops/internal-subdomain-proposal.md`:
 ## 제안
 
 1. CS 데스크만 별도 서브도메인(예: `cs.tipoasis.com`)에 배포합니다. origin이 달라 공개 사이트와 저장소·쿠키가 섞이지 않고, 공개 사이트에는 `/internal` 경로가 남지 않습니다.
-2. 인증은 담당자별 계정(예: Vercel 비밀번호 보호 또는 SSO)으로 바꾸고, 실패 시도 제한은 Vercel WAF 규칙으로 둡니다(`docs/ops/waf-internal-proposal.md`).
+2. 인증은 담당자별 계정(예: Vercel 비밀번호 보호 또는 SSO)으로 바꾸고, 실패 시도 제한은 Vercel WAF 규칙으로 둡니다(같은 R5에 S11이 작성하는 `docs/ops/waf-internal-proposal.md`).
 3. 공유 목록은 서버 저장소 한 곳에 두고, 보관 기간이 지나면 자동 삭제합니다. 전화번호는 화면·로그에서 가리고, 조회번호와 조회 결과는 저장하지 않습니다.
 4. 옮긴 뒤 한 달 동안 `https://tracking.tipoasis.com/internal/cs-helper`를 새 주소로 이동시키고, 그다음 경로를 닫습니다.
 
@@ -5471,7 +5473,7 @@ If Step 2 installed the package, add `package.json package-lock.json` to the `gi
 - [ ] **G4. Build.** `npm run build` → exit 0. Route table: `ƒ /[trackingNumber]` always; `/` is `ƒ` in S01 (it still reads `searchParams`), `○ /` from S02 on, and `○ /` with `Revalidate 5m` from S06 on.
 - [ ] **G5. Dev-mode E2E.** `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npm run test:e2e` → "N passed", 0 failed (skips allowed only for tests guarded by `PW_MODE`, `PW_SHOTS`, `PW_VISUAL`, or an approval-gated `test.skip` naming the approval).
 - [ ] **G6. Production-mode E2E.** Re-run `npm run build` if `next start` reports a missing or stale build. Background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`; wait for `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` = `200`; then `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test` → 0 failed, including `tests/budgets/*`.
-- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S09'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-results/stage-screens/S09-after/` at 320, 375, 768, 1024, 1440. Compare with `S09-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
+- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S09'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-artifacts/stage-screens/S09-after/` at 320, 375, 768, 1024, 1440. Compare with `S09-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 - [ ] **G8. Budgets.** Paste the measured numbers of every budget this plan lists (from the G6 output) into the stage summary. Any budget over its fail line fails the gate.
 - [ ] **G9. Code review.** Invoke the `code-review` skill on `git diff claude/tipoasis-tracking-renewal-ae0e3a...HEAD`. Fix every CRITICAL and HIGH finding; if code changed, re-run G2–G6.
 - [ ] **G10. Verification.** Invoke `superpowers:verification-before-completion`; paste each command and its result line into the stage summary.
@@ -5481,7 +5483,7 @@ If Step 2 installed the package, add `package.json package-lock.json` to the `gi
 **S09 notes on the gate above**
 - G4: the route table also lists `ƒ /internal/cs-helper` (the page reads `?tab=` since Task 8; before S09 it was `○`).
 - G5 and G6, S09 files: unit — `phone-mask` 5, `bulk-lookup` 23, `preview-outcomes` 5, `notice-status` 6, `mismatch-storage` 12 (17 with Task 14); E2E — `internal-desk` 6, `internal-mismatch` 8 (11 with Task 14), `internal-bulk` 11, `internal-preview` 4, `internal-notices` 7, `internal-a11y` 5 (only with Task 15); `tests/internal-access.spec.ts` 4 and `tests/e2e/internal-isolation.spec.ts` 3 unchanged; `tests/internal-cs-helper.spec.ts` no longer exists. Every other suite keeps its Task 0 Step 6 count; `tests/unit/module-boundaries.spec.ts` and `tests/unit/real-number-guard.spec.ts` must pass.
-- G7: the after-screens include `internal-delivery`, `internal-mismatch`, `internal-preview` and `internal-notices` (they have no before-screens). The PNGs land in `test-artifacts/stage-screens/S09-after/` (S01 addition 1).
+- G7: the output path above is the roadmap §7 text with S01's addition 1 applied (contract deviation 4). The after-screens include `internal-delivery`, `internal-mismatch`, `internal-preview` and `internal-notices` (they have no before-screens; say so when sending both sets). Check: `(Get-ChildItem test-artifacts/stage-screens/S09-after -Filter *.png).Count` prints the Task 0 Step 5 count plus `20` (`110`, or `130` with S08's style scenarios).
 - G8: paste `[budget] bulk spacing min: N ms (min 1000 ms)` (fail below 998 ms, the 2 ms timer slack) and S07's `[js-budget] …` lines next to their Task 0 Step 6 values. The desk imports `ResultView` statically (contract deviation 1); S07's budgets must still pass. If the result chunk or `/[번호]` total grew by more than 1 KB, stop and report it (open issue 1 names the fix).
 - G11: `git status` shows only the files in this plan's File Structure (plus the five deletions of Task 10 and, with approval 13, `package.json`/`package-lock.json`).
 

@@ -104,8 +104,8 @@ Conditions the spec implies but no requirement line names; each is pinned by a t
 
 1. **UNI-PASS sends headers and then stalls the body** (GAP2-06; today the request hangs past 330 s): the answer must be `API_TIMEOUT` 504 within 15 s and the call counted as timed out. Tests: Task A4 "a stalled UNI-PASS body counts as a timeout", Task A3 "a stalled UNI-PASS body answers API_TIMEOUT within 15 s".
 2. **Partial UNI-PASS failure** (current and last year answer "no record", the four older years fail): customers still get NOT_FOUND, but it must not be cached, so the next lookup asks again. Test: Task A3 "an incomplete NOT_FOUND is not cached".
-3. **DOMESTIC number with a fast carrier answer and a hanging UNI-PASS**: the carrier result is not held back (≤ 3.5 s), is not cached (so customs can fill in later), and the background UNI-PASS calls are aborted once the response is sent. Test: Task A3 "a DOMESTIC carrier result is not held back by a slow customs lookup".
-4. **Concurrency slots under the new early returns** (cache hits, carrier-first responses with work still in flight): the in-memory cap of 20 must never leak, or healthy customers get 429. Test: Task A3 "sequential lookups never leak concurrency slots".
+3. **DOMESTIC number with a fast carrier answer and a hanging UNI-PASS**: the carrier result is not held back (≤ 3.5 s), is not cached (so customs can fill in later), and the background UNI-PASS calls are aborted once the response is sent. Test: Task A3 "a DOMESTIC carrier result is not held back by a slow customs lookup" (time, aborted calls, and a second lookup that asks UNI-PASS again).
+4. **Concurrency slots under the new early returns** (cache hits, carrier-first responses with work still in flight): the in-memory cap of 20 must never leak, or healthy customers get 429. Tests: Task A3 "sequential lookups never leak concurrency slots" (25 fresh lookups, then the same 25 as cache hits; a leak on either path turns the 21st call into 429) and Task A3 "carrier-first answers release their concurrency slots" (20 carrier-first answers at once while UNI-PASS still hangs, then one more lookup that must not get 429). The carrier-first path releases its slot in the same `finally` as every other path (Task A5 `POST`).
 5. **A log line fed with tracking-like values** (invalid input that is a phone number, an extra field that carries an HBL, a bogus enum value): the line stays number-free and schema-fixed. Tests: Task A2 "extra fields and odd values never reach the line", Task A5 "every response writes one number-free lookup log line".
 
 ---
@@ -119,7 +119,7 @@ Conditions the spec implies but no requirement line names; each is pinned by a t
 | `lib/services/customs.ts` | Modify (A4, A5, C1 or C2F) | Two-wave UNI-PASS lookup under the deadline, result classification, bounded proxy fallback |
 | `lib/services/customstrack.ts` | Modify (A4) | Accept `{ timeoutMs, signal }` so the fallback respects the deadline (parse logic untouched) |
 | `app/api/track/route.ts` | Modify (A5) | Orchestration, `maxDuration`, NOT_FOUND cache, carrier-first, `API_TIMEOUT` on all-failed, one log line per request |
-| `tests/support/unipass-stub.ts` | Create (A3), Modify (C2F) | In-process stub of UNI-PASS, proxy, customstrack, carriers (port of GAP2 `stub-net.cjs`), `callTrack`, budget annotations |
+| `tests/support/unipass-stub.ts` | Create (A3), Modify (C2F; C1 after an earlier C2F) | In-process stub of UNI-PASS, proxy, customstrack, carriers (port of GAP2 `stub-net.cjs`), `callTrack`, budget annotations |
 | `tests/unit/lookup-budget.spec.ts` | Create (A1), Modify (C1) | Deadline and constant tests |
 | `tests/unit/lookup-log.spec.ts` | Create (A2) | Log format and privacy tests |
 | `tests/unit/track-route-latency.spec.ts` | Create (A3), Modify (A4, C1) | Latency budgets and upstream-call behavior against the real route |
@@ -129,7 +129,7 @@ Conditions the spec implies but no requirement line names; each is pinned by a t
 | `insforge/functions/unipass-proxy.ts`, `.github/workflows/deploy-insforge.yml`, `docs/insforge-deployment-runbook.md` | Delete (C2) or harden/edit (C1F, C2F) | Approval 12 |
 | `package.json`, `AGENTS.md`, `CLAUDE.md`, `README.md`, `.env.example` | Modify (C2 or C2F) | InsForge scripts and URL mentions |
 | `tests/unit/insforge-retired.spec.ts` | Create (C2) | Retirement scan |
-| `tests/unit/unipass-proxy.spec.ts` | Create (C1F), Modify (C2F) | Hardened proxy + server secret header + doc scan |
+| `tests/unit/unipass-proxy.spec.ts` | Create (C1F), Modify (C2F), Delete (C1 after an earlier C1F–C2F) | Hardened proxy + server secret header + doc scan |
 
 ## Execution Order and Gating
 
@@ -138,11 +138,13 @@ Conditions the spec implies but no requirement line names; each is pinned by a t
 | Start | Task 0 | always | — |
 | A — server path (release R4) | A1 → A6 | approval 5 = `approved` | Mark A1–A6 SKIPPED "approval 5 pending". Nothing changes on the server: the client keeps the 45 s timeout, the stage copy and the NOT_FOUND caveat line '조회 서비스 사정으로 결과가 없을 수도 있어요 [다시 조회]' (S03 defaults). The outage misreport and the 429s from slow paths remain (documented in the stage summary). |
 | B — client timeout (R4 follow-up) | B1 | approval 5 approved **and** Part A live in production with ≥ 3 days of log evidence **and** S03 merged | SKIPPED; S03's `timeoutMs: 45000`, `notFoundServiceCaveat: true`, `stageMs: [3000, 8000]` stay. |
-| C — InsForge | C1 → C2 (retire) | approval 12 = `approved` **and** the log-evidence rule in C1 Step 2 passes | — |
+| C — InsForge | C1 → C2 (retire) | approval 12 = `approved` **and** Part A merged and live **and** the log-evidence rule in C1 Step 2 passes | Until then C1F → C2F (next row) |
 | C — InsForge | C1F → C2F (harden) | approval 12 = `pending` or `rejected` | This *is* the fallback: shared secret header, no CORS, number-format validation, call limit. |
 | Gate | Task Final | after each part that ran (A, B, C) | — |
 
-Parts B and C usually run days after Part A. Each part re-uses the branch `renewal/s10-r4-server-path` (re-created from the integration head, see B1 Step 3 / C1 Step 3 / C1F Step 2) and ends with Task Final. Before re-running Task Final, rename the previous screen folders: `Rename-Item test-results/stage-screens/S10-before S10A-before; Rename-Item test-results/stage-screens/S10-after S10A-after` (use `S10B-*` / `S10C-*` for the next parts).
+Parts B and C usually run days after Part A. Each part re-uses the branch `renewal/s10-r4-server-path` (re-created from the integration head, see B1 Step 3 / C1 Step 3 / C1F Step 2) and ends with Task Final. Before re-running Task Final, rename the previous screen folders (stage screens live under `test-artifacts/`, S01 Addition 1): `Rename-Item test-artifacts/stage-screens/S10-before S10A-before; Rename-Item test-artifacts/stage-screens/S10-after S10A-after` (use `S10B-*` / `S10C-*` when the previous run covered Part B / Part C).
+
+**Likely first run.** Approvals 5 and 12 are both `pending` in the ledger today, so the first S10 run is Task 0 → A1 Step 1 (Part A SKIPPED) → C1F → C2F **variant B** → Task Final. When approval 5 is granted later, the Part A follow-up run starts after that first run was merged: `git branch -D renewal/s10-r4-server-path`, rename the first run's folders to `S10C-before`/`S10C-after`, then run Task 0 in full (its Step 7 marks C1F/C2F DONE-EARLIER) and A1–A6. Tasks A3 Step 2 and A4 Step 4 then re-apply C2F's secret header to the rewritten files (their "C2F already merged" sub-steps), and a later retirement (C1–C2) removes the fallback leftovers (C1 Step 6, C2 Step 6a).
 
 ---
 
@@ -150,7 +152,7 @@ Parts B and C usually run days after Part A. Each part re-uses the branch `renew
 
 - [ ] **Step 1: Read approvals.** Open `docs/superpowers/plans/2026-09-26-renewal-00-roadmap.md` §4. For every approval number in this plan's "Gated by" list, write its Status into the stage summary. `pending`/`rejected` → execute the fallback steps and mark the gated task SKIPPED with the reason.
 - [ ] **Step 2: Confirm dependencies.** Run (PowerShell): `git log --oneline claude/tipoasis-tracking-renewal-ae0e3a -40`
-  Expected: a `merge: SNN …` commit for every stage in this plan's "Depends on" list. (S10: `merge: S01 …` is required now; `merge: S03 …` is checked again in Task B1.)
+  Expected: a `merge: SNN …` commit for every stage in this plan's "Depends on" list.
 - [ ] **Step 3: Branch.** Run: `git switch -c renewal/s10-r4-server-path claude/tipoasis-tracking-renewal-ae0e3a`
   Expected: `Switched to a new branch 'renewal/s10-r4-server-path'`.
 - [ ] **Step 4: Port free.** Run: `Get-NetTCPConnection -LocalPort 43210 -ErrorAction SilentlyContinue`
@@ -159,10 +161,17 @@ Parts B and C usually run days after Part A. Each part re-uses the branch `renew
   Expected: build exits 0. Start the production server in a background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`
   Wait until `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` prints `200`.
   Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='before'; $env:PW_STAGE='S10'; npx playwright test tests/tools/stage-screens.spec.ts`
-  Expected: PNGs in `test-results/stage-screens/S10-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
+  Expected: PNGs in `test-artifacts/stage-screens/S10-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
 - [ ] **Step 6: Baseline suite.** With the server still running: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test`
   Expected: record "N passed / M skipped / 0 failed" in the stage summary. Then stop the server (Step 4 command) and clear the flags: `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
-- [ ] **Step 7 (S10): Skip work that already exists.** Run: `git log --oneline claude/tipoasis-tracking-renewal-ae0e3a -80 | Select-String -Pattern 'lookup deadline|lookup log|UNI-PASS stub|two waves|UNI-PASS outage|InsForge'`
+
+**S10 notes on the standard steps above**
+- Step 1: the "Gated by" list is approvals 5 and 12. Approval 5 `pending`/`rejected` → Tasks A1–A6 and B1 SKIPPED (fallback: Execution Order row A). Approval 12 `pending`/`rejected` → C1–C2 SKIPPED and C1F–C2F run (they are the fallback); `approved` → C1F–C2F SKIPPED and C1–C2 run once C1 Step 2's log rule passes.
+- Step 2: expected `merge: S01 …` (the only "Depends on" stage for Parts A and C). `merge: S03 …` is needed only by Part B and is checked in Task B1 Step 2. When S10 runs after many other stages, the S01 merge can be older than the last 40 commits; then confirm it with `git log --oneline claude/tipoasis-tracking-renewal-ae0e3a --grep='merge: S01'` (one line).
+- Step 3: on a follow-up run the branch name already exists locally; delete it first as "Execution Order and Gating" describes (`git branch -D renewal/s10-r4-server-path`), or use the part's own `git switch -C` step (B1 Step 3, C1 Step 3, C1F Step 2).
+- Step 5 and gate G7: the output paths are the roadmap §6/§7 text with S01's Addition 1 applied (`test-artifacts/stage-screens/S10-<before|after>/`, not `test-results/…`: Playwright empties `test-results/` at the start of every run, so Step 6 would delete the before-set). Check after Step 5: `(Get-ChildItem test-artifacts/stage-screens/S10-before -Filter *.png).Count` prints (number of `SCENARIOS` in `tests/tools/stage-screens.spec.ts`) × 5 — 35 right after S01, more once later stages appended scenarios; record the count in the stage summary.
+
+- [ ] **Step 7 (S10): Skip work that already exists.** Run: `git log --oneline claude/tipoasis-tracking-renewal-ae0e3a | Select-String -Pattern 'lookup deadline|lookup log|UNI-PASS stub|two waves|UNI-PASS outage|client lookup timeout|InsForge|proxy shared secret'`
   Expected: no output. Each hit names a task that is already merged (match the commit message in that task's last step); mark it DONE-EARLIER in the stage summary and skip it.
 - [ ] **Step 8 (S10): Real numbers are gone from the files S10 edits.** Run: `Select-String -Path tests/track-api.spec.ts, app/api/track/route.ts, lib/services/customs.ts, lib/services/customstrack.ts -Pattern '\d{10,}' | ForEach-Object { $_.Line.Trim() }`
   Expected: no output, or only lines whose 10+ digit runs start with `0000` (S01 fixtures). Anything else → stop: S01's number replacement is not merged; report to the operator.
@@ -727,11 +736,12 @@ export interface UpstreamStub {
   readonly restore: () => void;
 }
 
+// prcsDttm uses the "yyyy-MM-dd HH:mm:ss" form that parseCustomsDatetime also accepts, so this file holds no 10+ digit run.
 const FOUND_XML =
   '<?xml version="1.0" encoding="UTF-8"?><cargCsclPrgsInfoQryRtnVo><tCnt>1</tCnt>' +
-  "<cargCsclPrgsInfoQryVo><csclPrgsStts>수입신고수리</csclPrgsStts><prgsStts>반출완료</prgsStts><prcsDttm>20260923100500</prcsDttm><etprCstmNm>인천공항세관</etprCstmNm></cargCsclPrgsInfoQryVo>" +
-  "<cargCsclPrgsInfoDtlQryVo><cargTrcnRelaBsopTpcd>입항보고 수리</cargTrcnRelaBsopTpcd><prcsDttm>20260922084000</prcsDttm><shedNm>인천공항</shedNm></cargCsclPrgsInfoDtlQryVo>" +
-  "<cargCsclPrgsInfoDtlQryVo><cargTrcnRelaBsopTpcd>수입신고수리</cargTrcnRelaBsopTpcd><prcsDttm>20260923100500</prcsDttm><shedNm>인천공항</shedNm></cargCsclPrgsInfoDtlQryVo>" +
+  "<cargCsclPrgsInfoQryVo><csclPrgsStts>수입신고수리</csclPrgsStts><prgsStts>반출완료</prgsStts><prcsDttm>2026-09-23 10:05:00</prcsDttm><etprCstmNm>인천공항세관</etprCstmNm></cargCsclPrgsInfoQryVo>" +
+  "<cargCsclPrgsInfoDtlQryVo><cargTrcnRelaBsopTpcd>입항보고 수리</cargTrcnRelaBsopTpcd><prcsDttm>2026-09-22 08:40:00</prcsDttm><shedNm>인천공항</shedNm></cargCsclPrgsInfoDtlQryVo>" +
+  "<cargCsclPrgsInfoDtlQryVo><cargTrcnRelaBsopTpcd>수입신고수리</cargTrcnRelaBsopTpcd><prcsDttm>2026-09-23 10:05:00</prcsDttm><shedNm>인천공항</shedNm></cargCsclPrgsInfoDtlQryVo>" +
   "</cargCsclPrgsInfoQryRtnVo>";
 const EMPTY_XML =
   '<?xml version="1.0" encoding="UTF-8"?><cargCsclPrgsInfoQryRtnVo><tCnt>0</tCnt><ntceInfo>[N00] 조회결과가 없습니다.</ntceInfo></cargCsclPrgsInfoQryRtnVo>';
@@ -972,6 +982,8 @@ export function recordBudget(name: string, measuredMs: number, limitMs: number):
 }
 ```
 
+  **If Task C2F was merged before Part A** (the usual order, see "Execution Order and Gating"): run `Select-String -Path lib/services/customs.ts -Pattern 'x-proxy-secret'`. One line printed → apply C2F Step 4's stub edit to the file just created (add `export const STUB_PROXY_SECRET = "stub-proxy-secret";` below `STUB_PROXY_URL`, `secret: process.env.UNIPASS_PROXY_SECRET` to the `saved` object, `setEnv("UNIPASS_PROXY_SECRET", options.proxy === true ? STUB_PROXY_SECRET : undefined);` after the `UNIPASS_PROXY_URL` line, and `setEnv("UNIPASS_PROXY_SECRET", saved.secret);` in `restore`). No output → nothing to add.
+
 - [ ] **Step 3: Write the failing latency tests** — create `tests/unit/track-route-latency.spec.ts`:
 
 ```ts
@@ -1104,6 +1116,11 @@ test.describe("POST /api/track latency (approval 5)", () => {
         expect(dataOf(result)?.customs.events).toHaveLength(0);
         expect(result.ms).toBeLessThanOrEqual(3_500);
         await expect.poll(() => stub.calls(number).unipassAborted).toBe(6);
+        // Not cached: the next lookup asks UNI-PASS again, so customs can fill in once it answers.
+        const second = await callTrack(number);
+        expect(second.status).toBe(200);
+        expect(stub.calls(number).unipass).toBe(12);
+        await expect.poll(() => stub.calls(number).unipassAborted).toBe(12);
       }
     );
   });
@@ -1192,7 +1209,34 @@ test.describe("POST /api/track latency (approval 5)", () => {
       for (const scenario of scenarios) {
         expect((await callTrack(scenario.number)).status).toBe(200);
       }
+      // The same 25 again are cache hits (early return before any upstream call).
+      for (const scenario of scenarios) {
+        expect((await callTrack(scenario.number)).status).toBe(200);
+      }
     });
+  });
+
+  test("carrier-first answers release their concurrency slots", async () => {
+    const scenarios = Array.from({ length: 20 }, (_, index): UpstreamScenario => ({
+      number: stubNumber("DOMESTIC", 400 + index),
+      unipass: { mode: "timeout", latencyMs: 0 },
+      carriers: { mode: "ok", latencyMs: 20, cjFound: true }
+    }));
+    const probe = stubNumber("HBL", 420);
+    await withUpstreams(
+      [...scenarios, { number: probe, unipass: { mode: "ok", latencyMs: 20 }, found: { param: "hblNo", yearOffset: 0 } }],
+      async () => {
+        // 20 at once fill the in-memory cap; each answers carrier-first after the grace period while UNI-PASS still hangs.
+        const results = await Promise.all(scenarios.map((scenario) => callTrack(scenario.number)));
+        for (const result of results) {
+          expect(result.status).toBe(200);
+          expect(result.ms).toBeLessThanOrEqual(3_500);
+        }
+        // If the carrier-first path kept its slot (e.g. until the background customs work ends), the 20 answers would
+        // still hold the whole cap and this lookup would get 429.
+        expect((await callTrack(probe)).status).toBe(200);
+      }
+    );
   });
 
   test("everything hanging still answers within 15 s", async () => {
@@ -1390,7 +1434,7 @@ test.describe("customs lookup (two waves under one deadline)", () => {
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit/track-route-latency.spec.ts --grep "customs lookup"; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
 Expected: `6 failed` with `TypeError: ... lookupCustomsEvents is not a function`.
 
-- [ ] **Step 4: Replace `lib/services/customs.ts`** with:
+- [ ] **Step 4: Replace `lib/services/customs.ts`.** First run `Select-String -Path lib/services/customs.ts -Pattern 'x-proxy-secret'` and write the result into the stage summary: one line printed means Task C2F (approval-12 fallback, variant B) was merged before Part A, and its server-side secret gate must survive this rewrite — after pasting the file below, apply C2F Step 4 **variant A** to it (the `PROXY_SECRET_HEADER` constant, the `proxySecret` gate in `lookupViaProxy` and the extra header argument of `postJsonWithTimeout`). No output → paste the file as is. Replace the file with:
 
 ```ts
 import { parseStringPromise } from "xml2js";
@@ -1809,6 +1853,8 @@ export const fetchCustomstrackCustomsEvents = async (
 
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit/track-route-latency.spec.ts --grep "customs lookup"; npx playwright test tests/track-api.spec.ts tests/delivery-carriers.spec.ts tests/customs-estimate.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
 Expected: `6 passed` for the customs describe; the existing API/carrier/estimate specs report 0 failed (the route still uses the transitional `fetchCustomsEvents`).
+If Step 4 found `x-proxy-secret` (C2F merged earlier), also run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit/unipass-proxy.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
+Expected: `9 passed` (the server still sends `x-proxy-secret` and skips the proxy without it).
 Run: `npm run typecheck; npm run lint`
 Expected: both exit 0.
 
@@ -1836,7 +1882,7 @@ git add lib/services/customs.ts lib/services/customstrack.ts tests/unit/track-ro
 
 - [ ] **Step 1: Confirm approval 5 is recorded; if not, stop.** Same check as Task A1 Step 1.
 
-- [ ] **Step 2: Write the failing API tests.** In `tests/track-api.spec.ts` change the import block (lines 1–3) to the following (if S01 already imports from `./fixtures/tracking-fixtures`, add `FAKE` to that import instead of adding a second one):
+- [ ] **Step 2: Write the failing API tests.** In `tests/track-api.spec.ts` replace the import block — after S01 Task 4 it is the four lines `import { expect, test } from "@playwright/test";`, `import { POST } from "@/app/api/track/route";`, `import { ApiTrackResponseSchema } from "@/lib/schemas";`, `import { FAKE } from "./fixtures/tracking-fixtures";` (check with `Get-Content tests/track-api.spec.ts -TotalCount 5`) — with the following six lines, so `FAKE` is imported exactly once:
 
 ```ts
 import { expect, test } from "@playwright/test";
@@ -2251,18 +2297,18 @@ export async function POST(request: Request): Promise<Response> {
 import { LOOKUP_TIMING, type LookupDeadline } from "@/lib/services/lookup-budget";
 ```
 
-Run: `Select-String -Path app, lib, components, tests -Pattern 'fetchCustomsEvents\b' -Recurse` — PowerShell 5.1 has no `-Recurse` on Select-String, so use: `Get-ChildItem app, lib, components, tests -Recurse -Include *.ts, *.tsx | Select-String -Pattern 'fetchCustomsEvents\b'`
+Run: `Get-ChildItem app, lib, components, tests -Recurse -Include *.ts, *.tsx | Select-String -Pattern 'fetchCustomsEvents\b'`
 Expected: no output.
 
 - [ ] **Step 6: Run the S10 unit and API tests**
 
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit/lookup-budget.spec.ts tests/unit/lookup-log.spec.ts tests/unit/track-route-latency.spec.ts tests/track-api.spec.ts tests/delivery-carriers.spec.ts tests/customs-estimate.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
-Expected: 0 failed; `lookup-budget` 7, `lookup-log` 5, `track-route-latency` 23, `track-api` 8 (S01's 6 + 2) passed. The `[budget]` lines print the three spec budgets (expected roughly 1.3 s, 3.0 s and 9 s).
+Expected: 0 failed; `lookup-budget` 7, `lookup-log` 5, `track-route-latency` 24 (18 from Task A3 + 6 from Task A4), `track-api` 8 (S01's 6 + 2) passed. The four `[budget]` lines print the spec budgets (expected roughly 1.3 s for NOT_FOUND at 0.3 s, 3.0 s for NOT_FOUND and DOMESTIC pending at 1.5 s, and 9 s for the outage).
 
 - [ ] **Step 7: Run the whole unit folder, typecheck and lint**
 
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; npm run typecheck; npm run lint`
-Expected: 0 failed (this includes S01's `real-number-guard.spec.ts`, which scans the new files); typecheck and lint exit 0.
+Expected: 0 failed (this includes S01's `real-number-guard.spec.ts`, which scans the new files, and — when C2F was merged earlier — `unipass-proxy.spec.ts` with 9 passed); typecheck and lint exit 0.
 
 - [ ] **Step 8: Commit**
 
@@ -2311,8 +2357,11 @@ track_lookup {"route":"/api/track","elapsedBucket":"1to3s","unipassOk":12,"unipa
 | F0 (UNI-PASS 실패가 없던 줄) | `"unipassFail":0,` |
 | A (모두 실패) | `"resultKind":"allFailed"` |
 | S (느린 응답) | `"elapsedBucket":"10to15s"` 줄 수 + `"elapsedBucket":"ge15s"` 줄 수 |
+| L (6초 이상) | `"elapsedBucket":"6to10s"` 줄 수 + `"elapsedBucket":"10to15s"` 줄 수 + `"elapsedBucket":"ge15s"` 줄 수 |
+| N (결과 없음·도착 전) | `"resultKind":"notFound"` 줄 수 + `"resultKind":"pending"` 줄 수 |
 
 - 실패가 있던 줄의 비율 = (T − F0) ÷ (T − Z)
+- 느린 결과 없음 비율의 상한 = L ÷ N (L은 모든 종류의 느린 줄을 세므로 실제 값보다 크거나 같습니다)
 
 경보 제안(새 서비스 없이 수동 점검으로 시작합니다. 로그 드레인·외부 경보 서비스는 승인 13 대상입니다):
 
@@ -2348,7 +2397,7 @@ git add DEPLOYMENT.md; git commit -m "docs: document the lookup log line and fai
      ```
      Expected: `TotalSeconds` ≤ 6; then, in Vercel Logs, one `track_lookup` line with `"resultKind":"notFound"` and `"unipassOk":12` (or `allFailed` with `unipassFail` > 0 if UNI-PASS is down right now — check again 10 minutes later).
   3. Within the first hour, count T, Z, F0 and A (DEPLOYMENT.md section). If A keeps growing or (T − F0) ÷ (T − Z) stays above 30 %, Instant Rollback and report.
-  4. Fill the 7-day evidence table (T, Z, F0, A, S per day) in the S10 stage summary; Tasks B1 and C1 read it.
+  4. Fill the 7-day evidence table (T, Z, F0, A, S, L, N per day, searched as the DEPLOYMENT.md section lists) in the S10 stage summary; Tasks B1 and C1 read it.
 
 ---
 
@@ -2368,24 +2417,31 @@ git add DEPLOYMENT.md; git commit -m "docs: document the lookup log line and fai
 
 - [ ] **Step 1: Confirm approval 5 is recorded and Part A is live; if not, stop.** Roadmap §4 row 5 is `approved`, the operator confirms the Part A production deployment (Task A6 Step 6) is at least 3 days old, and the evidence table shows S ÷ T < 5 % on every day and 0 lines in `ge15s`. Otherwise mark B1 SKIPPED; fallback (spec §16 item 5 "거절하면"): keep the 45 s client timeout, the stage copy and the NOT_FOUND caveat line '조회 서비스 사정으로 결과가 없을 수도 있어요 [다시 조회]'.
 
-- [ ] **Step 2: Confirm S03 is merged.** Run: `git log --oneline claude/tipoasis-tracking-renewal-ae0e3a -80 | Select-String -Pattern 'merge: S03'`
+- [ ] **Step 2: Confirm S03 is merged.** Run: `git log --oneline claude/tipoasis-tracking-renewal-ae0e3a --grep='merge: S03'`
   Expected: one line. Otherwise stop (Part B needs `config/site.config.ts`).
 
-- [ ] **Step 3: Re-create the stage branch from the integration head and re-run the baseline.** Run: `git branch --merged claude/tipoasis-tracking-renewal-ae0e3a | Select-String -Pattern 'renewal/s10-r4-server-path'`
-  Expected: one line (Part A was merged). Then: `git switch -C renewal/s10-r4-server-path claude/tipoasis-tracking-renewal-ae0e3a`
+- [ ] **Step 3: Re-create the stage branch from the integration head and re-run the baseline.** Run: `git log --oneline claude/tipoasis-tracking-renewal-ae0e3a --grep='report UNI-PASS outages as API_TIMEOUT'`
+  Expected: one line (Task A5's commit is on the integration branch, so Part A was merged; this works even if the local stage branch was deleted after that merge). Then: `git switch -C renewal/s10-r4-server-path claude/tipoasis-tracking-renewal-ae0e3a`
   Expected: `Switched to and reset branch 'renewal/s10-r4-server-path'`. Rename the Part A screen folders (see "Execution Order and Gating") and run Task 0 Steps 4–6 again.
 
-- [ ] **Step 4: Choose `stageMs` from the logs.** Default `[3000, 7000]`. Rule: the long-wait stage stays at 3000 ms (its sentence '보통 10초 안에 끝나요' stays true); the very-long stage = 1000 ms after the upper edge of the `elapsedBucket` that contains the 90th percentile of `resultKind` `notFound` + `pending` lines in the evidence table (`3to6s` → 7000, `6to10s` → 10000), capped at 10000. Use the default when the table has fewer than 100 such lines. Write the chosen pair and the reason into the stage summary.
+- [ ] **Step 4: Choose `stageMs` from the logs.** Default `[3000, 7000]`. Rule: the long-wait stage stays at 3000 ms (its sentence '보통 10초 안에 끝나요' stays true). The very-long stage ('기록이 없는 번호는…') should start about 1 s after the time by which 90 % of no-record answers (`notFound` + `pending`) arrive. The log line cannot combine `elapsedBucket` and `resultKind` in one search, so use the evidence table's upper bound: with ΣL and ΣN summed over the 7 days, ΣL ÷ ΣN ≤ 10 % → the 90th percentile is below 6 s → `[3000, 7000]`; ΣL ÷ ΣN > 10 % → `[3000, 10000]` (the cap; it stays below the 15 s server budget). ΣN < 100 → the default. Write ΣL, ΣN, the ratio and the chosen pair into the stage summary.
 
 - [ ] **Step 5: Find tests that pin the pre-R4 values.** Run: `Get-ChildItem tests -Recurse -Include *.ts | Select-String -Pattern 'timeoutMs|45000|45_000|notFoundServiceCaveat|조회 서비스 사정으로|stageMs|29190|29_190|29\.19'`
-  Expected: hits only in `tests/unit/config.spec.ts`, or in other files only where the value is read from `lookup` (e.g. `lookup.timeoutMs`). A literal in another stage's file (S03/S04/S07) blocks the flip: stop, amend roadmap §10.4 in a separate commit `docs: amend renewal contract — S10 Part B edits <file>` (adding "M S10 (Part B)"), then replace the literal as follows and note the rule → assertion mapping in the stage summary: client-timeout literal → `lookup.timeoutMs`; a slow-but-valid response delay (29.19 s) → `lookup.timeoutMs - 4_000`; an unconditional caveat-line assertion → `toHaveCount(lookup.notFoundServiceCaveat ? 1 : 0)`.
+  Expected hits that do **not** block (the producer plans wrote them this way on purpose, S03 Global Constraints "Tests that depend on lookup timing…" and S04 "S10 Part B compatibility"):
+  - `tests/unit/config.spec.ts` (S03): "lookup timing is the pre-R4 set or the R4 set…" accepts `45000`/`25000` and ties the caveat to it; `withConfig({ lookup: … })` rows ("the S10 Part B values are accepted").
+  - Values set explicitly on a test's own config or options, never compared with the shipped one: `withConfig({ lookup: … })` and local timing objects in S03's `tests/unit/loading-view.spec.ts` / `tests/unit/derive-view.spec.ts`; the `timeoutMs` option of `scrubNumberFromUrl` (S02), `fetchTrack` (S04) and `runBulkLookup` (S09); the elapsed-time input rows of S11's wait-bucket test.
+  - Reads of the shipped value: `lookup.timeoutMs`, `lookup.stageMs`, `lookup.notFoundServiceCaveat ? 1 : 0`, `Math.min(29_190, lookup.timeoutMs - 4_000)` (S04 `tests/e2e/loading-timeline.spec.ts`, `failure-causes.spec.ts`, S07 result specs).
+  A hit blocks only when it compares the **shipped** `lookup` / `siteConfig.lookup` value — or a page rendered with the shipped config — with a pre-R4 literal (`toBe(45000)`, `toBe(true)` on the caveat flag, `[3000, 8000]`, an unconditional '조회 서비스 사정으로…' assertion, a `29_190` delay not bounded by `lookup.timeoutMs`). Such a literal in another stage's file (S03/S04/S07) blocks the flip: stop, amend roadmap §10.4 in a separate commit `docs: amend renewal contract — S10 Part B edits <file>` (adding "M S10 (Part B)"), then replace the literal as follows and note the rule → assertion mapping in the stage summary: client-timeout literal → `lookup.timeoutMs`; a slow-but-valid response delay (29.19 s) → `lookup.timeoutMs - 4_000`; an unconditional caveat-line assertion → `toHaveCount(lookup.notFoundServiceCaveat ? 1 : 0)`.
 
-- [ ] **Step 6: Write the failing tests.** Append to `tests/unit/config.spec.ts` (if the file already imports from `@/config/site.config`, add `lookup` to that import instead of adding a second line):
+- [ ] **Step 6: Write the failing tests.** S03's `tests/unit/config.spec.ts` already imports `lookup` in its `@/config/site.config` import (S03 Task 5 Step 1); do not import it again. Add below the existing imports:
 
 ```ts
-import { lookup } from "@/config/site.config";
 import { LOOKUP_TIMING } from "@/lib/services/lookup-budget";
+```
 
+Append to the end of the file:
+
+```ts
 test.describe("R4 client lookup timing (S10 Part B)", () => {
   test("the client timeout is 25 s once the server budget is live", () => {
     expect(lookup.timeoutMs).toBe(25_000);
@@ -2414,7 +2470,7 @@ test.describe("R4 client lookup timing (S10 Part B)", () => {
 - [ ] **Step 7: Run to verify they fail**
 
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit/config.spec.ts --grep "R4 client lookup timing"; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
-Expected: `3 failed` (`Received: 45000`, `Received: true`, `Received: 8000` fails `toBeLessThanOrEqual(10000)`? — no: 8000 passes the range; the fourth test passes today) → exactly: the 25 s test, the 5 s margin test (45000 − 15000 passes) … Record the actual result: at least "the client timeout is 25 s" and "the NOT_FOUND service caveat is off" fail.
+Expected: `2 failed, 2 passed` against S03's shipped values (`timeoutMs: 45000`, `notFoundServiceCaveat: true`, `stageMs: [3000, 8000]`, `skeletonDelayMs: 400`, `spinnerStopMs: 5000`): "the client timeout is 25 s once the server budget is live" fails with `Received: 45000`, "the NOT_FOUND service caveat is off after the server fix" fails with `Received: true`; "outlasts the server budget by at least 5 s" (45000 − 15000) and "stage bounds increase…" (400 ≤ 3000 < 8000 ≤ 10000, 5000 < 8000) already pass.
 
 - [ ] **Step 8: Flip the values.** In `config/site.config.ts`, inside the `lookup` export, replace the three properties (keep their position; find them with `Select-String -Path config/site.config.ts -Pattern 'timeoutMs|notFoundServiceCaveat|stageMs'`) with exactly:
 
@@ -2433,7 +2489,9 @@ Expected: `3 failed` (`Received: 45000`, `Received: true`, `Received: 8000` fail
   notFoundServiceCaveat: false,
 ```
 
-(Use the pair chosen in Step 4 for `stageMs` and update its comment's numbers accordingly.) Then in `tests/unit/config.spec.ts` update every assertion found in Step 5 that pinned `45000`, `true` for the caveat, or `[3000, 8000]` to read `lookup.timeoutMs` / `lookup.notFoundServiceCaveat` / `lookup.stageMs` or the new literal values.
+(Use the pair chosen in Step 4 for `stageMs` and update its comment's numbers accordingly.) S03's own assertions in `tests/unit/config.spec.ts` accept both value sets, so they stay as they are; only a blocking hit from Step 5 is rewritten (with the replacement rules given there).
+
+`lookup.copy.veryLongWait` ('기록이 없는 번호는 30초 가까이 걸릴 수 있어요. …') is spec §5 copy and stays unchanged here (S10 adds no customer copy), although after R4 the server answers within 15 s and the client stops at 25 s. Write into the stage summary, for the operator: "R4 뒤 '30초 가까이' 문구 유지 여부 결정 필요 — 바꾸기로 하면 S03 설정값 변경 태스크로 처리".
 
 - [ ] **Step 9: Run to verify they pass**
 
@@ -2452,16 +2510,17 @@ git add config/site.config.ts tests/unit/config.spec.ts; git commit -m "feat: sh
 
 ## Part C — InsForge proxy (approval 12)
 
-Run **either** C1 → C2 (retire) **or** C1F → C2F (harden). Never both.
+Run **either** C1 → C2 (retire) **or** C1F → C2F (harden) in one run, never both. A later retirement run after an earlier hardening run is expected; C1 Step 6 and C2 Step 6a then remove the fallback's leftovers.
 
 ### Task C1: Remove the proxy path from the customs lookup
 
 > **GATED — approval 12 (retirement) and the icn1 log evidence.**
 
 **Files:**
-- Modify: `lib/services/customs.ts` (delete `getProxyXml`, `DirectMiss`, `proxyMissed`, `lookupViaProxy`; simplify `lookupCustomsEvents`; drop `postJsonWithTimeout`)
+- Modify: `lib/services/customs.ts` (delete `getProxyXml`, `DirectMiss`, `proxyMissed`, `lookupViaProxy`; simplify `lookupCustomsEvents`; drop `postJsonWithTimeout`; delete `PROXY_SECRET_HEADER` when C2F ran earlier)
 - Modify: `lib/services/lookup-budget.ts` (delete `proxyMs`)
-- Modify: `tests/unit/lookup-budget.spec.ts` (delete the proxy fit line), `tests/unit/track-route-latency.spec.ts` (proxy expectations)
+- Modify: `tests/unit/lookup-budget.spec.ts` (delete the proxy fit line), `tests/unit/track-route-latency.spec.ts` (proxy expectations), `tests/support/unipass-stub.ts` (only when C2F ran earlier: drop the proxy-secret lines)
+- Delete (only when C1F–C2F ran earlier): `tests/unit/unipass-proxy.spec.ts`
 
 **Interfaces:**
 - Consumes: Task A4 code, the Task A6 evidence table.
@@ -2469,7 +2528,7 @@ Run **either** C1 → C2 (retire) **or** C1F → C2F (harden). Never both.
 
 - [ ] **Step 1: Confirm approval 12 is recorded; if not, stop.** Roadmap §4 row 12 must be `approved`. `pending`/`rejected` → skip C1–C2 and run C1F–C2F (fallback: harden the proxy — shared secret header, no CORS, number-format validation, call limit).
 
-- [ ] **Step 2: Check the icn1 direct-call failure rate.** From the evidence table (Task A6 Step 6.4): for 3 consecutive days (T − F0) ÷ (T − Z) ≤ 1 % and the 3-day sum of (T − Z) ≥ 200. If Part A never shipped (approval 5 not granted) there is no evidence: stop and ask the operator to either approve 5 first or explicitly waive the evidence in writing; until then run C1F–C2F. If the rule fails, stop and report the numbers — the proxy is currently the only fallback, and retirement is re-decided by the operator.
+- [ ] **Step 2: Check the icn1 direct-call failure rate.** From the evidence table (Task A6 Step 6.4): for 3 consecutive days (T − F0) ÷ (T − Z) ≤ 1 % and the 3-day sum of (T − Z) ≥ 200. If Part A never shipped (approval 5 not granted) there is no evidence (spec §16 item 12 asks for the log check "그 전에") and no Part A code for Steps 4–6 to edit: mark C1–C2 SKIPPED ("approval 12 waits for Part A log evidence"), run C1F–C2F instead, and report it to the operator. Also confirm the Part A code is on the integration branch: `git show claude/tipoasis-tracking-renewal-ae0e3a:lib/services/customs.ts | Select-String -Pattern 'const lookupViaProxy'` → one line (no output → same SKIPPED rule). If the rule fails, stop and report the numbers — the proxy is currently the only fallback, and retirement is re-decided by the operator.
 
 - [ ] **Step 3: Re-create the stage branch and re-run the baseline.** `git switch -C renewal/s10-r4-server-path claude/tipoasis-tracking-renewal-ae0e3a`, rename the previous screen folders, run Task 0 Steps 4–6.
 
@@ -2530,15 +2589,17 @@ export const lookupCustomsEvents = async (
 
   In `lib/services/lookup-budget.ts` delete the two lines `/** InsForge proxy call (removed with approval 12). */` and `proxyMs: 5_000,`. In `tests/unit/lookup-budget.spec.ts` delete the `expect(LOOKUP_TIMING.unipassCallMs + LOOKUP_TIMING.proxyMs + …` statement (3 lines).
 
+  **Only when the approval-12 fallback (C1F–C2F) was merged earlier** — check with `Select-String -Path lib/services/customs.ts, tests/support/unipass-stub.ts -Pattern 'PROXY_SECRET'`: delete the line `const PROXY_SECRET_HEADER = "x-proxy-secret";` from `lib/services/customs.ts` (it is unused once `lookupViaProxy` is gone, and lint would fail), and from `tests/support/unipass-stub.ts` delete the four proxy-secret lines C2F added (`export const STUB_PROXY_SECRET = …`, `secret: process.env.UNIPASS_PROXY_SECRET` in `saved`, and both `setEnv("UNIPASS_PROXY_SECRET", …)` lines). Re-run the check: no output. Then remove the fallback's spec, whose "server side of the hardened proxy" tests now fail by design and whose function file Task C2 deletes: `git rm tests/unit/unipass-proxy.spec.ts` → one `rm '…'` line.
+
 - [ ] **Step 7: Run to verify it passes**
 
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit tests/track-api.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; npm run typecheck; npm run lint`
-Expected: 0 failed (`track-route-latency` now 24 passed); typecheck and lint exit 0.
+Expected: 0 failed (`track-route-latency` now 25 passed); typecheck and lint exit 0.
 
 - [ ] **Step 8: Commit**
 
 ```powershell
-git add lib/services/customs.ts lib/services/lookup-budget.ts tests/unit/lookup-budget.spec.ts tests/unit/track-route-latency.spec.ts; git commit -m "refactor: drop the InsForge proxy fallback from the customs lookup"
+git add lib/services/customs.ts lib/services/lookup-budget.ts tests/unit/lookup-budget.spec.ts tests/unit/track-route-latency.spec.ts tests/support/unipass-stub.ts; git commit -m "refactor: drop the InsForge proxy fallback from the customs lookup"
 ```
 
 ---
@@ -2550,7 +2611,7 @@ git add lib/services/customs.ts lib/services/lookup-budget.ts tests/unit/lookup-
 **Files:**
 - Delete: `insforge/functions/unipass-proxy.ts`, `.github/workflows/deploy-insforge.yml`, `docs/insforge-deployment-runbook.md`
 - Modify: `package.json:12-13` (scripts), `AGENTS.md:21` and the `<!-- INSFORGE:START -->…<!-- INSFORGE:END -->` block, `CLAUDE.md:21`, `DEPLOYMENT.md` (lines 6, 15–17, 26, 41, 96, section `## InsForge CLI Notes`), `README.md:38`
-- Check only: `.env.example` (has no `UNIPASS_PROXY_URL` today)
+- Check only: `.env.example` (has no `UNIPASS_PROXY_URL` today); Modify it only when C2F ran earlier (Step 6a)
 - Create: `tests/unit/insforge-retired.spec.ts`
 
 **Interfaces:**
@@ -2590,7 +2651,7 @@ test("the InsForge proxy files are gone", () => {
 test("no document or config still points at the InsForge proxy", () => {
   for (const file of SCANNED_FILES) {
     const text = readFileSync(path.join(ROOT, file), "utf8");
-    expect(text, file).not.toMatch(/insforge\.app|insforge\.site|UNIPASS_PROXY_URL|insforge:(current|deploy)|unipass-proxy/i);
+    expect(text, file).not.toMatch(/insforge\.app|insforge\.site|UNIPASS_PROXY_(URL|SECRET)|insforge:(current|deploy)|unipass-proxy/i);
   }
 });
 ```
@@ -2598,7 +2659,7 @@ test("no document or config still points at the InsForge proxy", () => {
 - [ ] **Step 3: Run to verify it fails**
 
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit/insforge-retired.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
-Expected: `2 failed` (the three files exist; `DEPLOYMENT.md` contains `insforge.app`).
+Expected: `2 failed` — the three files exist; the scan names the first listed file that still points at the proxy: `AGENTS.md` (the InsForge API base in the INSFORGE block), or `DEPLOYMENT.md` (`UNIPASS_PROXY_URL`) when C2F already rewrote that `AGENTS.md` line.
 
 - [ ] **Step 4: Delete the files**
 
@@ -2625,8 +2686,15 @@ Expected: three `rm '…'` lines.
   - `AGENTS.md` and `CLAUDE.md`: replace `- Hosting: Vercel (프로젝트 `tracking-tipoasis`, 리전 `icn1`), UNI-PASS 프록시는 InsForge Edge Function` with `- Hosting: Vercel (프로젝트 `tracking-tipoasis`, 리전 `icn1`), UNI-PASS는 Vercel 함수에서 직접 호출(InsForge 프록시는 R4에서 폐기)`.
   - `AGENTS.md`: delete everything from the line `<!-- INSFORGE:START -->` through the line `<!-- INSFORGE:END -->` and the one blank line after it.
   - `DEPLOYMENT.md`: replace `InsForge remains in use for the UNI-PASS Edge Function proxy.` with `UNI-PASS is called directly from the Vercel function in \`icn1\`; the InsForge proxy was retired in R4 (approval 12).` (keep the backticks around icn1 as normal Markdown code). Delete these lines: `- InsForge frontend fallback URL: …`, `- Current InsForge deployment ID: …`, `- InsForge project dashboard: …`, `6. Keep the InsForge Edge Function proxy deployed for UNI-PASS access.`, `- \`UNIPASS_PROXY_URL\`: \`https://…/functions/unipass-proxy\``, the line `UNIPASS_PROXY_URL=https://…/functions/unipass-proxy` in the "Current Vercel environment variables" block, and the whole section from `## InsForge CLI Notes` up to (not including) the next `## ` heading.
-  - `README.md`: delete the line `UNIPASS_PROXY_URL=https://sk9gyysw.ap-southeast.insforge.app/functions/unipass-proxy`.
-  - `.env.example`: run `Select-String -Path .env.example -Pattern 'UNIPASS_PROXY'` → expected no output (nothing to remove).
+  - `README.md`: delete the line that starts with `UNIPASS_PROXY_URL=https://` (the InsForge function URL; find it with `Select-String -Path README.md -Pattern '^UNIPASS_PROXY_URL='`).
+  - `.env.example`: run `Select-String -Path .env.example -Pattern 'UNIPASS_PROXY'` → expected no output (nothing to remove) unless C2F ran earlier (Step 6a).
+
+- [ ] **Step 6a: Only when the approval-12 fallback (C1F–C2F) was merged earlier, remove what it added.** Check: `Select-String -Path .env.example, README.md, DEPLOYMENT.md -Pattern 'UNIPASS_PROXY_SECRET|x-proxy-secret'`. No output → skip this step. Otherwise:
+  - `.env.example`: delete the blank line, the comment line `# InsForge UNI-PASS 프록시(서버 전용). …` and the two lines `UNIPASS_PROXY_URL=` and `UNIPASS_PROXY_SECRET=` that C2F Step 5 appended.
+  - `README.md`: delete the two lines `UNIPASS_PROXY_URL=` and `UNIPASS_PROXY_SECRET=` (C2F replaced the URL line with them, so the Step 6 README bullet finds nothing).
+  - `DEPLOYMENT.md`: replace the C2F sentence ``InsForge remains only as a fallback UNI-PASS proxy, called with the shared secret header `x-proxy-secret` (`UNIPASS_PROXY_SECRET`).`` with the retirement sentence of Step 6; delete the two bullets ``- `UNIPASS_PROXY_URL`: InsForge function URL (…)`` and ``- `UNIPASS_PROXY_SECRET`: shared secret sent as `x-proxy-secret`; …``, and the two lines `UNIPASS_PROXY_URL=<InsForge function URL>` and `UNIPASS_PROXY_SECRET=<server secret>` in the "Current Vercel environment variables" block. (The `## InsForge CLI Notes` section goes away with Step 6 either way; `AGENTS.md` line 80 goes away with the INSFORGE block.)
+  - `tests/unit/unipass-proxy.spec.ts` was already removed by Task C1 Step 6; `Test-Path tests/unit/unipass-proxy.spec.ts` → `False`.
+  Re-run the check: no output.
 
 - [ ] **Step 7: Run to verify it passes**
 
@@ -2636,11 +2704,11 @@ Expected: 0 failed (`insforge-retired` 2 passed); typecheck, lint, build exit 0.
 - [ ] **Step 8: Commit**
 
 ```powershell
-git add -A package.json AGENTS.md CLAUDE.md DEPLOYMENT.md README.md tests/unit/insforge-retired.spec.ts; git commit -m "chore: retire the InsForge UNI-PASS proxy"
+git add -A package.json AGENTS.md CLAUDE.md DEPLOYMENT.md README.md .env.example tests/unit/insforge-retired.spec.ts; git commit -m "chore: retire the InsForge UNI-PASS proxy"
 ```
 
 - [ ] **Step 9: Run Task Final (Stage gate) for Part C**, then hand the external clean-up to the operator (operator-run, after the retirement code is live in production):
-  1. `npx vercel env rm UNIPASS_PROXY_URL production` (the code already ignores it; this removes the stale value).
+  1. `npx vercel env rm UNIPASS_PROXY_URL production` (the code already ignores it; this removes the stale value), and — only if the fallback's secret was set earlier (C2F Step 8) — `npx vercel env rm UNIPASS_PROXY_SECRET production`.
   2. InsForge dashboard: delete the `unipass-proxy` function and the old frontend deployment (`*.insforge.site`), or the whole `tracking-tipoasis` project if nothing else uses it.
   3. GitHub → Settings → Secrets and variables → Actions: delete `INSFORGE_USER_API_KEY`, `INSFORGE_API_BASE_URL`, `INSFORGE_API_KEY`.
   4. Optional local clean-up: delete the untracked `.insforge/` folder. (`.gitignore` and `eslint.config.mjs` keep ignoring `.insforge`; that is harmless, and `eslint.config.mjs` is hook-protected.)
@@ -2661,7 +2729,7 @@ git add -A package.json AGENTS.md CLAUDE.md DEPLOYMENT.md README.md tests/unit/i
 
 - [ ] **Step 1: Confirm approval 12 is NOT approved; if it is, stop.** Roadmap §4 row 12 is `pending` or `rejected` → continue. `approved` → skip C1F–C2F and run C1–C2.
 
-- [ ] **Step 2: Branch.** If this runs in the same session as Part A, stay on `renewal/s10-r4-server-path`. Otherwise `git switch -C renewal/s10-r4-server-path claude/tipoasis-tracking-renewal-ae0e3a`, rename the previous screen folders, and run Task 0 Steps 4–6.
+- [ ] **Step 2: Branch.** If Task 0 of this run already created `renewal/s10-r4-server-path` (Part A ran in this run, or was just marked SKIPPED in Task A1 Step 1 — the usual first run), stay on it. Otherwise `git switch -C renewal/s10-r4-server-path claude/tipoasis-tracking-renewal-ae0e3a`, rename the previous screen folders, and run Task 0 Steps 4–6.
 
 - [ ] **Step 3: Write the failing test** — create `tests/unit/unipass-proxy.spec.ts`:
 
@@ -2946,7 +3014,7 @@ git add insforge/functions/unipass-proxy.ts tests/unit/unipass-proxy.spec.ts; gi
 
 - [ ] **Step 1: Confirm approval 12 is NOT approved; if it is, stop.** Same check as Task C1F Step 1. This task edits `lib/services/customs.ts` outside approval 5 only to add the header and the secret gate; that is the "거절하면: 서버 전용 공유 비밀 헤더" line of spec §16 item 12.
 
-- [ ] **Step 2: Write the failing tests.** Append to `tests/unit/unipass-proxy.spec.ts` (add the two imports to the top of the file):
+- [ ] **Step 2: Write the failing tests.** In `tests/unit/unipass-proxy.spec.ts` add these three imports below the existing import lines, then append the second block to the end of the file:
 
 ```ts
 import { readFileSync } from "node:fs";
@@ -3103,10 +3171,12 @@ UNIPASS_PROXY_URL=
 UNIPASS_PROXY_SECRET=
 ```
 
-  - `DEPLOYMENT.md`: replace `InsForge remains in use for the UNI-PASS Edge Function proxy.` with `InsForge remains only as a fallback UNI-PASS proxy, called with the shared secret header \`x-proxy-secret\` (\`UNIPASS_PROXY_SECRET\`).`; replace the line ``- `UNIPASS_PROXY_URL`: `https://sk9gyysw.ap-southeast.insforge.app/functions/unipass-proxy` `` with the two lines ``- `UNIPASS_PROXY_URL`: InsForge function URL (read it from the Vercel env var; it is not published here)`` and ``- `UNIPASS_PROXY_SECRET`: shared secret sent as `x-proxy-secret`; the same value in Vercel (Production) and in the InsForge function env``; in the "Current Vercel environment variables" block replace `UNIPASS_PROXY_URL=https://sk9gyysw.ap-southeast.insforge.app/functions/unipass-proxy` with `UNIPASS_PROXY_URL=<InsForge function URL>` and add the line `UNIPASS_PROXY_SECRET=<server secret>`; in "InsForge CLI Notes" replace `npx @insforge/cli deployments env set UNIPASS_PROXY_URL "https://sk9gyysw.ap-southeast.insforge.app/functions/unipass-proxy"` with `npx @insforge/cli deployments env set UNIPASS_PROXY_SECRET "<same value as Vercel>"`.
-  - `README.md`: replace `UNIPASS_PROXY_URL=https://sk9gyysw.ap-southeast.insforge.app/functions/unipass-proxy` with the two lines `UNIPASS_PROXY_URL=` and `UNIPASS_PROXY_SECRET=`.
-  - `AGENTS.md`: replace `- **Project:** **tracking-tipoasis** (API base `https://sk9gyysw.ap-southeast.insforge.app`)` with `- **Project:** **tracking-tipoasis** (API base: InsForge 대시보드에서 확인 — 공개 문서에 적지 않음)`.
-  - `docs/insforge-deployment-runbook.md`: after the line ``- `UNIPASS_PROXY_URL` `` add ``- `UNIPASS_PROXY_SECRET` ``; replace `UNIPASS_PROXY_URL=https://sk9gyysw.ap-southeast.insforge.app/functions/unipass-proxy` with `UNIPASS_PROXY_URL=<InsForge function URL>`; replace `npx @insforge/cli deployments env set UNIPASS_PROXY_URL "https://sk9gyysw.ap-southeast.insforge.app/functions/unipass-proxy"` with `npx @insforge/cli deployments env set UNIPASS_PROXY_SECRET "<same value as Vercel>"`.
+  This plan is itself a public document, so it spells the InsForge host as `https://…insforge.app` (the real host is the one already in these files). List every line to change first: `Select-String -Path DEPLOYMENT.md, README.md, AGENTS.md, docs/insforge-deployment-runbook.md -Pattern 'insforge\.app'` → seven lines (`DEPLOYMENT.md` 3, `README.md` 1, `AGENTS.md` 1, runbook 2). Then:
+  - `DEPLOYMENT.md`: replace `InsForge remains in use for the UNI-PASS Edge Function proxy.` with `InsForge remains only as a fallback UNI-PASS proxy, called with the shared secret header \`x-proxy-secret\` (\`UNIPASS_PROXY_SECRET\`).`; replace the bullet ``- `UNIPASS_PROXY_URL`: `https://…insforge.app/functions/unipass-proxy` `` with the two lines ``- `UNIPASS_PROXY_URL`: InsForge function URL (read it from the Vercel env var; it is not published here)`` and ``- `UNIPASS_PROXY_SECRET`: shared secret sent as `x-proxy-secret`; the same value in Vercel (Production) and in the InsForge function env``; in the "Current Vercel environment variables" block replace the line `UNIPASS_PROXY_URL=https://…insforge.app/functions/unipass-proxy` with `UNIPASS_PROXY_URL=<InsForge function URL>` and add the line `UNIPASS_PROXY_SECRET=<server secret>`; in "InsForge CLI Notes" replace the line `npx @insforge/cli deployments env set UNIPASS_PROXY_URL "https://…insforge.app/functions/unipass-proxy"` with `npx @insforge/cli deployments env set UNIPASS_PROXY_SECRET "<same value as Vercel>"`.
+  - `README.md`: replace the line `UNIPASS_PROXY_URL=https://…insforge.app/functions/unipass-proxy` with the two lines `UNIPASS_PROXY_URL=` and `UNIPASS_PROXY_SECRET=`.
+  - `AGENTS.md`: replace the line ``- **Project:** **tracking-tipoasis** (API base `https://…insforge.app`)`` with `- **Project:** **tracking-tipoasis** (API base: InsForge 대시보드에서 확인 — 공개 문서에 적지 않음)`.
+  - `docs/insforge-deployment-runbook.md`: after the line ``- `UNIPASS_PROXY_URL` `` add ``- `UNIPASS_PROXY_SECRET` ``; replace the line `UNIPASS_PROXY_URL=https://…insforge.app/functions/unipass-proxy` with `UNIPASS_PROXY_URL=<InsForge function URL>`; replace the line `npx @insforge/cli deployments env set UNIPASS_PROXY_URL "https://…insforge.app/functions/unipass-proxy"` with `npx @insforge/cli deployments env set UNIPASS_PROXY_SECRET "<same value as Vercel>"`.
+  Re-run the `Select-String` above: no output.
 
 - [ ] **Step 6: Run to verify they pass**
 
@@ -3138,7 +3208,7 @@ git add lib/services/customs.ts tests/support/unipass-stub.ts tests/unit/unipass
 - [ ] **G4. Build.** `npm run build` → exit 0. Route table: `ƒ /[trackingNumber]` always; `/` is `ƒ` in S01 (it still reads `searchParams`), `○ /` from S02 on, and `○ /` with `Revalidate 5m` from S06 on.
 - [ ] **G5. Dev-mode E2E.** `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npm run test:e2e` → "N passed", 0 failed (skips allowed only for tests guarded by `PW_MODE`, `PW_SHOTS`, `PW_VISUAL`, or an approval-gated `test.skip` naming the approval).
 - [ ] **G6. Production-mode E2E.** Re-run `npm run build` if `next start` reports a missing or stale build. Background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`; wait for `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` = `200`; then `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test` → 0 failed, including `tests/budgets/*`.
-- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S10'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-results/stage-screens/S10-after/` at 320, 375, 768, 1024, 1440. Compare with `S10-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
+- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S10'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-artifacts/stage-screens/S10-after/` at 320, 375, 768, 1024, 1440. Compare with `S10-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 - [ ] **G8. Budgets.** Paste the measured numbers of every budget this plan lists (from the G6 output) into the stage summary. Any budget over its fail line fails the gate.
 - [ ] **G9. Code review.** Invoke the `code-review` skill on `git diff claude/tipoasis-tracking-renewal-ae0e3a...HEAD`. Fix every CRITICAL and HIGH finding; if code changed, re-run G2–G6.
 - [ ] **G10. Verification.** Invoke `superpowers:verification-before-completion`; paste each command and its result line into the stage summary.
@@ -3155,8 +3225,8 @@ Reported to the roadmap owner; none renames a §11 item.
 
 1. **S10-private exports** (roadmap §11.2 lists the modules but not their exports): `lib/services/lookup-budget.ts` → `LOOKUP_TIMING`, `LOOKUP_CACHE_SECONDS`, `LookupDeadline`, `createLookupDeadline`, `withinMs`; `lib/services/lookup-log.ts` → `LOOKUP_LOG_EVENT`, `LOOKUP_RESULT_KINDS`, `LookupResultKind`, `ElapsedBucket`, `LookupLogRecord`, `UnipassCallOutcome`, `UnipassTally`, `elapsedBucket`, `formatLookupLog`, `logLookup`, `setLookupLogSink`, `createUnipassTally`. The log line `track_lookup {…six fields…}` is the stable format S11's KPI docs may cite.
 2. **Frozen-module signature changes under approval 5:** `lib/services/customs.ts` gains `lookupCustomsEvents`, `CustomsLookupResult`, `CustomsLookupOptions`, `CustomsLookupType` and loses `fetchCustomsEvents` (its only consumer was the route). `lib/services/customstrack.ts`: `fetchCustomstrackCustomsEvents(trackingNumber, options?: CustomstrackOptions)` (optional, backward compatible).
-3. **Test files not in File Map §10.4:** `tests/unit/lookup-budget.spec.ts`, `tests/unit/lookup-log.spec.ts` (C S10), `tests/unit/insforge-retired.spec.ts` (C S10, approval 12), `tests/unit/unipass-proxy.spec.ts` (C S10, fallback). `tests/support/unipass-stub.ts` exports as listed in Task A3.
-4. **File Map note extensions:** `DEPLOYMENT.md` M S10 also in Part A (log/alert section); `.env.example` under the approval-12 fallback gains `UNIPASS_PROXY_URL=` and `UNIPASS_PROXY_SECRET=` (retirement leaves it unchanged — it never had `UNIPASS_PROXY_URL`); `insforge/functions/unipass-proxy.ts` under the fallback exports `createProxyHandler`/`ProxyHandlerOptions`; `docs/insforge-deployment-runbook.md` under the fallback keeps the file but drops the URL.
+3. **Test files not in File Map §10.4:** `tests/unit/lookup-budget.spec.ts`, `tests/unit/lookup-log.spec.ts` (C S10), `tests/unit/insforge-retired.spec.ts` (C S10, approval 12), `tests/unit/unipass-proxy.spec.ts` (C S10, fallback; D S10 in Task C1 when a retirement follows an earlier fallback). `tests/support/unipass-stub.ts` exports as listed in Task A3.
+4. **File Map note extensions:** `DEPLOYMENT.md` M S10 also in Part A (log/alert section); `.env.example` under the approval-12 fallback gains `UNIPASS_PROXY_URL=` and `UNIPASS_PROXY_SECRET=` (a retirement without an earlier fallback leaves it unchanged — it never had `UNIPASS_PROXY_URL`; after an earlier fallback, Task C2 Step 6a removes those lines again); `insforge/functions/unipass-proxy.ts` under the fallback exports `createProxyHandler`/`ProxyHandlerOptions`; `docs/insforge-deployment-runbook.md` under the fallback keeps the file but drops the URL; `lib/services/customs.ts` M S10 also under the approval-12 fallback (C2F adds only the `x-proxy-secret` header and the secret gate — variant B edits the pre-R4 file while approval 5 is still pending, which the Global Constraints' "except S10 under approval 5" does not name; spec §16 item 12 "거절하면: 서버 전용 공유 비밀 헤더" is the basis).
 5. **New server env var** (fallback only): `UNIPASS_PROXY_SECRET`, header `x-proxy-secret`.
 6. **Cross-stage test requirement for Part B:** tests owned by S03/S04/S07 must read `lookup.timeoutMs`, `lookup.notFoundServiceCaveat` and `lookup.stageMs` from `config/site.config.ts` instead of literals (in particular S04's "29.19 s pending response still renders pending" delay must be derived from `lookup.timeoutMs`), so Part B changes values without editing their files. Where a literal remains, Task B1 Step 5 amends §10.4 first.
 7. **Branch reuse:** Parts B and C re-create `renewal/s10-r4-server-path` from the integration head (`git switch -C`) after the previous part was merged; `PW_STAGE` stays `S10`, and screen folders are renamed `S10A-*`/`S10B-*`/`S10C-*` between gate runs.

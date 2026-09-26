@@ -8,9 +8,9 @@
 
 **Tech Stack:** Next.js 16.3.6 App Router (Turbopack), React 19.3, TypeScript strict, zod 3.25 (server-side report parsing only), Playwright 1.55 (the only test runner; unit tests are Playwright tests without a `page`), `@vercel/analytics` ^2.0.1 and `@vercel/speed-insights` ^2.0.0 (approval 13; framework-agnostic `inject`/`pageview`/`track`/`injectSpeedInsights` entry points). Windows: every `npm`/`npx`/`node` command runs in PowerShell 5.1.
 
-**Spec:** `docs/superpowers/specs/2026-09-26-tracking-renewal-ia-design.md` — §1 (success criteria, 톡톡 문의 KPI), §3 (candidate B scrub order), §10 (WAF proposal for failed `/internal` attempts), §11 (측정: 1단계 baseline, 3단계 analytics, KPI 1–7, 안전장치), §12 (Report-Only, strict CSP conflicts with static '/'), §13 ("정리 기준": style_select), §15 (R0 week baseline, R5), §16 items 13, 15, 16, §17 Q2 and Q5. Roadmap and shared contract: `docs/superpowers/plans/2026-09-26-renewal-00-roadmap.md` (§2 dependency graph, §3 operator questions, §4 ledger, §6 Task 0, §7 gate, §9 S11 budgets, §10 File Map, §11.5 `SecurityHeaderOptions.reportUri`, §11.9 `AnalyticsEvent` / `templatePath`, §11.10 `captureThirdParty`, §11.13 hooks). Stage plans consumed: S01 (`…-01-r0-urgent-fixes.md`: `lib/security/headers.ts`, `next.config.ts`, `tests/unit/security-headers.spec.ts`, fixtures, stage-screens output path), S02 (`…-02-r1-number-protection.md`: `isNumberPath`, `ScrubStatus`, ad signals, `AdLoader`, `captureThirdParty`, `assertNoTrackingValues`, `waitForIdle`, privacy page text), S03 (`GUIDE_KEYS` and the domain types), S05 (`isStyleId`, `NoticeBanner`), S06 (`app/(public)/layout.tsx`, `data-view-state`), S07 (`data-result-view`, `details[data-history]`, `data-failure-cause`), S10 (`track_lookup` log line cited by the KPI documents). S08's plan did not exist when this plan was written: S11 consumes S08 through the contract (`[data-style-picker]`, `html[data-style]`, `AD_TIMING_POLICY`, `ads.manualSlotId`) and checks S08's real file shapes in Task 0 Step 9.
+**Spec:** `docs/superpowers/specs/2026-09-26-tracking-renewal-ia-design.md` — §1 (success criteria, 톡톡 문의 KPI), §3 (candidate B scrub order), §10 (WAF proposal for failed `/internal` attempts), §11 (측정: 1단계 baseline, 3단계 analytics, KPI 1–7, 안전장치), §12 (Report-Only, strict CSP conflicts with static '/'), §13 ("정리 기준": style_select), §15 (R0 week baseline, R5), §16 items 13, 15, 16, §17 Q2 and Q5. Roadmap and shared contract: `docs/superpowers/plans/2026-09-26-renewal-00-roadmap.md` (§2 dependency graph, §3 operator questions, §4 ledger, §6 Task 0, §7 gate, §9 S11 budgets, §10 File Map, §11.5 `SecurityHeaderOptions.reportUri`, §11.9 `AnalyticsEvent` / `templatePath`, §11.10 `captureThirdParty`, §11.13 hooks). Stage plans consumed: S01 (`…-01-r0-urgent-fixes.md`: `lib/security/headers.ts`, `next.config.ts`, `tests/unit/security-headers.spec.ts`, fixtures, stage-screens output path), S02 (`…-02-r1-number-protection.md`: `isNumberPath`, `ScrubStatus`, ad signals, `AdLoader`, `captureThirdParty`, `assertNoTrackingValues`, `waitForIdle`, privacy page text), S03 (`GUIDE_KEYS` and the domain types), S05 (`isStyleId`, `NoticeBanner`), S06 (`app/(public)/layout.tsx`, `data-view-state`), S07 (`data-result-view`, `details[data-history]`, `data-failure-cause`), S10 (`track_lookup` log line cited by the KPI documents), S08 (`…-08-supplementary-and-styles.md`: `[data-style-picker]` radios whose `value` is the `StyleId`, `html[data-style]`, `AD_TIMING_POLICY = "afterAllowedResult"` under approval 7, `ads.manualSlotId`, Task 12's `PREPAINT_CSP_SOURCE` in `next.config.ts` and in S01's config test, Task 14's style-independence scan in `tests/unit/prepaint.spec.ts` whose `ALLOWED` set S11 extends, per S08 open issue 13). Task 0 Step 9 re-checks every anchor before any task starts.
 
-**Depends on:** Part A — nothing (roadmap §2: the baseline document needs nothing and runs in the R0 week). Parts B–D — S01, S02, S03, S05 (contract), and S06, S07, S08, because S11 edits files those stages modify first (roadmap §10 order for `app/(public)/layout.tsx`, `app/(public)/privacy/page.tsx`, `next.config.ts`) and reads their hooks; R5 is released after R3b in any case (roadmap §1, §5).
+**Depends on:** Part A — nothing (roadmap §2: the baseline document needs nothing and runs in the R0 week). Parts B–D — S01, S02, S03, S05 (contract), and S06, S07, S08 including S08 Part B (R3b), because S11 edits files those stages modify first (roadmap §10 order for `app/(public)/layout.tsx`, `app/(public)/privacy/page.tsx`, `next.config.ts`, `tests/unit/security-headers.spec.ts`, `tests/unit/prepaint.spec.ts`) and reads their hooks; R5 is released after R3b in any case (roadmap §1, §5).
 
 **Gated by:** approval 13 (Part C, Tasks C1–C6), approval 15 (Task D2A; Task D2 ships the '거절하면' checklist), approval 16 (Task D3A; Task D3 ships the '거절하면' decision).
 
@@ -118,13 +118,13 @@ Additive; no §11 name is renamed. Each item goes into the stage summary as a co
 1. **`AnalyticsEvent` (roadmap §11.9) gains three fields/members**, all enum-only: `lookup_start.repeat: boolean` (another start in the same document within 10 minutes — spec §11 KPI 4), `action.overdue: boolean` (KPI 2 excludes overdue clicks, KPI 3 counts them), and the action kind widens to `AnalyticsActionKind = ActionKind | "storeLink"` (store clicks for KPI 6; `ActionKind` has no store member). `lib/analytics/events.ts` also exports `WaitBucket`, `AnalyticsActionKind`, `AnalyticsPlacement`, `AnalyticsEventName`, `EventPropertyValue`, `EventPayload`, `LinkClickInput`, `ANALYTICS_EVENT_NAMES`, `LOOKUP_ENTRIES`, `FAILURE_CAUSES`, `ANALYTICS_ACTION_KINDS`, `TALK_PLACEMENTS`, `STORE_PLACEMENT_IDS`, `WAIT_BUCKETS`, `NOTICE_ID_PATTERN`, `PROPERTY_VALUE_PATTERN`, `isGuideKey`, `isFailureCause`, `isTalkPlacement`, `isStorePlacementId`, `waitBucket`, `stateToken`, `parseAnalyticsEvent`, `toEventPayload`, `classifyLinkClick`. Wire format: at most two properties per event (`lookup_settle` → `{ state: "inTransit" | "inTransit+overdue", wait }`, `action` → `{ action: "talk@header", state }`).
 2. **`templatePath` (roadmap §11.9)** returns `/` and `/privacy` unchanged, `/[trackingNumber]` for number routes (`isNumberPath`), and `/[unknown]` for every other path, so no free text can leave through a path. `lib/analytics/url-template.ts` also exports `NUMBER_ROUTE_TEMPLATE`, `UNKNOWN_ROUTE_TEMPLATE`, `templateUrl`, `templateBeforeSend`, `isReferrerSafe`, `routeForDocument` (a deep-link document's first page view is filed under `/[trackingNumber]` although the address is already `/`).
 3. **New S11 files (File Map additions):** `lib/analytics/gate.ts` (`AnalyticsGateDecision`, `AnalyticsGateInput`, `analyticsGate`), `lib/analytics/report.ts` (`MAX_QUEUED_EVENTS`, `REPEAT_WINDOW_MS`, `AnalyticsSink`, `PendingLookupStart`, `reportAnalyticsEvent`, `reportLookupStart`, `peekPendingLookupStart`, `consumePendingLookupStart`, `connectAnalyticsSink`, `disconnectAnalytics`, `resetAnalyticsReport`), `lib/analytics/dom-observer.ts` (`installAnalyticsObserver`), `lib/analytics/runtime.ts` (`SPEED_INSIGHTS_SAMPLE_RATE`, `AnalyticsRuntime`, `startAnalyticsRuntime`), `app/api/csp-report/route.ts` (listed in §10 already), `tests/support/insights-double.ts` (`installInsightsDoubles`, `insightsPosts`, `assertInsightsClean`, `isRecord`, `InsightsScriptKind`, `InsightsScriptRequest`, `InsightsPost`), `tests/e2e/csp-report.spec.ts`, `tests/unit/ops-docs.spec.ts`. Only S11 files import them, except `reportLookupStart` (imported by `components/lookup/useLookup.ts`).
-4. **File Map modifications by S11 (rows gain "M S11"):** `components/lookup/useLookup.ts` (one import, one call in `submit`; signature unchanged), `components/primitives/NoticeBanner.tsx` (`data-notice-id` on both roots; no prop change), `lib/security/headers.ts` (the number-route rule overrides `Content-Security-Policy-Report-Only` with a report-address-free copy when `reportUri` is set), `tests/unit/security-headers.spec.ts` (the expected `next.config.ts` options gain `reportUri`).
+4. **File Map modifications by S11 (rows gain "M S11"):** `components/lookup/useLookup.ts` (one import, one call in `submit`; signature unchanged), `components/primitives/NoticeBanner.tsx` (`data-notice-id` on both roots; no prop change), `lib/security/headers.ts` (the number-route rule overrides `Content-Security-Policy-Report-Only` with a report-address-free copy when `reportUri` is set), `tests/unit/security-headers.spec.ts` (the expected `next.config.ts` options gain `reportUri` next to S08's `extraScriptHashes`), `tests/unit/prepaint.spec.ts` (S08's style-independence scan: `lib/analytics/dom-observer.ts` joins its `ALLOWED` set, as S08 open issue 13 asks of the stage that adds a style reader; approval 13 only).
 5. **New `data-*` hook:** `data-notice-id` on the `NoticeBanner` root (`aside` and `p`), value `NoticeView.id`.
 6. **`lib/security/csp-report.ts` exports:** `CSP_REPORT_PATH` (`"/api/csp-report"`), `CSP_REPORT_MAX_BYTES` (16384), `CSP_REPORT_MAX_PER_BODY` (10), `CSP_LOG_EVENT` (`"csp_report"`), `CSP_LOG_LIMITS`, `CspDirective`, `BlockedKind`, `DocumentKind`, `CspReportSummary`, `parseCspReports`, `formatCspReportLog`, `CspReportLimiter`, `createCspReportLimiter`, `CspLogSink`, `setCspReportSink`, `handleCspReport`. `next.config.ts` keeps the literal `"/api/csp-report"` in a local constant (it cannot import `csp-report.ts`, whose imports use the `@/` alias); a unit test pins the two equal.
 7. **Referrer rule (spec §11 "리퍼러를 지웁니다"):** `beforeSend` cannot reach the vendor script's referrer field, so S11 keeps the scripts off when the referrer has a path, query, hash or credentials, and lets a bare other-site origin (for example `https://m.search.naver.com/`) through. An origin names a site, not a customer; the operator can ask for "no referrer at all", which would mean overriding `document.referrer` for AdSense too (see "Open issues").
 8. **Vendor entry points:** S11 uses the framework-agnostic `inject` / `pageview` / `track` (`@vercel/analytics`) and `injectSpeedInsights` (`@vercel/speed-insights`) instead of their `<Analytics/>` / `<SpeedInsights/>` components, whose Next.js variants compute routes from `useParams()` and would send a raw path when a param does not match (for example `%20`-encoded numbers). The contract's `components/analytics/Analytics.tsx` is S11's own gate component.
 9. **Policy text location (Task C6):** the statistics sentences live in `app/(public)/privacy/page.tsx` next to S02's policy text (legal text, not UI copy from `config/site.config.ts`); the page gains the constant `R1_EFFECTIVE_DATE` so S02's change-log line keeps its own date.
-10. **Stage-screen output path** follows S01's Addition 1: `test-artifacts/stage-screens/S11-<before|after>/` (read that path wherever the verbatim Task 0 / gate text says `test-results/stage-screens/`).
+10. **Stage-screen output path** follows S01's Addition 1: Task 0 Step 5 and gate G7 are the roadmap §6/§7 text with `test-artifacts/stage-screens/S11-before/` and `…/S11-after/` in place of `test-results/stage-screens/…` (Playwright empties `test-results/` at the start of every run, so Step 6 would delete the before-screens).
 
 ## File Structure
 
@@ -153,6 +153,7 @@ Additive; no §11 name is renamed. Each item goes into the stage summary as a co
 | `components/lookup/useLookup.ts` | Modify (C4) | `reportLookupStart(request.entry, startedAt)` in `submit` |
 | `lib/analytics/dom-observer.ts` | Create (C5) | Hooks → `lookup_settle`, `lookup_error`, `action`, `details_open`, `style_select`, `notice_view` |
 | `components/primitives/NoticeBanner.tsx` | Modify (C5) | `data-notice-id` on both roots |
+| `tests/unit/prepaint.spec.ts` | Modify (C5) | S08's style-independence scan allows `lib/analytics/dom-observer.ts` |
 | `app/(public)/privacy/page.tsx` | Modify (C6) | Statistics disclosure, new 시행일 |
 | `docs/ops/kpi-dashboard.md` | Create (D1) | Seven KPIs with both sources, events table, 15 % rule, enable steps |
 | `docs/ops/adsense-settings-checklist.md` | Create (D2), Modify (D2A) | Vignette-only checklist (D2, '거절하면'); full approval-15 checklist (D2A) |
@@ -168,7 +169,7 @@ Additive; no §11 name is renamed. Each item goes into the stage summary as a co
 | Start | Task 0 | before every part | — |
 | A — baseline (R0 week) | A1 | the R0 week, on its own (roadmap §2) | — |
 | Gate | Task Final | after Part A | — |
-| B — CSP report collection | B1 → B2 | R5, after S06–S08 are merged | — (not gated) |
+| B — CSP report collection | B1 → B2 | R5, after S06, S07 and S08 Part B (R3b) are merged | — (not gated) |
 | C — statistics | C1 → C6 | approval 13 = `approved` | Mark C1–C6 SKIPPED "approval 13 pending": no package, no script, no event. Spec §16 item 13 '거절하면': judge by Observability route counts and the manual 톡톡 classification only — the KPI document (D1) already lists these as the fallback source. |
 | D — operator documents | D1 → D2 → (D2A if approval 15 = `approved`) → D3 → (D3A if approval 16 = `approved`) → D4 | R5 | D2 is the approval-15 fallback ('비네트 추가 트리거만'); D3 is the approval-16 fallback ('1단계 헤더 유지') |
 | Gate | Task Final | after Parts B–D | — |
@@ -200,36 +201,37 @@ Part A usually runs weeks before Parts B–D. Parts B–D re-use the branch `ren
   Expected: build exits 0. Start the production server in a background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`
   Wait until `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` prints `200`.
   Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='before'; $env:PW_STAGE='S11'; npx playwright test tests/tools/stage-screens.spec.ts`
-  Expected: PNGs in `test-results/stage-screens/S11-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
+  Expected: PNGs in `test-artifacts/stage-screens/S11-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
 - [ ] **Step 6: Baseline suite.** With the server still running: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test`
   Expected: record "N passed / M skipped / 0 failed" in the stage summary. Then stop the server (Step 4 command) and clear the flags: `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 
 **S11 notes on the standard steps above**
 - Step 1: the "Gated by" list is approvals 13, 15 and 16. Approval 13 selects Part C (`approved`) or its SKIPPED fallback. Approval 15 adds Task D2A. Approval 16 adds Task D3A. In the R0-week run (Part A) write the three statuses too; they decide nothing yet.
-- Step 2: in the R0-week run (Part A) no merge is required (roadmap §2: "the baseline doc needs nothing"); write "Part A: dependencies not required" into the stage summary. For Parts B–D, `merge: S01 …`, `merge: S02 …`, `merge: S03 …`, `merge: S05 …`, `merge: S06 …`, `merge: S07 …` and `merge: S08 …` must all be listed; if one is missing, stop.
-- Step 5 and gate G7: the stage-screens tool writes to `test-artifacts/stage-screens/S11-before/` and `…/S11-after/` (S01 Addition 1). If S01's tool does not exist yet (Part A in the R0 week before S01 Task 1 is merged), skip the stage-screens command and write "stage screens: tool not merged yet" into the stage summary.
+- Step 2: in the R0-week run (Part A) no merge is required (roadmap §2: "the baseline doc needs nothing"); write "Part A: dependencies not required" into the stage summary. For Parts B–D, `merge: S01 …`, `merge: S02 …`, `merge: S03 …`, `merge: S05 …`, `merge: S06 …`, `merge: S07 …` and S08's Part B merge (`merge: S08 supplementary areas and selectable styles`, or `merge: S08 Part B selectable styles` when S08 Part A was merged at the R3 checkpoint) must all be listed; a lone `merge: S08 Part A supplementary areas` is not enough (the picker, the pre-paint hash and the style scan are Part B). By R5 the last 40 commits no longer reach S01's merge, so confirm the list with the merges of the integration branch itself: `git log --oneline --merges --first-parent claude/tipoasis-tracking-renewal-ae0e3a | Select-String -Pattern 'merge: S0[1-8]'`. If one is missing, stop.
+- Step 5 and gate G7: the output paths above and in G7 are the roadmap §6/§7 text with S01's Addition 1 applied (Additions item 10). If S01's tool does not exist yet (Part A in the R0 week before S01 Task 1 is merged), skip the stage-screens command and write "stage screens: tool not merged yet" into the stage summary.
 - Step 6: in the Parts B–D run, copy the budget lines that `tests/budgets/js-budget.spec.ts` (S07) prints into the stage summary under "JS before S11"; G8 compares against them.
 
-- [ ] **Step 7 (S11): Pick the part.** If `git log --oneline claude/tipoasis-tracking-renewal-ae0e3a -80 | Select-String -Pattern 'docs: add the observability baseline procedure'` prints nothing, this run is **Part A** (Task A1, then Task Final). Otherwise this run is **Parts B–D** (Tasks B1, B2, C1–C6 or their SKIPPED note, D1–D4 with D2A/D3A as the ledger says, then Task Final). Write the choice into the stage summary.
+- [ ] **Step 7 (S11): Pick the part.** If `git log --oneline claude/tipoasis-tracking-renewal-ae0e3a | Select-String -Pattern 'docs: add the observability baseline procedure'` prints nothing (the whole history: Part A was merged in the R0 week, hundreds of commits before R5), this run is **Part A** (Task A1, then Task Final). Otherwise this run is **Parts B–D** (Tasks B1, B2, C1–C6 or their SKIPPED note, D1–D4 with D2A/D3A as the ledger says, then Task Final). Write the choice into the stage summary.
 
 - [ ] **Step 8 (S11, Parts B–D only): Dependency artifacts exist.** Run:
-  `Test-Path -LiteralPath lib/security/headers.ts, next.config.ts, tests/unit/security-headers.spec.ts, lib/privacy/number-patterns.ts, lib/privacy/url-scrub.ts, lib/ads/ad-signals.ts, lib/ads/ad-gate.ts, components/ads/AdLoader.tsx, tests/support/network-capture.ts, tests/fixtures/tracking-fixtures.ts, lib/tracking/types.ts, lib/style/styles.ts, components/lookup/useLookup.ts, components/primitives/NoticeBanner.tsx, components/result/ResultView.tsx, components/shell/StylePicker.tsx, "app/(public)/layout.tsx", "app/(public)/privacy/page.tsx", tests/budgets/js-budget.spec.ts`
-  Expected: 19 lines `True`. Any `False` → stop; the owning stage is not merged (S01: `headers.ts`, `next.config.ts`, `security-headers.spec.ts`, `number-patterns.ts`, `tracking-fixtures.ts`; S02: `url-scrub.ts`, `ad-signals.ts`, `ad-gate.ts`, `AdLoader.tsx`, `network-capture.ts`; S03: `types.ts`; S05: `styles.ts`, `NoticeBanner.tsx`; S04/S06: `useLookup.ts`; S07: `ResultView.tsx`, `js-budget.spec.ts`; S08: `StylePicker.tsx`; S01/S02/S06/S08: the two `app/(public)` files).
+  `Test-Path -LiteralPath lib/security/headers.ts, next.config.ts, tests/unit/security-headers.spec.ts, lib/privacy/number-patterns.ts, lib/privacy/url-scrub.ts, lib/ads/ad-signals.ts, lib/ads/ad-gate.ts, components/ads/AdLoader.tsx, tests/support/network-capture.ts, tests/fixtures/tracking-fixtures.ts, lib/tracking/types.ts, lib/style/styles.ts, components/lookup/useLookup.ts, components/primitives/NoticeBanner.tsx, components/result/ResultView.tsx, components/shell/StylePicker.tsx, "app/(public)/layout.tsx", "app/(public)/privacy/page.tsx", tests/budgets/js-budget.spec.ts, lib/style/prepaint.ts, tests/unit/prepaint.spec.ts`
+  Expected: 21 lines `True`. Any `False` → stop; the owning stage is not merged (S01: `headers.ts`, `next.config.ts`, `security-headers.spec.ts`, `number-patterns.ts`, `tracking-fixtures.ts`; S02: `url-scrub.ts`, `ad-signals.ts`, `ad-gate.ts`, `AdLoader.tsx`, `network-capture.ts`; S03: `types.ts`; S05: `styles.ts`, `NoticeBanner.tsx`; S04/S06: `useLookup.ts`; S07: `ResultView.tsx`, `js-budget.spec.ts`; S08 Part B: `StylePicker.tsx`, `prepaint.ts`, `prepaint.spec.ts`; S01/S02/S06/S08: the two `app/(public)` files).
 
 - [ ] **Step 9 (S11, Parts B–D only): Every anchor this plan edits is where the plan expects it.** Run each line and compare:
   1. `Select-String -LiteralPath lib/security/headers.ts -Pattern 'headers: \[\{ key: "X-Robots-Tag", value: NOINDEX \}\]'` → exactly 1 line (the number-route rule, Task B2 Step 5).
-  2. `Select-String -LiteralPath next.config.ts -Pattern 'buildSecurityHeaders\('` → exactly 1 line; copy it into the stage summary (Task B2 Step 6 has one variant for `buildSecurityHeaders()` and one for S08's `buildSecurityHeaders({ extraScriptHashes: … })`).
-  3. `Select-String -LiteralPath tests/unit/security-headers.spec.ts -Pattern '\.map\(\(rule\) => \(\{ source: rule\.source'` → exactly 1 line (inside the test "next.config.ts serves these rules …", Task B2 Step 7).
+  2. `Select-String -LiteralPath next.config.ts -Pattern 'buildSecurityHeaders\('` → exactly 1 line, and it contains `buildSecurityHeaders({ extraScriptHashes: [PREPAINT_CSP_SOURCE] })` (S08 Task 12; Task B2 Step 6).
+  3. `Select-String -LiteralPath tests/unit/security-headers.spec.ts -Pattern 'buildSecurityHeaders\(\{ extraScriptHashes: \[PREPAINT_CSP_SOURCE\] \}\)'` → exactly 1 line (the expected call in the test "next.config.ts serves these rules …" as S08 Task 12 left it; Task B2 Step 7).
   4. `Select-String -LiteralPath components/lookup/useLookup.ts -Pattern 'apply\(\{ type: "submit", request, at: startedAt \}\);'` → exactly 1 line (Task C4 Step 9).
   5. `Select-String -LiteralPath components/primitives/NoticeBanner.tsx -Pattern 'data-notice-kind=\{notice\.kind\}'` → exactly 2 lines (Task C5 Step 6).
   6. `Select-String -LiteralPath "app/(public)/layout.tsx" -Pattern '<AdLoader />|import \{ AdLoader \}'` → 2 lines (Task C4 Step 8).
   7. `Select-String -LiteralPath "app/(public)/privacy/page.tsx" -Encoding UTF8 -Pattern 'const LAST_UPDATED|const PREVIOUS_EFFECTIVE_DATE|2\. 자동으로 기록되는 정보|7\. 방침 변경|과도한 요청을 막기 위해'` → 5 lines (Task C6 Step 5).
   8. `git grep -n -e 'data-view-state=' -e 'data-result-view=' -e 'data-history' -e 'data-style-picker' -e 'data-failure-cause=' -- components` → at least one line for each of the five hooks (Task C5's observer reads them).
   9. `git grep -n -e 'data-link-placement' -e 'data-affiliate-group' -- components/primitives` → lines in `ButtonLink.tsx` and `AffiliateLinkGroup.tsx`.
+  10. `Select-String -LiteralPath tests/unit/prepaint.spec.ts -Pattern '^\s+"components/shell/StylePicker\.tsx"$'` → exactly 1 line (the last entry of the `ALLOWED` set in S08's style-independence scan, Task C5 Step 7).
   Any mismatch → stop and report which task's anchor must be amended; do not improvise an edit on a different shape.
 
-- [ ] **Step 10 (S11): Skip work that already exists.** Run: `git log --oneline claude/tipoasis-tracking-renewal-ae0e3a -80 | Select-String -Pattern 'observability baseline|CSP report|report-uri|statistics|analytics|KPI dashboard|AdSense account|strict CSP|WAF'`
-  Expected: no output in the R0-week run; in the Parts B–D run only Part A's commit and its `merge: S11 Part A …` commit. Every other hit names a task that is already merged (match it against the commit message in that task's last step): mark it DONE-EARLIER in the stage summary and skip it.
+- [ ] **Step 10 (S11): Skip work that already exists.** Run: `git log --oneline claude/tipoasis-tracking-renewal-ae0e3a | Select-String -Pattern 'observability baseline|CSP report|report-uri|statistics|analytics|KPI dashboard|AdSense account|strict CSP|WAF'`
+  Expected: in the R0-week run no hit equals an S11 commit message; in the Parts B–D run only Part A's commit and its `merge: S11 …` commit do. A hit whose subject equals the commit message in an S11 task's last step names a task that is already merged: mark it DONE-EARLIER in the stage summary and skip it. Hits that equal no S11 commit message are other stages' or older commits: ignore them.
 
 ---
 
@@ -843,7 +845,7 @@ Expected: `2 files changed`.
 - Test: `tests/unit/csp-report.spec.ts` (append), `tests/e2e/csp-report.spec.ts` (create)
 
 **Interfaces:**
-- Consumes: Task B1 (`CSP_REPORT_PATH`, `handleCspReport`); S01 `buildSecurityHeaders(options?: SecurityHeaderOptions): HeaderRule[]`, `NUMBER_ROUTE_SOURCE`, `HeaderRule`, `SecurityHeaderOptions.reportUri`; S02 `captureThirdParty`, `assertNoTrackingValues`, `waitForIdle`; S01 `FAKE`, `mockTrack`, `trackData`.
+- Consumes: Task B1 (`CSP_REPORT_PATH`, `handleCspReport`); S01 `buildSecurityHeaders(options?: SecurityHeaderOptions): HeaderRule[]`, `NUMBER_ROUTE_SOURCE`, `HeaderRule`, `SecurityHeaderOptions.reportUri`; S08 Task 12's `next.config.ts` call `buildSecurityHeaders({ extraScriptHashes: [PREPAINT_CSP_SOURCE] })` and the same expected call in S01's config test (`PREPAINT_CSP_SOURCE` from `lib/style/prepaint.ts`); S02 `captureThirdParty`, `assertNoTrackingValues`, `waitForIdle`; S01 `FAKE`, `mockTrack`, `trackData`.
 - Produces: `POST /api/csp-report` (always 204, `Cache-Control: no-store`; `GET` → 405); every public page's `Content-Security-Policy-Report-Only` ends with `report-uri /api/csp-report`; the number-route rule carries the same Report-Only policy without `report-uri` (only when a `reportUri` is set, so S01's option-less tests stay as they are).
 
 - [ ] **Step 1: Append the failing wiring tests**
@@ -998,7 +1000,7 @@ Later rules override the same header key (S01's rule order: every route, number 
 
 - [ ] **Step 6: Pass the report address from `next.config.ts`**
 
-In `next.config.ts`, add below the line `import { buildSecurityHeaders } from "./lib/security/headers";` (and below any other import line S08 added):
+In `next.config.ts`, add below the line `import { PREPAINT_CSP_SOURCE } from "./lib/style/prepaint";` (S08's import, directly below S01's `import { buildSecurityHeaders } from "./lib/security/headers";`):
 
 ```ts
 
@@ -1009,34 +1011,64 @@ In `next.config.ts`, add below the line `import { buildSecurityHeaders } from ".
 const CSP_REPORT_URI = "/api/csp-report";
 ```
 
-Then change the one `buildSecurityHeaders(` call recorded in Task 0 Step 9 item 2:
-- S01 shape `buildSecurityHeaders()` → `buildSecurityHeaders({ reportUri: CSP_REPORT_URI })`
-- S08 shape `buildSecurityHeaders({ extraScriptHashes: <expression> })` → `buildSecurityHeaders({ extraScriptHashes: <expression>, reportUri: CSP_REPORT_URI })` (keep `<expression>` exactly as S08 wrote it).
+Then, in the one `buildSecurityHeaders(` call checked by Task 0 Step 9 item 2, replace the text
 
-Change nothing else in the file (S02's `redirects` and S08's additions stay). With the S01 shape the `headers` entry reads:
+```ts
+buildSecurityHeaders({ extraScriptHashes: [PREPAINT_CSP_SOURCE] })
+```
+
+with
+
+```ts
+buildSecurityHeaders({ extraScriptHashes: [PREPAINT_CSP_SOURCE], reportUri: CSP_REPORT_URI })
+```
+
+Change nothing else in the file (S02's `redirects`, its `LEGACY_TRACKING_QUERY_VALUE` constant and S08's import stay; the `,` that S02 appended after the `headers` property stays). The `headers` entry then reads:
 
 ```ts
   headers: async () =>
-    buildSecurityHeaders({ reportUri: CSP_REPORT_URI }).map((rule) => ({ source: rule.source, headers: [...rule.headers] }))
+    buildSecurityHeaders({ extraScriptHashes: [PREPAINT_CSP_SOURCE], reportUri: CSP_REPORT_URI }).map((rule) => ({
+      source: rule.source,
+      headers: [...rule.headers]
+    })),
 ```
+
+Check: `Select-String -LiteralPath next.config.ts -Pattern 'reportUri: CSP_REPORT_URI|const CSP_REPORT_URI'` → 2 lines.
 
 - [ ] **Step 7: Update S01's config test to the new option**
 
-In `tests/unit/security-headers.spec.ts`, add below `import nextConfig from "@/next.config";`:
+In `tests/unit/security-headers.spec.ts`, add below `import { PREPAINT_CSP_SOURCE } from "@/lib/style/prepaint";` (S08's import, directly below `import nextConfig from "@/next.config";`):
 
 ```ts
 import { CSP_REPORT_PATH } from "@/lib/security/csp-report";
 ```
 
-In the test "next.config.ts serves these rules and drops the X-Powered-By header", change the expected call the same way as Step 6: `buildSecurityHeaders()` → `buildSecurityHeaders({ reportUri: CSP_REPORT_PATH })`, or S08's `buildSecurityHeaders({ extraScriptHashes: <expression> })` → `buildSecurityHeaders({ extraScriptHashes: <expression>, reportUri: CSP_REPORT_PATH })`. With the S01 shape the assertion reads:
+In the test "next.config.ts serves these rules and drops the X-Powered-By header", replace the text of S08's expected call (Task 0 Step 9 item 3)
 
 ```ts
+buildSecurityHeaders({ extraScriptHashes: [PREPAINT_CSP_SOURCE] })
+```
+
+with
+
+```ts
+buildSecurityHeaders({ extraScriptHashes: [PREPAINT_CSP_SOURCE], reportUri: CSP_REPORT_PATH })
+```
+
+and add one comment line directly below S08's comment `// S08: next.config.ts passes the pre-paint script's hash into the Report-Only script-src.`, so the assertion reads:
+
+```ts
+  // S08: next.config.ts passes the pre-paint script's hash into the Report-Only script-src.
+  // S11: and the CSP report address (next.config.ts CSP_REPORT_URI, equal to CSP_REPORT_PATH).
   expect(await nextConfig.headers?.()).toEqual(
-    buildSecurityHeaders({ reportUri: CSP_REPORT_PATH }).map((rule) => ({ source: rule.source, headers: [...rule.headers] }))
+    buildSecurityHeaders({ extraScriptHashes: [PREPAINT_CSP_SOURCE], reportUri: CSP_REPORT_PATH }).map((rule) => ({
+      source: rule.source,
+      headers: [...rule.headers]
+    }))
   );
 ```
 
-No other S01 assertion changes: its option-less `buildSecurityHeaders()` rows still expect the number-route rule to hold only `X-Robots-Tag`, and they still do.
+Check: `Select-String -LiteralPath tests/unit/security-headers.spec.ts -Pattern 'reportUri: CSP_REPORT_PATH'` → 1 line. No other S01 assertion changes: its option-less `buildSecurityHeaders()` rows still expect the number-route rule to hold only `X-Robots-Tag`, and they still do; S01's options row (`extraScriptHashes: ["'sha256-abc='"], reportUri: "/api/csp-report"`) checks only the site-wide Report-Only value, which does not change.
 
 - [ ] **Step 8: Run the unit tests to verify they pass**
 
@@ -1064,7 +1096,7 @@ Expected: `6 files changed`.
 
 ## Part C — Cookieless statistics (approval 13)
 
-Every Part C task starts by confirming approval 13. While it is `pending` or `rejected`, skip C1–C6 as one block: write "Part C SKIPPED — approval 13 is `<status>`; spec §16 item 13 '거절하면': Observability route counts and the manual 톡톡 classification only (see `docs/ops/kpi-dashboard.md`, 대체 출처)" into the stage summary and continue with Part D.
+Every Part C task starts by confirming approval 13. While it is `pending` or `rejected`, skip C1–C6 as one block: write "Part C SKIPPED — approval 13 is `pending`" (or `rejected`, as the ledger row reads) "; spec §16 item 13 '거절하면': Observability route counts and the manual 톡톡 classification only (see `docs/ops/kpi-dashboard.md`, 대체 출처)" into the stage summary and continue with Part D.
 
 ### Task C1: Route templates and the statistics gate
 
@@ -1540,6 +1572,8 @@ test.describe("analytics events (S11)", () => {
       });
     expect(click({ placement: "header", href: TALK_URL })).toEqual({ kind: "talk", placement: "header" });
     expect(click({ placement: "shortcut", href: TALK_URL })).toEqual({ kind: "talk", placement: "shortcut" });
+    // S06's ShortcutRow: the store links carry data-link-placement="shortcut" with no [data-affiliate-group] around them.
+    expect(click({ placement: "shortcut" })).toEqual({ kind: "storeLink", placement: "shortcut" });
     expect(click({ placement: "shortcut", inStoreGroup: true })).toEqual({ kind: "storeLink", placement: "shortcut" });
     expect(click({ placement: "deliveredLead", inStoreGroup: true, inResult: true })).toEqual({
       kind: "storeLink",
@@ -1553,6 +1587,8 @@ test.describe("analytics events (S11)", () => {
     expect(click({ href: `tel:${FAKE.phone}`, inResult: true, opensNewTab: false })).toEqual({ kind: "callDriver", placement: "state" });
     expect(click({ href: "https://carrier.example/track", inResult: true })).toEqual({ kind: "carrierOfficial", placement: "state" });
     expect(click({ href: "/privacy", inResult: true, opensNewTab: false })).toBeNull();
+    // S08's RecommendationList: ButtonLink without a placement inside [data-recommended-products] in the result.
+    expect(click({ inStoreGroup: true, inResult: true })).toBeNull();
     expect(click({ href: TALK_URL, inResult: false })).toBeNull();
     expect(click({ href: TALK_URL, talkHref: null, inResult: true })).toEqual({ kind: "carrierOfficial", placement: "state" });
   });
@@ -1766,18 +1802,24 @@ export interface LinkClickInput {
   readonly opensNewTab: boolean;
 }
 
-/** Which action a link click is, from the contract hooks only (roadmap §11.13). null → not reported. */
+/**
+ * Which action a link click is, from the contract hooks only (roadmap §11.13). null → not reported.
+ * "shortcut" is both a TalkPlacement and a StorePlacementId (S06's ShortcutRow puts it on the 톡톡 link and on both
+ * store links), so a "shortcut" link is 톡톡 only when its href is the page's 톡톡 address.
+ */
 export function classifyLinkClick(input: LinkClickInput): { readonly kind: AnalyticsActionKind; readonly placement: AnalyticsPlacement } | null {
   const { placement } = input;
+  const isTalkHref = input.talkHref !== null && input.href === input.talkHref;
   if (placement !== null) {
     if (input.inStoreGroup) return isStorePlacementId(placement) ? { kind: "storeLink", placement } : null;
-    if (isTalkPlacement(placement)) return { kind: "talk", placement };
+    if (isTalkPlacement(placement) && (isTalkHref || !isStorePlacementId(placement))) return { kind: "talk", placement };
     if (isStorePlacementId(placement)) return { kind: "storeLink", placement };
     return null;
   }
-  if (!input.inResult) return null;
+  // S08's RecommendationList links have no placement; no enum names them, so they are not reported.
+  if (!input.inResult || input.inStoreGroup) return null;
   if (input.href.startsWith("tel:")) return { kind: "callDriver", placement: "state" };
-  if (input.talkHref !== null && input.href === input.talkHref) return { kind: "copyAndTalk", placement: "state" };
+  if (isTalkHref) return { kind: "copyAndTalk", placement: "state" };
   if (input.opensNewTab) return { kind: "carrierOfficial", placement: "state" };
   return null;
 }
@@ -1812,7 +1854,7 @@ Expected: `2 files changed`.
 
 - [ ] **Step 1: Confirm approval 13 is recorded**
 
-Roadmap §4 row 13 must read `approved`; otherwise stop (Part C SKIPPED).
+Roadmap §4 row 13 must read `approved`; otherwise stop (Part C SKIPPED; fallback as in Task C1 Step 1: spec §16 item 13 '거절하면' — Observability route counts and the manual 톡톡 classification only, as `docs/ops/kpi-dashboard.md` lists under 대체 출처).
 
 - [ ] **Step 2: Write the failing test**
 
@@ -2009,7 +2051,7 @@ Expected: `2 files changed`.
 
 - [ ] **Step 1: Confirm approval 13 is recorded**
 
-Roadmap §4 row 13 must read `approved`; otherwise stop (Part C SKIPPED). Approval 13 is also the approval for the two new dependencies (spec §16 item 13).
+Roadmap §4 row 13 must read `approved`; otherwise stop (Part C SKIPPED; fallback as in Task C1 Step 1: no package, no script, no event — Observability route counts and the manual 톡톡 classification only). Approval 13 is also the approval for the two new dependencies (spec §16 item 13).
 
 - [ ] **Step 2: Install the two packages**
 
@@ -2522,6 +2564,7 @@ Expected: 0 failed (`useLookup` now reaches `lib/analytics/report.ts`, which imp
 
 Production run (Conventions) of `tests/e2e/analytics-privacy.spec.ts tests/e2e/url-privacy.spec.ts tests/budgets/js-budget.spec.ts`.
 Expected: 0 failed. Write the JS budget lines into the stage summary under "JS after S11 (C4)". The `/` initial bundle may grow only by the gate: `Analytics.tsx`, `gate.ts`, `url-template.ts`, `report.ts` (about 2 KB gzip). `runtime.ts`, `events.ts` and both vendor packages load with `import()` after `load` and idle, so they are not initial. If the budget test fails and its output counts the runtime or `@vercel` chunks as initial, stop and report it to the operator (the test classifies lazy chunks as initial, S07); do not loosen the budget.
+S07's other two budget tests do see the lazy statistics code, by design of their counting basis (S07 deviation 16): "'/{번호}' loads at most 195 KB …" adds every script loaded until the settled result and `networkidle`, and on a deep link the statistics chunk loads right after the scrub; "the lazy result chunk …" counts scripts that arrive after `networkidle` on `/`, which the statistics chunk normally precedes (load + idle, at most 2 s). Write the `'/{번호}' through the result` line and the `result chunk` line (with its file list) under "JS after S11 (C4)" too. If either fails because of the statistics chunk, stop and report both numbers to the operator; do not loosen the budget and do not delay the statistics past the measurement.
 
 - [ ] **Step 12: Typecheck and lint**
 
@@ -2541,15 +2584,16 @@ Expected: `8 files changed`.
 - Create: `lib/analytics/dom-observer.ts`
 - Modify: `lib/analytics/runtime.ts` (one import; one call)
 - Modify: `components/primitives/NoticeBanner.tsx` (one attribute on each of the two roots)
+- Modify: `tests/unit/prepaint.spec.ts` (S08; one entry in the `ALLOWED` set of the style-independence scan)
 - Test: `tests/e2e/analytics-privacy.spec.ts` (two imports, one helper, two describe blocks)
 
 **Interfaces:**
-- Consumes: Task C2 (`classifyLinkClick`, `isFailureCause`, `isGuideKey`, `waitBucket`, `AnalyticsEvent`); Task C3 (`peekPendingLookupStart`, `consumePendingLookupStart`); S05 `isStyleId`; the hooks `[data-view-state]` (S06), `[data-result-view]`, `[data-guide-key]`, `[data-overdue]`, `[data-failure-cause]`, `details[data-history]` (S07), `a[data-link-placement]`, `[data-affiliate-group]` (S05), `[data-recommended-products]` (S08), `[data-style-picker]` and `html[data-style]` (S08); test-only `INTERNAL_TEST_CREDENTIALS` (`tests/internal-auth.ts`).
+- Consumes: Task C2 (`classifyLinkClick`, `isFailureCause`, `isGuideKey`, `waitBucket`, `AnalyticsEvent`); Task C3 (`peekPendingLookupStart`, `consumePendingLookupStart`); S05 `isStyleId`; the hooks `[data-view-state]` (S06), `[data-result-view]`, `[data-guide-key]`, `[data-overdue]`, `[data-failure-cause]`, `details[data-history]` (S07), `a[data-link-placement]`, `[data-affiliate-group]` (S05), `[data-recommended-products]` (S08), `[data-style-picker]` radios (`value` = `StyleId`) and `html[data-style]` (S08); S08's `tests/unit/prepaint.spec.ts` scan (`ALLOWED` set, `STYLE_ACCESS = /data-style|dataset\.style|STYLE_STORAGE_KEY|tt:style|applyStyleChoice|readAppliedStyle/` over `app`, `components`, `lib`, `config`); S06's `ShortcutRow` (all three links `data-link-placement="shortcut"`, no `[data-affiliate-group]`); test-only `INTERNAL_TEST_CREDENTIALS` (`tests/internal-auth.ts`).
 - Produces: `installAnalyticsObserver(emit: (event: AnalyticsEvent) => void, doc?: Document): () => void` — one `lookup_settle` per lookup (only after that lookup's loading screen was seen, or when it started before the observer existed), `lookup_error` with the cause, `action` for link clicks, `details_open` for `details[data-history]`, `style_select` from the picker, one `notice_view` per notice id per document; the hook `data-notice-id` on `NoticeBanner` (Additions item 5).
 
 - [ ] **Step 1: Confirm approval 13 is recorded**
 
-Roadmap §4 row 13 must read `approved`; otherwise stop (Part C SKIPPED).
+Roadmap §4 row 13 must read `approved`; otherwise stop (Part C SKIPPED; fallback as in Task C1 Step 1: spec §16 item 13 '거절하면' — Observability route counts and the manual 톡톡 classification only, as `docs/ops/kpi-dashboard.md` lists under 대체 출처).
 
 - [ ] **Step 2: Write the failing E2E tests**
 
@@ -2829,25 +2873,49 @@ data-notice-id={notice.id}
 
 Check: `Select-String -LiteralPath components/primitives/NoticeBanner.tsx -Pattern "data-notice-id=\{notice\.id\}"` → 2 lines. The id comes from `config/site.config.ts` (`'2026-chuseok'`-style), never from customer input; the observer re-checks it against `NOTICE_ID_PATTERN` and the tracking-value rule before sending.
 
-- [ ] **Step 7: Run the tests to verify they pass**
+- [ ] **Step 7: Let S08's style-independence scan allow the observer**
+
+The observer reads `[data-style-picker]` and `html[data-style]`, which S08's scan (`tests/unit/prepaint.spec.ts`, "only the root layout, the style modules and the picker read or write the style …") reports for any file outside its `ALLOWED` set. S08 open issue 13 asks the stage that adds such a reader to extend the set in the same commit.
+Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit/prepaint.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
+Expected: FAIL — `1 failed`: the style-independence test lists `offenders` `["lib/analytics/dom-observer.ts"]`.
+In `tests/unit/prepaint.spec.ts`, inside `const ALLOWED = new Set([ … ]);`, replace the last entry line
+
+```ts
+    "components/shell/StylePicker.tsx"
+```
+
+with
+
+```ts
+    "components/shell/StylePicker.tsx",
+    // S11 (approval 13): the statistics observer reads the picker's radio value and html[data-style] for style_select only.
+    "lib/analytics/dom-observer.ts"
+```
+
+Run the same command again.
+Expected: 0 failed (every `prepaint.spec.ts` test passes).
+
+- [ ] **Step 8: Run the tests to verify they pass**
 
 Run (port 43210 free): `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npx playwright test tests/e2e/analytics-privacy.spec.ts tests/e2e/ui-kit.spec.ts tests/e2e/result-states.spec.ts tests/e2e/style-picker.spec.ts`
 Expected: 0 failed (`analytics-privacy.spec.ts` 8 passed; the other three keep their Task 0 counts).
+Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit/analytics-events.spec.ts tests/unit/prepaint.spec.ts tests/unit/module-boundaries.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
+Expected: 0 failed.
 
-- [ ] **Step 8: Production run**
+- [ ] **Step 9: Production run**
 
 Production run (Conventions) of `tests/e2e/analytics-privacy.spec.ts tests/e2e/url-privacy.spec.ts`.
 Expected: 0 failed.
 
-- [ ] **Step 9: Typecheck and lint**
+- [ ] **Step 10: Typecheck and lint**
 
-Run: `npm run typecheck; npx eslint lib/analytics components/primitives/NoticeBanner.tsx tests/e2e/analytics-privacy.spec.ts`
+Run: `npm run typecheck; npx eslint lib/analytics components/primitives/NoticeBanner.tsx tests/unit/prepaint.spec.ts tests/e2e/analytics-privacy.spec.ts`
 Expected: `tsc` exits 0; eslint prints nothing.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 11: Commit**
 
-Run: `git add lib/analytics/dom-observer.ts lib/analytics/runtime.ts components/primitives/NoticeBanner.tsx tests/e2e/analytics-privacy.spec.ts; git commit -m "feat: turn page hooks into enum-only statistics events"`
-Expected: `4 files changed`.
+Run: `git add lib/analytics/dom-observer.ts lib/analytics/runtime.ts components/primitives/NoticeBanner.tsx tests/unit/prepaint.spec.ts tests/e2e/analytics-privacy.spec.ts; git commit -m "feat: turn page hooks into enum-only statistics events"`
+Expected: `5 files changed`.
 
 ---
 
@@ -2895,12 +2963,12 @@ Run: `Get-Date -Format "yyyy-M-d"` → e.g. `2027-1-4`. Write it as `YYYY년 M�
 - [ ] **Step 5: Edit the policy**
 
 In `app/(public)/privacy/page.tsx`:
-(a) Replace the line `const LAST_UPDATED = "<current value>";` with the following, where `<Step 4 date>` is the Step 4 date and `<current value>` is the exact string `LAST_UPDATED` held before this step (the R1 date S02 wrote):
+(a) Replace the line `const LAST_UPDATED = "2026년 10월 2일";` with the block below. The example values follow S02 Task 10: `2026년 10월 2일` is S02's example R1 date — the repository holds the date S02's Step 3 picked, so read the line first (`Select-String -LiteralPath "app/(public)/privacy/page.tsx" -Pattern 'const LAST_UPDATED'`) and use that exact string both in the line you replace and as the value of `R1_EFFECTIVE_DATE`; `2027년 1월 4일` is the Step 4 example — use the Step 4 date for `LAST_UPDATED`.
 
 ```ts
-const LAST_UPDATED = "<Step 4 date>";
+const LAST_UPDATED = "2027년 1월 4일";
 /** The R1 (number protection) effective date, kept for the change log in section 7. */
-const R1_EFFECTIVE_DATE = "<current value>";
+const R1_EFFECTIVE_DATE = "2026년 10월 2일";
 ```
 
 (b) In the section object whose `title` is `"2. 자동으로 기록되는 정보"`, directly after the body line that starts with `"과도한 요청을 막기 위해 접속 IP 기준 요청 횟수를`, add (put a comma after that line if it has none):
@@ -3039,7 +3107,7 @@ Create `docs/ops/kpi-dashboard.md`:
 | 2 | 정상 대기 3상태의 톡톡 클릭률 | `action`(talk·copyAndTalk)이면서 `state`가 customsArrived, customsWaiting, customsCleared, handedToCarrier, pickedUp, inTransit 중 하나(`+overdue` 없음)인 수 ÷ 같은 `state`의 `lookup_settle` 수 | 이벤트 | 수기 분류 '위치·언제 와요' ÷ 조회 | 가설: 개편 전의 절반 |
 | 3 | 문제 상태 톡톡 중 문의 내용 복사 비율 | copyAndTalk ÷ (talk + copyAndTalk), `state`가 오류·stale·lookupUnavailable·ambiguous 이거나 `+overdue` | 이벤트 | 톡톡 첫 메시지가 '[배송 문의] 조회번호 …' 형식인 문의 ÷ 문제 상태 문의(수기) | 50 % 이상 |
 | 4 | 같은 탭 10분 안 재조회 | (`lookup_start`의 `repeat`=true 수 + `entry`=restore 수) ÷ `lookup_start` 수 | 이벤트 | 없음(측정 불가로 표시) | 개편 뒤 감소(불안의 대리 지표) |
-| 5 | 결과 대기 버킷 | `wait`가 25to45 또는 timeout인 `lookup_settle` ÷ 전체 `lookup_settle` | 이벤트 | 승인 5 뒤 `track_lookup`의 `elapsedBucket` | 25초 초과 1 % 미만 |
+| 5 | 결과 대기 버킷 | `wait`가 25to45 또는 timeout인 `lookup_settle` ÷ 전체 `lookup_settle` | 이벤트 | 승인 5 뒤 `track_lookup`의 `elapsedBucket`이 `ge15s`인 줄 ÷ 전체 `track_lookup` 줄(서버 처리 시간만 재고 가장 긴 버킷이 15초 이상이라 25초 초과를 직접 세지 못합니다. 이 비율이 1 % 미만이면 목표도 지킨 것으로 봅니다) | 25초 초과 1 % 미만 |
 | 6 | delivered 스토어 클릭률과 '/' RPM | `action` storeLink@deliveredLead ÷ `state`=delivered인 `lookup_settle`; '/' RPM은 AdSense 보고서 | 이벤트 + AdSense | 파트너 대시보드의 deliveredLead 링크 클릭 수 + AdSense | '/' RPM 15 % 하락 시 되돌림 규칙 |
 | 7 | 필드 LCP·INP·CLS p75 | Speed Insights의 경로별 p75(`/`, `/[trackingNumber]`) | Speed Insights | 없음(CI 예산 `tests/budgets`만) | LCP 2.5초 이하, INP 200ms 이하, CLS 0.05 이하 |
 
@@ -3479,7 +3547,7 @@ Send `docs/ops/kpi-dashboard.md`, `docs/ops/adsense-settings-checklist.md`, `doc
 - [ ] **G4. Build.** `npm run build` → exit 0. Route table: `ƒ /[trackingNumber]` always; `/` is `ƒ` in S01 (it still reads `searchParams`), `○ /` from S02 on, and `○ /` with `Revalidate 5m` from S06 on.
 - [ ] **G5. Dev-mode E2E.** `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npm run test:e2e` → "N passed", 0 failed (skips allowed only for tests guarded by `PW_MODE`, `PW_SHOTS`, `PW_VISUAL`, or an approval-gated `test.skip` naming the approval).
 - [ ] **G6. Production-mode E2E.** Re-run `npm run build` if `next start` reports a missing or stale build. Background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`; wait for `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` = `200`; then `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test` → 0 failed, including `tests/budgets/*`.
-- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S11'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-results/stage-screens/S11-after/` at 320, 375, 768, 1024, 1440. Compare with `S11-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
+- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S11'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-artifacts/stage-screens/S11-after/` at 320, 375, 768, 1024, 1440. Compare with `S11-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 - [ ] **G8. Budgets.** Paste the measured numbers of every budget this plan lists (from the G6 output) into the stage summary. Any budget over its fail line fails the gate.
 - [ ] **G9. Code review.** Invoke the `code-review` skill on `git diff claude/tipoasis-tracking-renewal-ae0e3a...HEAD`. Fix every CRITICAL and HIGH finding; if code changed, re-run G2–G6.
 - [ ] **G10. Verification.** Invoke `superpowers:verification-before-completion`; paste each command and its result line into the stage summary.
@@ -3490,8 +3558,9 @@ Send `docs/ops/kpi-dashboard.md`, `docs/ops/adsense-settings-checklist.md`, `doc
 - Run the gate after Part A (R0 week) and again after Parts B–D. For Part A, G2–G6 only confirm that a documents-only change left everything green.
 - G4 (Parts B–D): the route table also lists `ƒ /api/csp-report`; `○ /` with `Revalidate 5m` stays (the statistics gate is a client component and reads no request data).
 - G6: `tests/e2e/analytics-privacy.spec.ts` (with approval 13) and `tests/e2e/csp-report.spec.ts` must pass in production mode; they are the S11 budgets of roadmap §9.
-- G7: the PNGs land in `test-artifacts/stage-screens/S11-after/` (S01 Addition 1). Expected differences from `S11-before/`: none, except the policy text on the privacy screens when Task C6 ran.
-- G8: paste (1) the pass lines of `analytics-privacy.spec.ts` ("analytics requests carry 0 tracking-like values"; or "Part C SKIPPED — approval 13 `<status>`"), (2) the pass lines of `csp-report.spec.ts` unit and E2E ("CSP report endpoint stores and logs no number"), (3) the JS budget lines before (Task 0 Step 6) and after (G6) with the `/` initial delta.
+- G7: the output path above is the roadmap §7 text with S01's Addition 1 applied (Additions item 10). Check: `(Get-ChildItem test-artifacts/stage-screens/S11-after -Filter *.png).Count` equals `(Get-ChildItem test-artifacts/stage-screens/S11-before -Filter *.png).Count`. Expected differences from `S11-before/`: none, except the policy text on the privacy screens when Task C6 ran.
+- G8 also lists S07's `'/{번호}' through the result` and `result chunk` lines (Task C4 Step 11): with approval 13 they include the lazy statistics chunk; a fail there stops the gate and goes to the operator, never a looser budget.
+- G8: paste (1) the pass lines of `analytics-privacy.spec.ts` ("analytics requests carry 0 tracking-like values"; or "Part C SKIPPED — approval 13 `pending`", respectively `rejected`), (2) the pass lines of `csp-report.spec.ts` unit and E2E ("CSP report endpoint stores and logs no number"), (3) the JS budget lines before (Task 0 Step 6) and after (G6) with the `/` initial delta.
 - G11: the files S11 may leave changed are the ones in "File Structure"; nothing under `lib/services/`, `lib/schemas.ts`, `lib/types.ts`, `proxy.ts` or `app/api/track/route.ts`.
 - Stage summary additions: approvals 13/15/16 statuses and which of C1–C6, D2A, D3A ran; the Part C skip note if any; the contract deviations of "Additions to the contract"; the operator's R5 list from Task D4 Step 6; "privacy text needs legal check" (Task C6).
 
@@ -3505,8 +3574,8 @@ Send `docs/ops/kpi-dashboard.md`, `docs/ops/adsense-settings-checklist.md`, `doc
 4. **`helpful` has no screen.** The contract event exists and is validated, but the spec gives no copy for a "도움이 됐나요?" control and no stage renders one; it stays unused until the operator asks for it.
 5. **CSP report volume.** Once S08's pre-paint hash is in the Report-Only `script-src`, CSP3 browsers ignore `'unsafe-inline'` there and report Next.js inline scripts on every `/` and `/privacy` view: one POST (function invocation) per violation. Log lines stay bounded; the invocation count is what WAF rule 2 limits. If the count matters, the Report-Only policy can drop the hash (S08) or the operator can skip rule 2's Log phase.
 6. **Policy text.** The statistics sentences (Task C6) and the new 시행일 need the operator's legal check, like S02's text (spec §16 item 6).
-7. **S08 shapes.** This plan was written before S08's plan existed. Task 0 Step 9 stops the stage if `next.config.ts`, the public layout, `[data-style-picker]` or `StylePicker`'s radios differ from the contract; the observer reads the picker's radio `value` first and falls back to `html[data-style]`.
-8. **JS budget measurement.** S07's `tests/budgets/js-budget.spec.ts` was not written when this plan was; Task C4 Step 11 stops rather than loosening the budget if that test counts lazy chunks as initial.
+7. **S08 shapes.** S11 now follows S08's plan as written: `buildSecurityHeaders({ extraScriptHashes: [PREPAINT_CSP_SOURCE] })` in `next.config.ts` and in S01's config test (Task B2 adds `reportUri` beside it), `StylePicker` radios whose `value` is the `StyleId` (the observer's fallback to `html[data-style]` stays as a guard), and the style-independence scan whose `ALLOWED` set gains `lib/analytics/dom-observer.ts` (Task C5 Step 7, S08 open issue 13). Task 0 Step 9 stops the stage if any of these anchors moved.
+8. **JS budget measurement.** S07's `tests/budgets/js-budget.spec.ts` counts every script a deep link loads until the settled result (195 KB) and the scripts that arrive after `networkidle` on `/` (result chunk, 30 KB); the lazy statistics chunk is inside the first and normally outside the second. Task C4 Step 11 records both and stops rather than loosening a budget.
 9. **Report bodies in S02's privacy checks.** `captureThirdParty` records `/api/csp-report` and `assertNoTrackingValues` checks its bodies. From Part B on, `/` and `/privacy` documents post reports whose bodies hold the page address (no number), the policy text and, in development, React's chunk file names (`eval` violations). A chunk name whose hash happened to contain a 10-digit decimal run would be flagged; if that ever happens, the fix belongs in S02's support module (exempt `/api/csp-report` bodies, which the server summarizes anyway), not in the policy.
 10. **KPI 4 scope.** "Same-tab re-lookups within 10 minutes" is measured per document (in memory, no storage); a reload shows up as `entry: "restore"`, which the KPI adds separately.
 
@@ -3515,7 +3584,8 @@ Send `docs/ops/kpi-dashboard.md`, `docs/ops/adsense-settings-checklist.md`, `doc
 ## Self-Review
 
 - **Spec coverage.** §11 1단계 (routes, status codes, ≥ 2 weeks, 30 % rule, manual 톡톡 sheet with the six categories and "조회 화면을 보고도 문의했는지", AdSense backup before B, store placements) → Task A1. §11 3단계 (cookieless Web Analytics + Speed Insights, load after the scrub, `beforeSend` path template, query/hash/referrer, the seven events, no replay/heatmap/input capture) → Tasks C1–C5 (referrer: Additions item 7). §11 KPI 1–7 and the 15 % RPM rule (§17 Q5) → Task D1. §11 안전장치 (third-party and first-party analytics requests carry no number) → Task C4/C5 `assertInsightsClean`. §12 Report-Only observation → Tasks B1–B2; strict nonce CSP decision (§16 item 16) → Tasks D3/D3A. §16 item 13 → Part C gating and fallback; item 15 → Tasks D2/D2A with the different-week rule; §10 WAF → Task D4. §13 "정리 기준" (style_select) → Tasks C2/C5 and D1. §15 R0-week baseline and R5 → Execution Order. Privacy policy update → Task C6.
-- **Placeholder scan.** Every code step has complete code; `<Step 4 date>` / `<current value>` in Task C6 and `<expression>` in Task B2 are values the executor reads from the repository at that moment, with the exact rule for each. The documents' empty table rows are forms for the operator.
+- **Placeholder scan.** Every code step has complete code. Task C6 Step 5 shows example dates (`2027년 1월 4일` for the Step 4 date, `2026년 10월 2일` for S02's R1 date) with the exact rule for reading the real values, as S02 Task 10 does; Task B2 Steps 6–7 edit S08's concrete `buildSecurityHeaders({ extraScriptHashes: [PREPAINT_CSP_SOURCE] })` call. The documents' empty table rows are forms for the operator.
+- **Cross-stage review (phase 4, 2026-09-27).** Inbound names re-checked against the producer plans as they stand: S01 (`buildSecurityHeaders`, `NUMBER_ROUTE_SOURCE`, the `NOINDEX` number-route line, `containsTrackingLikeValue`, `FAKE`/`FAKE_GROUPED` members, `mockTrack`, `trackData`, `"upstreamTimeout504"`, `INTERNAL_TEST_CREDENTIALS`), S02 (`isNumberPath`, `ScrubStatus`, `AdSignals`, `getAdSignals`, `subscribeAdSignals`, `captureThirdParty`, `assertNoTrackingValues`, `waitForIdle`, the policy constants and section lines), S03 (`GUIDE_KEYS` and the six unions, member for member), S04 (`useLookup`'s `apply({ type: "submit", request, at: startedAt });` and its `LiveAnnouncer` import), S05 (`isStyleId`, `STYLE_IDS`, the two `data-notice-kind={notice.kind}` lines, `data-notice-variant`, `/internal/ui-kit` demo notice ids), S06 (`data-view-state`, header `TalkLink` '문의', `ShortcutRow` placements), S07 (`data-result-view`, `details[data-history]`, `data-failure-cause` on the `FailureCard` root beside `data-guide-key`, the three `js-budget` tests), S08 (`PREPAINT_CSP_SOURCE` in `next.config.ts` and S01's config test, `StylePicker` radio values, the public layout with `<AdLoader />`, the `prepaint.spec.ts` `ALLOWED` set), S10 (`track_lookup` fields and `ElapsedBucket` members). Fixes applied: the S08 call shape in B2, the `ALLOWED` entry (C5 Step 7), the shared "shortcut" placement and S08's placement-less recommendation links in `classifyLinkClick`, the stage-screen path, the S08 Part B merge in Task 0, KPI 5's server-side fallback bucket.
 - **Type consistency.** `templatePath`, `AnalyticsEvent` (plus `repeat`, `overdue`, `storeLink`), `analyticsGate`, `reportLookupStart`, `peekPendingLookupStart`/`consumePendingLookupStart`, `connectAnalyticsSink`/`disconnectAnalytics`, `installAnalyticsObserver`, `startAnalyticsRuntime`, `CSP_REPORT_PATH`, `handleCspReport` keep one spelling across Tasks B1–C6; S01/S02/S03/S05 names (`buildSecurityHeaders`, `NUMBER_ROUTE_SOURCE`, `isNumberPath`, `ScrubStatus`, `getAdSignals`, `subscribeAdSignals`, `captureThirdParty`, `assertNoTrackingValues`, `waitForIdle`, `GUIDE_KEYS`, `isStyleId`) are imported as their plans export them. Test counts: `csp-report.spec.ts` 8 → 11; `analytics-events.spec.ts` 9 → 15 → 19; `analytics-privacy.spec.ts` 5 → 8 → 9; `ops-docs.spec.ts` 1 → 2 → 3 → 4 → 5.
 - **Verification during authoring.** The pure modules, the CSP module and route, the header override, the edited S01 config test, the unit tests, the doubles and the E2E specs were written into a scratch copy with the S01/S02 code from their plans and the published `@vercel/*` typings: `tsc --noEmit` and the repo's ESLint config (including the React Compiler rules) were clean, 42 unit tests passed (`analytics-events` 19, `csp-report` 11, `security-headers` 7, `ops-docs` 5), and the two ledger-dependent document tests were run with rows 15/16 both `pending` and `approved`. The E2E specs were type-checked but not run (they need the S06–S08 pages).
 - **Review Focus.** Five lines, each with its test in Tasks B1, B2, C1, C2, C3, C4 or C5.

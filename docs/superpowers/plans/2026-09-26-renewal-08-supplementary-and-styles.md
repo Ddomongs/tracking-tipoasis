@@ -102,7 +102,7 @@ Every task in every stage plan implicitly includes these. Values are copied from
 - Styles: `[data-style="manifest"]` and `[data-style="night"]` each declare all 30 color and 27 non-color tokens (values pass `CONTRAST_REQUIREMENTS`); variant-slot looks are CSS under `[data-style="…"] [data-slot="…"]` (plus pseudo-elements); no primitive gains a prop, a DOM node, a hook or a string. The pre-paint script text is a constant whose SHA-256 is pinned by a unit test and passed to `buildSecurityHeaders({ extraScriptHashes })`.
 - Fonts: `signal` keeps S05's single DM Mono preload. `manifest` uses IBM Plex Mono 600 and `night` JetBrains Mono 500 for digits, both `preload: false`, referenced only inside their style's token block, so they download only when that style is on screen. Korean display text in `manifest`/`night` uses installed system fonts (Addition 11).
 - Copy: the spec gives '운영자 추천', '이번 주', '화면 스타일', '기본' '서류형' '어두운 화면', '화면 스타일을 {label}으로 바꿨어요' and '개인정보처리방침' — used as literals. Every other S08 string lives in `config/site.config.ts` `resultCopy` (Task 2).
-- Stage screenshots go to `test-artifacts/stage-screens/S08-{before,after}/` (S01 Addition 1); read `test-results/…` in the verbatim Task 0 / gate text as `test-artifacts/…`.
+- Stage screenshots go to `test-artifacts/stage-screens/S08-{before,after}/` (S01 Addition 1: Playwright empties `test-results/` at the start of every run); Task 0 Step 5 and gate G7 name that path in place of the roadmap's `test-results/stage-screens/…`.
 - No real or unidentified tracking number, phone number or ad-unit id appears in code, tests, test titles, commit messages or screenshots; tests take numbers from `tests/fixtures/tracking-fixtures.ts`, and the gallery's demo ad-unit id is `0000000000`.
 
 ## Review Focus
@@ -110,7 +110,7 @@ Every task in every stage plan implicitly includes these. Values are copied from
 Conditions the spec implies but no rule names; each is pinned by a test in the owning task.
 
 1. **In-app browsers whose storage throws** (roadmap Review Focus 3 assigns this to S08; Naver/Kakao webviews, private windows): reading or writing `localStorage` throws — the pre-paint script must still set a style (`signal`, or `night` on a dark device), the page must not log a page error, the picker must still switch the style for the current page and announce it, and a lookup must still work. Owner: Task 12 (`tests/unit/prepaint.spec.ts` "storage that throws"; `tests/e2e/style-picker.spec.ts` "storage that throws: …") and Task 14 (`style-picker.spec.ts` "storage that throws: the picker still switches …").
-2. **A customer's clock far from the config dates** (a tab left open for days, a phone clock off, the page cached across a recommendation's end): an item outside its window never shows, a price checked more than 7 days ago never shows, and a result after every window has ended shows no block at all. Owner: Task 1 (`tests/unit/recommendations.spec.ts` boundary rows) and Task 3 (`tests/e2e/recommendations.spec.ts` "after every validity window has ended …").
+2. **A customer's clock far from the config dates** (a phone clock off, the page cached across a recommendation's end, a tab opened after every window ended): an item outside its window never shows, a price checked more than 7 days ago never shows, and a result after every window has ended shows no block at all. The list is judged at S06's page clock snapshot (`clientNowMs`, taken once per page load), so a tab left open across an item's end keeps that item until reload (open issue 12). Owner: Task 1 (`tests/unit/recommendations.spec.ts` boundary rows) and Task 3 (`tests/e2e/recommendations.spec.ts` "after every validity span has ended, a result shows no recommendation block").
 3. **A dark-mode device with an earlier choice or a damaged stored value** (a customer who picked '기본' on a dark phone; `tt:style` holding `"dark"` from an old experiment): a valid stored choice always wins, an invalid one falls back to the first-visit rule, and JavaScript disabled shows the server default. Owner: Task 12 (`prepaint.spec.ts` rows; `style-picker.spec.ts` "a stored choice wins over the dark device", "an unknown stored value …", "without JavaScript …").
 4. **Narrow screens in the new styles** (320 px with the rotated stamp, the digit tiles and the wider mono digits): no horizontal scroll and no text at 11 px or less in any style, on the gallery and on a live result. Owner: Task 13 (`tests/e2e/ui-kit.spec.ts` "every screen style (S08)") and Task 14 (`style-picker.spec.ts` "320 px in every style: …").
 5. **Store links that are not product pages** (the shipped `featuredProducts` still point at store homes): the approved inline list must never present a store home as a product and never show a price for it; while approval 10 is pending the dialog never shows prices, and no dialog link is in the page until the customer opens it (so the result keeps exactly the store links its view allows). Owner: Task 1 ("a store-home link is never recommended …"), Task 3 ("no product link is in the page until the dialog opens"), Task 10 (Step 2 fact check, `recommendations.spec.ts` inline rows).
@@ -132,7 +132,7 @@ Everything below is additive; no §11 name is renamed or retyped. Each item goes
 11. **Font plan deviation:** contract §11.12 lists "display Hahmlet 700 subset" (`manifest`) and "display Gothic A1 700 subset" (`night`). `next/font/google` writes every Korean unicode-range `@font-face` of such a family into the global CSS (Phase 1 PERF-04 measured 377 rules for IBM Plex Sans KR), which alone breaks the 25 KB CSS budget, and a build-time subset needs a new font tool (approval 13). S08 therefore uses installed system fonts for Korean display text (`manifest`: a serif stack, `night`: the system gothic) and web fonts only for digits: IBM Plex Mono 600 (`--font-plex-mono`) and JetBrains Mono 500 (`--font-jetbrains-mono`), latin, `preload: false`. The S05 legacy-font bans narrow from "IBM Plex" to "IBM Plex Sans" (Tasks 13 and 17).
 12. **Placement order at the page end:** `<main>` ends with the manual slot (when rendered); `app/(public)/layout.tsx` then renders `StylePicker` and `SiteFooter`, so the slot sits right before the footer block and the picker right above the footer (spec §8, §13).
 13. **Visual matrix states (Task 15):** the eight Phase 3 canvas screens — home, loading (short stage), pending, customsWaiting, inTransit, delivered, stale, NOT_FOUND — at 375 and 1440 px in the three styles.
-14. **File Map additions (M S08):** `tests/e2e/cta-consistency.spec.ts` and `tests/e2e/status-slot.spec.ts` (the legacy showcase hook), `tests/e2e/RULE-MAP.md`, `tests/e2e/internal-isolation.spec.ts` (Task 9, approval 7), `components/StoreContactPopup.tsx` (only when S06 ran Task 7F: its imports move off `lib/storefront.ts`), `tests/e2e/result-a11y.spec.ts` and `tests/e2e/home.spec.ts` axe exclusions (Task 16, approval 13). **File Map additions (C S08):** `components/ads/useAdGateState.ts`, `components/ads/ShowcaseReachedSignal.tsx`, `lib/style/style-choice.ts`.
+14. **File Map additions (M S08):** `tests/e2e/cta-consistency.spec.ts` and `tests/e2e/failure-causes.spec.ts` (the legacy showcase hook: S04 wrote it into both, S06 added one more `failure-causes` row; `status-slot.spec.ts` has none), `tests/unit/security-headers.spec.ts` (Task 12: S01's "next.config.ts serves these rules …" test expects the option S08 passes), `tests/e2e/url-privacy.spec.ts` (Task 9 Step 9, only if an S02 row needs its clock pinned), `tests/e2e/RULE-MAP.md`, `tests/e2e/internal-isolation.spec.ts` (Task 9, approval 7), `components/StoreContactPopup.tsx` (only when S06 ran Task 7F: its imports move off `lib/storefront.ts`), `tests/e2e/result-a11y.spec.ts` and `tests/e2e/home.spec.ts` axe exclusions (Task 16, approval 13). **File Map additions (C S08):** `components/ads/useAdGateState.ts`, `components/ads/ShowcaseReachedSignal.tsx`, `lib/style/style-choice.ts`.
 15. **`anchorReservePx` stays 64.** No automated test can render a real AdSense anchor (third-party requests are aborted in every test); a unit test pins `--tt-anchor-reserve` (every style) to `ads.anchorReservePx`, and the operator re-measures after approval 15 (open issue 3).
 16. **No `data-deco` element was needed.** Every style decoration (the stamp's double rule and tilt, the night lamp, the digit tiles, the dashed route and round stations) is CSS on S05's existing hooks — borders, transforms and `::before` — so no primitive gains a DOM node. The `data-deco` hook (contract §11.13) stays reserved for a later style that needs a real element; the style-independence scan (Task 14) keeps components from reading the style.
 
@@ -151,7 +151,7 @@ Everything below is additive; no §11 name is renamed or retyped. Each item goes
 | `components/supplementary/StoreShowcase.tsx` | Create (4) | Home showcase (disclosure first, two store links) |
 | `components/shell/TrackingPage.tsx` | Modify (4, 9) | Idle extras: typical durations → showcase (→ scroll sentinel, approval 7) |
 | `components/StorefrontShowcase.tsx` | Delete (4) | Legacy showcase |
-| `tests/e2e/cta-consistency.spec.ts`, `tests/e2e/status-slot.spec.ts` | Modify (4) | `[data-storefront-showcase]` → `[data-store-showcase]` |
+| `tests/e2e/cta-consistency.spec.ts`, `tests/e2e/failure-causes.spec.ts` | Modify (4; cta-consistency also 10) | `[data-storefront-showcase]` → `[data-store-showcase]`; the recommendation count follows `recommendationsForView` (approval 10) |
 | `tests/e2e/ad-placement.spec.ts` | Create (4), Modify (5, 7, 9) | Showcase, footer, 톡톡 count, manual slot, ad timing |
 | `components/shell/SiteFooter.tsx` | Create (5) | Footer: note, '개인정보처리방침', 톡톡 (placement footer) |
 | `app/(public)/layout.tsx` | Modify (5, 14) | New footer; the picker above it |
@@ -172,6 +172,7 @@ Everything below is additive; no §11 name is renamed or retyped. Each item goes
 | `app/layout.tsx` | Modify (11, 12, 13) | Style CSS imports; pre-paint script, `data-follow-dark`, `suppressHydrationWarning`; digit fonts |
 | `lib/style/prepaint.ts`, `tests/unit/prepaint.spec.ts` | Create (12), Modify (14) | Script text + hash; behavior in a VM; style-independence scan |
 | `next.config.ts` | Modify (12) | Pass `PREPAINT_CSP_SOURCE` into the Report-Only `script-src` |
+| `tests/unit/security-headers.spec.ts` | Modify (12) | S01's next.config test expects the `extraScriptHashes` option |
 | `tests/e2e/style-picker.spec.ts` | Create (12), Modify (14) | Pre-paint rules; picker rules |
 | `tests/e2e/ui-kit.spec.ts`, `tests/budgets/font-preload.spec.ts` | Modify (7, 13, 14) | Slot demo; per-style gallery checks; per-style font budgets |
 | `lib/style/style-choice.ts`, `components/shell/StylePicker.tsx` | Create (14) | Apply/remember/announce a style |
@@ -207,21 +208,21 @@ Execution order: Task 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → gate
   Expected: build exits 0. Start the production server in a background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`
   Wait until `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` prints `200`.
   Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='before'; $env:PW_STAGE='S08'; npx playwright test tests/tools/stage-screens.spec.ts`
-  Expected: PNGs in `test-results/stage-screens/S08-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
+  Expected: PNGs in `test-artifacts/stage-screens/S08-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
 - [ ] **Step 6: Baseline suite.** With the server still running: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test`
   Expected: record "N passed / M skipped / 0 failed" in the stage summary. Then stop the server (Step 4 command) and clear the flags: `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 
 **S08 notes on the standard steps above**
 - Step 1: the "Gated by" list is 7, 10, 13. Step 7 below also records rows 1, 6 and 15, which decide which files exist (row 1) and what Task 9 may do (row 6), and when the manual slot can appear at all (row 15).
 - Step 2: expected merges are `merge: S05 …`, `merge: S06 …`, `merge: S07 …`, and (through them) `merge: S01 …` to `merge: S04 …`.
-- Step 5: the PNGs land in `test-artifacts/stage-screens/S08-before/` (S01 Addition 1).
+- Step 5 and gate G7 name `test-artifacts/stage-screens/S08-<before|after>/` instead of the roadmap's `test-results/stage-screens/…` (S01 Addition 1: `tests/tools/stage-screens.spec.ts` writes outside `test-results/`, which Playwright empties at the start of every run, so Step 6 would otherwise delete the before-set). Check the count after Step 5: `(Get-ChildItem test-artifacts/stage-screens/S08-before -Filter *.png).Count` prints the number of scenarios × 5.
 
 - [ ] **Step 7 (S08): Record the approvals this stage reads.** Run:
   `Select-String -Path docs/superpowers/plans/2026-09-26-renewal-00-roadmap.md -Pattern '^\| (1|6|7|10|13|15) \|' | ForEach-Object { $_.Line }`
   Expected: six ledger rows. Copy each row's Status into the stage summary. Approvals 7, 10 and 13 decide whether Tasks 9, 10 and 16 run or are SKIPPED (each task checks again before it starts).
 - [ ] **Step 8 (S08): The artifacts this stage consumes exist.** Run:
-  `Test-Path -LiteralPath components/result/ResultSlot.tsx, components/result/ResultView.tsx, components/lookup/LookupController.tsx, components/lookup/session.ts, components/shell/TrackingPage.tsx, components/shell/SiteHeader.tsx, "app/(public)/layout.tsx", "app/(public)/privacy/page.tsx", "app/(internal)/internal/ui-kit/page.tsx", lib/ads/ad-gate.ts, lib/ads/ad-signals.ts, components/ads/AdLoader.tsx, components/primitives/AffiliateLinkGroup.tsx, components/primitives/TalkLink.tsx, components/primitives/ButtonLink.tsx, components/primitives/Button.tsx, components/primitives/LiveAnnouncer.tsx, app/styles/tokens.css, lib/style/styles.ts, lib/style/tokens.ts, lib/config/invariants.ts, tests/fixtures/config-fixtures.ts, tests/fixtures/tracking-fixtures.ts, tests/support/network-capture.ts, tests/e2e/RULE-MAP.md, tests/e2e/cta-consistency.spec.ts, tests/e2e/status-slot.spec.ts, tests/unit/real-number-guard.spec.ts, tests/unit/tokens.spec.ts, tests/e2e/ui-kit.spec.ts, tests/budgets/font-preload.spec.ts, tests/tools/stage-screens.spec.ts, next.config.ts`
-  Expected: 33 lines `True`. A `False` means the owning stage is not merged as the contract describes — stop and name the missing file in the stage summary.
+  `Test-Path -LiteralPath components/result/ResultSlot.tsx, components/result/ResultView.tsx, components/lookup/LookupController.tsx, components/lookup/session.ts, components/shell/TrackingPage.tsx, components/shell/SiteHeader.tsx, "app/(public)/layout.tsx", "app/(public)/privacy/page.tsx", "app/(internal)/internal/ui-kit/page.tsx", lib/ads/ad-gate.ts, lib/ads/ad-signals.ts, components/ads/AdLoader.tsx, components/primitives/AffiliateLinkGroup.tsx, components/primitives/TalkLink.tsx, components/primitives/ButtonLink.tsx, components/primitives/Button.tsx, components/primitives/LiveAnnouncer.tsx, app/styles/tokens.css, lib/style/styles.ts, lib/style/tokens.ts, lib/config/invariants.ts, tests/fixtures/config-fixtures.ts, tests/fixtures/tracking-fixtures.ts, tests/support/network-capture.ts, tests/e2e/RULE-MAP.md, tests/e2e/cta-consistency.spec.ts, tests/e2e/failure-causes.spec.ts, tests/unit/real-number-guard.spec.ts, tests/unit/security-headers.spec.ts, tests/unit/tokens.spec.ts, tests/e2e/ui-kit.spec.ts, tests/budgets/font-preload.spec.ts, tests/tools/stage-screens.spec.ts, next.config.ts`
+  Expected: 34 lines `True`. A `False` means the owning stage is not merged as the contract describes — stop and name the missing file in the stage summary.
 - [ ] **Step 9 (S08): The legacy files this stage deletes are still there.** Run:
   `Test-Path -LiteralPath components/RecommendedProducts.tsx, components/StorefrontShowcase.tsx, components/SiteFooter.tsx, components/AnimatedIcon.tsx, lib/storefront.ts, components/StoreContactPopup.tsx`
   Expected: five `True`, then `True` for `StoreContactPopup.tsx` only if S06 ran its approval-1 fallback (Task 7F) — record which. A `False` among the first five means an earlier stage already deleted it: skip that file's deletion step and note it.
@@ -230,7 +231,7 @@ Execution order: Task 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → gate
   Expected: a numbered list that contains `const LegacyRecommendedProducts = dynamic(`, `const renderRecommendations = (view: TrackingViewModel, outcome: LookupOutcome)`, `const currentView =`, `const clientNowMs = useSyncExternalStore(`, `{viewMode === "idle" ? idleExtras : null}` and one `import { … } from "@/config/site.config";` line. Copy it into the stage summary under "LookupController before S08". If `currentView` or `clientNowMs` is missing, stop: S07 Task 9 or S06 Task 8 is not merged as planned.
 - [ ] **Step 11 (S08): Record every consumer of the legacy pieces.** Run:
   `git grep -n -e "@/lib/storefront" -e "AnimatedIcon" -e "RecommendedProducts" -e "StorefrontShowcase" -e "components/SiteFooter" -e "data-storefront-showcase" -e "tt-legacy-dark" -- app components lib tests`
-  Expected: hits only in the legacy files themselves, `components/lookup/LookupController.tsx` (the S07 bridge), `components/shell/TrackingPage.tsx`, `app/(public)/layout.tsx`, `app/(public)/privacy/page.tsx`, `app/globals.css`, `components/StoreContactPopup.tsx` (7F only), `tests/e2e/cta-consistency.spec.ts`, `tests/e2e/status-slot.spec.ts` and axe exclusions in `tests/e2e/*a11y*.spec.ts` or `tests/e2e/home.spec.ts`. Record the list; Tasks 3–6 and 16 clear every line of it.
+  Expected: hits only in the legacy files themselves, `components/lookup/LookupController.tsx` (the S07 bridge), `components/shell/TrackingPage.tsx`, `app/(public)/layout.tsx`, `app/(public)/privacy/page.tsx`, `app/globals.css`, `components/StoreContactPopup.tsx` (7F only), `tests/e2e/cta-consistency.spec.ts`, `tests/e2e/failure-causes.spec.ts` (S04's error rows and S06's "invalid400 (S06): …" row) and axe exclusions in `tests/e2e/*a11y*.spec.ts` or `tests/e2e/home.spec.ts`. Record the list; Tasks 3–6 and 16 clear every line of it.
 - [ ] **Step 12 (S08): Nothing of S08 exists yet.** Run:
   `Test-Path -LiteralPath lib/tracking/recommendations.ts, components/supplementary, components/ads/ManualAdSlot.tsx, components/shell/SiteFooter.tsx, components/shell/StylePicker.tsx, lib/style/prepaint.ts, app/styles/style-manifest.css, tests/e2e/ad-placement.spec.ts; git log --oneline --all -- components/supplementary | Select-Object -First 5`
   Expected: eight lines `False` and no log lines. If anything exists (a parallel or hotfix branch), stop and compare it with this plan task by task; skip only steps whose files already match this plan exactly and record them in the stage summary.
@@ -999,7 +1000,7 @@ Run: `git add components/supplementary/RecommendationList.tsx components/lookup/
 - Create: `components/supplementary/StoreShowcase.tsx`
 - Modify: `components/shell/TrackingPage.tsx` (the `StorefrontShowcase` import; the `IdleExtras` function and its doc comment)
 - Delete: `components/StorefrontShowcase.tsx`
-- Modify: `tests/e2e/cta-consistency.spec.ts`, `tests/e2e/status-slot.spec.ts` (the legacy showcase hook only)
+- Modify: `tests/e2e/cta-consistency.spec.ts`, `tests/e2e/failure-causes.spec.ts` (the legacy showcase hook only; S04 put it in both files and S06's "invalid400 (S06): …" row in `failure-causes.spec.ts` repeats it)
 - Modify: `tests/e2e/RULE-MAP.md` (two rows; one status cell of S06's row S1)
 - Test: `tests/e2e/ad-placement.spec.ts` (create)
 
@@ -1013,7 +1014,7 @@ Append to the S08 table at the end of `tests/e2e/RULE-MAP.md` (directly below th
 
 ```markdown
 | S08-2 | 홈은 투명한 스토어 선택지 — 쇼케이스 부분 (S06 row S1 "showcase part kept → S08"; §4 첫 화면 아래, §8 고지 선행) | tracking.spec › "home offers transparent storefront choices without interrupting tracking" (showcase heading, links and disclosure; the file was deleted by S07) | ad-placement › "home store showcase (S08)" ×4 | migrated (Task 4) |
-| S08-3 | 오류·결과 화면에는 쇼케이스 없음; 조회 전 홈에는 있음 (§8 표) | cta-consistency › "the idle page keeps its store shortcuts" and "…: no store, showcase, popup, recommendation or sponsored link anywhere on the page"; status-slot › error rows — all selecting the legacy `[data-storefront-showcase]` | the same tests with `[data-store-showcase]` (selector only; no assertion or expected value changed); ad-placement › "the showcase is home-only …" ×3 | selectors migrated (Task 4) |
+| S08-3 | 오류·결과 화면에는 쇼케이스 없음; 조회 전 홈에는 있음 (§8 표) | cta-consistency › "the idle page keeps its store shortcuts" and "…: no store, showcase, popup, recommendation or sponsored link anywhere on the page"; failure-causes › the error rows and "invalid400 (S06): …" — all selecting the legacy `[data-storefront-showcase]` | the same tests with `[data-store-showcase]` (selector only; no assertion or expected value changed); ad-placement › "the showcase is home-only …" ×3 | selectors migrated (Task 4) |
 ```
 
 Then in S06's row `S1`, replace the text `showcase part kept → S08` with `showcase part migrated (S08-2)`.
@@ -1185,28 +1186,31 @@ Expected: no output.
 
 Run (port 43210 free): `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npx playwright test tests/e2e/ad-placement.spec.ts`
 Expected: `7 passed`.
-Run: `npx playwright test tests/e2e/cta-consistency.spec.ts tests/e2e/status-slot.spec.ts`
-Expected: FAIL — `1 failed`: cta-consistency › "the idle page keeps its store shortcuts" (`[data-storefront-showcase]` resolves to 0 elements). The error rows still pass, but only because the legacy hook can no longer exist — Step 7 restores their meaning.
+Run: `npx playwright test tests/e2e/cta-consistency.spec.ts tests/e2e/failure-causes.spec.ts`
+Expected: FAIL — `1 failed`: cta-consistency › "the idle page keeps its store shortcuts" (`[data-storefront-showcase]` resolves to 0 elements). The error rows of both files still pass, but only because the legacy hook can no longer exist — Step 7 restores their meaning.
 
 - [ ] **Step 7: Move the two S04 specs to the new hook**
 
-In `tests/e2e/cta-consistency.spec.ts` and `tests/e2e/status-slot.spec.ts`, replace every `[data-storefront-showcase]` with `[data-store-showcase]` (replace all; nothing else changes).
-Run: `Select-String -Path tests/e2e/cta-consistency.spec.ts, tests/e2e/status-slot.spec.ts -Pattern 'data-storefront-showcase'`
+Run: `Select-String -Path tests/e2e/*.spec.ts -Pattern 'data-storefront-showcase' | ForEach-Object { "$($_.Filename):$($_.LineNumber)" }`
+Expected: lines in `cta-consistency.spec.ts` (S04: the idle test and the error-fixture loop) and `failure-causes.spec.ts` (S04's error loop and S06's "invalid400 (S06): …" test) only. If another spec file is listed (an earlier executor moved an assertion), apply the same replacement to it and name it in the stage summary.
+In `tests/e2e/cta-consistency.spec.ts` and `tests/e2e/failure-causes.spec.ts`, replace every `[data-storefront-showcase]` with `[data-store-showcase]` (replace all; nothing else changes).
+Run: `Select-String -Path tests/e2e/*.spec.ts -Pattern 'data-storefront-showcase'`
 Expected: no output.
-Run (port 43210 free): `npx playwright test tests/e2e/cta-consistency.spec.ts tests/e2e/status-slot.spec.ts tests/e2e/home.spec.ts`
+Run (port 43210 free): `npx playwright test tests/e2e/cta-consistency.spec.ts tests/e2e/failure-causes.spec.ts tests/e2e/home.spec.ts`
 Expected: 0 failed (production-only tests skipped).
 
 - [ ] **Step 8: Delete the legacy showcase**
 
-Run: `git grep -n "StorefrontShowcase\|data-storefront-showcase" -- app components lib tests`
+Run: `git grep -n -e "StorefrontShowcase" -e "data-storefront-showcase" -- app components lib tests`
 Expected: hits only in `components/StorefrontShowcase.tsx` itself.
 Run: `git rm components/StorefrontShowcase.tsx`
-Run: `npm run typecheck; npx eslint components/supplementary components/shell/TrackingPage.tsx tests/e2e/ad-placement.spec.ts tests/e2e/cta-consistency.spec.ts tests/e2e/status-slot.spec.ts`
+Run: `npm run typecheck; npx eslint components/supplementary components/shell/TrackingPage.tsx tests/e2e/ad-placement.spec.ts tests/e2e/cta-consistency.spec.ts tests/e2e/failure-causes.spec.ts`
 Expected: `tsc` exits 0; eslint prints nothing.
 
 - [ ] **Step 9: Commit**
 
-Run: `git add components/supplementary/StoreShowcase.tsx components/shell/TrackingPage.tsx tests/e2e/ad-placement.spec.ts tests/e2e/cta-consistency.spec.ts tests/e2e/status-slot.spec.ts tests/e2e/RULE-MAP.md; git commit -m "feat: add the home store showcase with the disclosure first and retire the legacy showcase"`
+Run: `git add components/supplementary/StoreShowcase.tsx components/shell/TrackingPage.tsx tests/e2e/ad-placement.spec.ts tests/e2e/cta-consistency.spec.ts tests/e2e/failure-causes.spec.ts tests/e2e/RULE-MAP.md; git commit -m "feat: add the home store showcase with the disclosure first and retire the legacy showcase"`
+(If Step 7 listed another spec file, add it to the `git add` line.)
 
 ---
 
@@ -1344,8 +1348,8 @@ Expected: 0 failed. `ad-placement.spec.ts` `11 passed`; `privacy.spec.ts` still 
 
 - [ ] **Step 7: Delete the legacy footer**
 
-Run: `git grep -n "components/SiteFooter\"" -- app components lib tests`
-Expected: no output.
+Run: `git grep -n -e "@/components/SiteFooter" -- app components lib tests`
+Expected: no output (the new footer's path `@/components/shell/SiteFooter` does not contain this text).
 Run: `git rm components/SiteFooter.tsx`
 Run: `npm run typecheck; npx eslint components/shell/SiteFooter.tsx "app/(public)/layout.tsx" tests/e2e/ad-placement.spec.ts`
 Expected: `tsc` exits 0; eslint prints nothing.
@@ -2328,7 +2332,9 @@ In `tests/e2e/internal-isolation.spec.ts`, replace everything between the openin
 
 ```ts
   // S08 (approval 7): on '/' the loader waits for an allowed result or a scroll down to the store showcase.
+  // A phone-sized window makes sure the home is taller than the viewport, so the scroll below is a real one.
   await recordAdRequests(page);
+  await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
   await page.locator("[data-store-showcase]").scrollIntoViewIfNeeded();
   await page.evaluate(() => window.scrollBy(0, 1));
@@ -2725,7 +2731,7 @@ export function RecommendationList({ context, items, disclosure }: Recommendatio
 In `components/lookup/LookupController.tsx`:
 (a) Replace `import { RECOMMENDATION_PRESENTATION, recommendationsForView } from "@/lib/tracking/recommendations";` with `import { recommendationsForView } from "@/lib/tracking/recommendations";`.
 (b) Replace `recommendationsForView(view.revenue, featuredProducts, new Date(clientNowMs), RECOMMENDATION_PRESENTATION)` with `recommendationsForView(view.revenue, featuredProducts, new Date(clientNowMs))`.
-Run: `git grep -n "RECOMMENDATION_PRESENTATION\|selectOperatorPicks\|recommendationsOpen\|recommendationsClose" -- app components lib tests`
+Run: `git grep -n -e "RECOMMENDATION_PRESENTATION" -e "selectOperatorPicks" -e "recommendationsOpen" -e "recommendationsClose" -- app components lib tests`
 Expected: no output except the config type/value lines of `recommendationsOpen`/`recommendationsClose` in `lib/config/types.ts`, `config/site.config.ts`, `lib/config/invariants.ts` and the Task 2 test in `tests/unit/recommendations.spec.ts` (the two strings stay in the config for a possible return to the dialog; they are not rendered).
 
 - [ ] **Step 8: Run the tests to verify they pass**
@@ -3177,10 +3183,11 @@ Run: `git add lib/style/tokens.ts lib/style/styles.ts app/styles/style-manifest.
 - Create: `lib/style/prepaint.ts`
 - Modify: `app/layout.tsx` (two imports; the `<html>` opening tag; a `<head>` with the script)
 - Modify: `next.config.ts` (one import; the `buildSecurityHeaders(…)` call)
+- Modify: `tests/unit/security-headers.spec.ts` (S01; one import; the expected call in the test "next.config.ts serves these rules and drops the X-Powered-By header")
 - Test: `tests/unit/prepaint.spec.ts` (create), `tests/e2e/style-picker.spec.ts` (create)
 
 **Interfaces:**
-- Consumes: `STYLE_IDS`, `DEFAULT_STYLE_ID`, `DARK_STYLE_ID`, `STYLE_STORAGE_KEY` (S05 `lib/style/styles.ts`, for parity checks only); `style.followSystemDark` (S03 config, default `true`); `buildSecurityHeaders({ extraScriptHashes })` (S01 `lib/security/headers.ts`, the S01-private `ALL_ROUTES_SOURCE = "/:path*"`); S01's `next.config.ts` default export; test fixtures `FAKE`, `mockTrack`, `trackData` (S01).
+- Consumes: `STYLE_IDS`, `DEFAULT_STYLE_ID`, `DARK_STYLE_ID`, `STYLE_STORAGE_KEY` (S05 `lib/style/styles.ts`, for parity checks only); `style.followSystemDark` (S03 config, default `true`); `buildSecurityHeaders({ extraScriptHashes })` (S01 `lib/security/headers.ts`, the S01-private `ALL_ROUTES_SOURCE = "/:path*"`); S01's `next.config.ts` default export (`headers: async () => buildSecurityHeaders().map((rule) => ({ source: rule.source, headers: [...rule.headers] }))`) and S01's `tests/unit/security-headers.spec.ts`, whose test "next.config.ts serves these rules and drops the X-Powered-By header" pins that call's options; test fixtures `FAKE`, `mockTrack`, `trackData` (S01).
 - Produces (contract §11.9 + Addition 7): `PREPAINT_SCRIPT` (constant text), `PREPAINT_SCRIPT_SHA256` (`TdNQr4k3zLaTHH5Tbi0dMNlxgX+Y+iNDKf16t15FhKE=`), `PREPAINT_SCRIPT_ID` (`tt-prepaint`), `PREPAINT_CSP_SOURCE`; `<html data-style="signal" data-follow-dark="1|0" suppressHydrationWarning>` with `<head><script id="tt-prepaint">…</script></head>`; the Report-Only `script-src` carries the hash. Hook `data-follow-dark` (contract §11.13).
 
 - [ ] **Step 1: Write the failing unit test**
@@ -3325,10 +3332,37 @@ import { PREPAINT_CSP_SOURCE } from "./lib/style/prepaint";
 Run: `Select-String -Path next.config.ts -Pattern 'PREPAINT_CSP_SOURCE' | ForEach-Object { $_.LineNumber }`
 Expected: two line numbers (the import and the call).
 
+(c) S01's config test pins the options `next.config.ts` passes, so it must expect the hash now. In `tests/unit/security-headers.spec.ts`, directly below `import nextConfig from "@/next.config";` add:
+
+```ts
+import { PREPAINT_CSP_SOURCE } from "@/lib/style/prepaint";
+```
+
+and in the test "next.config.ts serves these rules and drops the X-Powered-By header" replace
+
+```ts
+  expect(await nextConfig.headers?.()).toEqual(
+    buildSecurityHeaders().map((rule) => ({ source: rule.source, headers: [...rule.headers] }))
+  );
+```
+
+with
+
+```ts
+  // S08: next.config.ts passes the pre-paint script's hash into the Report-Only script-src.
+  expect(await nextConfig.headers?.()).toEqual(
+    buildSecurityHeaders({ extraScriptHashes: [PREPAINT_CSP_SOURCE] }).map((rule) => ({ source: rule.source, headers: [...rule.headers] }))
+  );
+```
+
+(If S11 already changed this expectation to `buildSecurityHeaders({ reportUri: CSP_REPORT_PATH })`, add `extraScriptHashes: [PREPAINT_CSP_SOURCE]` as another property of that object instead.) Leave every other `buildSecurityHeaders()` call in the file unchanged: those tests check the option-less rules of `lib/security/headers.ts`, which S08 does not change.
+Run: `Select-String -Path tests/unit/security-headers.spec.ts -Pattern 'PREPAINT_CSP_SOURCE' | ForEach-Object { $_.LineNumber }`
+Expected: two line numbers (the import and the expected call).
+
 - [ ] **Step 5: Run the unit test to verify it passes**
 
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit/prepaint.spec.ts tests/unit/security-headers.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
-Expected: all passed (`prepaint.spec.ts` `6 passed`; S01's header tests are unchanged because `buildSecurityHeaders` itself did not change). If the hash test fails, the script text in Step 3 was not copied exactly: copy it again; never change the pinned hash to match a different text without reviewing the difference.
+Expected: all passed (`prepaint.spec.ts` `6 passed`; every S01 header test passes — the config test now expects the `extraScriptHashes` option, and the option-less rows are unchanged because `buildSecurityHeaders` itself did not change). If the hash test fails, the script text in Step 3 was not copied exactly: copy it again; never change the pinned hash to match a different text without reviewing the difference.
 
 - [ ] **Step 6: Write the failing E2E test**
 
@@ -3525,7 +3559,7 @@ Expected: exit 0 (`@next/next/no-head-element` does not apply to the `app/` dire
 
 - [ ] **Step 10: Commit**
 
-Run: `git add lib/style/prepaint.ts app/layout.tsx next.config.ts tests/unit/prepaint.spec.ts tests/e2e/style-picker.spec.ts; git commit -m "feat: set the screen style before the first paint with a hash-allowed inline script"`
+Run: `git add lib/style/prepaint.ts app/layout.tsx next.config.ts tests/unit/prepaint.spec.ts tests/unit/security-headers.spec.ts tests/e2e/style-picker.spec.ts; git commit -m "feat: set the screen style before the first paint with a hash-allowed inline script"`
 
 ---
 
@@ -4352,7 +4386,7 @@ Expected: `48 passed` (stable against the baselines). The baselines are specific
 
 - [ ] **Step 4: Append the style scenarios to the stage-screens tool**
 
-In `tests/tools/stage-screens.spec.ts`, directly before the `];` that closes `SCENARIOS` (after S07's `deeplink-overdue` entry), add:
+In `tests/tools/stage-screens.spec.ts`, directly before the `];` that closes `SCENARIOS` (after its last entry: S07's `deeplink-overdue`, or S09's entries if S09 was merged first — S09 appends to the same array), add:
 
 ```ts
   // S08: the two new screen styles, chosen before the page loads like a returning customer's stored choice.
@@ -4499,7 +4533,7 @@ test.describe("axe per style (S08, approval 13)", () => {
 
 - [ ] **Step 4: Drop the legacy exclusions**
 
-Run: `Select-String -Path tests/e2e/*.spec.ts -Pattern "exclude\(\"(\.tt-legacy-dark|\[data-recommended-products\])\"\)" | ForEach-Object { "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" }`
+Run: `Select-String -Path tests/e2e/*.spec.ts -Pattern 'exclude\("(\.tt-legacy-dark|\[data-recommended-products\])"\)' | ForEach-Object { "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" }`
 Expected: the lines S06/S07 added (for example `.exclude("[data-recommended-products]")` in `tests/e2e/result-a11y.spec.ts`, S07 open issue 6). Delete each of those `.exclude(…)` calls (keep the rest of the builder chain) and the comment words that name the legacy blocks.
 
 - [ ] **Step 5: Run the tests**
@@ -4884,7 +4918,7 @@ Run: `git add DESIGN.md design-system/_base.css design-system/foundations/styles
 - [ ] **G4. Build.** `npm run build` → exit 0. Route table: `ƒ /[trackingNumber]` always; `/` is `ƒ` in S01 (it still reads `searchParams`), `○ /` from S02 on, and `○ /` with `Revalidate 5m` from S06 on.
 - [ ] **G5. Dev-mode E2E.** `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npm run test:e2e` → "N passed", 0 failed (skips allowed only for tests guarded by `PW_MODE`, `PW_SHOTS`, `PW_VISUAL`, or an approval-gated `test.skip` naming the approval).
 - [ ] **G6. Production-mode E2E.** Re-run `npm run build` if `next start` reports a missing or stale build. Background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`; wait for `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` = `200`; then `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test` → 0 failed, including `tests/budgets/*`.
-- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S08'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-results/stage-screens/S08-after/` at 320, 375, 768, 1024, 1440. Compare with `S08-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
+- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S08'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-artifacts/stage-screens/S08-after/` at 320, 375, 768, 1024, 1440. Compare with `S08-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 - [ ] **G8. Budgets.** Paste the measured numbers of every budget this plan lists (from the G6 output) into the stage summary. Any budget over its fail line fails the gate.
 - [ ] **G9. Code review.** Invoke the `code-review` skill on `git diff claude/tipoasis-tracking-renewal-ae0e3a...HEAD`. Fix every CRITICAL and HIGH finding; if code changed, re-run G2–G6.
 - [ ] **G10. Verification.** Invoke `superpowers:verification-before-completion`; paste each command and its result line into the stage summary.
@@ -4895,7 +4929,7 @@ Run: `git add DESIGN.md design-system/_base.css design-system/foundations/styles
 - G4: `○ /` with `Revalidate 5m`, `ƒ /[trackingNumber]`, `○ /privacy`; no new route (the gallery keeps `/internal/ui-kit`). The build downloads IBM Plex Mono and JetBrains Mono through `next/font` like DM Mono.
 - G5: allowed skips are every `tests/budgets/*` test (production only), the stage-screens tool (no `PW_SHOTS`), the 48 matrix shots (no `PW_VISUAL`), the two approval-15 rows of `ad-placement.spec.ts` ("approval 15: config.ads.manualSlotId is not set yet"), the recommendation describe that does not match `RECOMMENDATION_PRESENTATION` (approval 10) — only while Task 10 has not run —, the approval-7 describe of `ad-placement.spec.ts` when Task 9 is SKIPPED, and the earlier stages' production-only rows. Then run the matrix once in dev mode: `$env:PW_VISUAL='1'; npx playwright test tests/visual/style-matrix.spec.ts; $env:PW_VISUAL=$null` → `48 passed`.
 - G6: next to S01/S05/S06/S07's budgets, `tests/budgets/css-budget.spec.ts` (3) and the per-style font rows of `tests/budgets/font-preload.spec.ts` (3) must pass; S07's JS budgets must stay green — the recommendation list loads through `import()`, and the picker plus the gate hook are the only new initial-bundle code.
-- G7: the PNGs land in `test-artifacts/stage-screens/S08-after/` (S01 Addition 1). Every `home-*` shot changes (the showcase replaces the dark legacy band, the picker and the token footer close the page); every result shot ends with the picker and the new footer, and pending/in-transit/delivered show the '운영자 추천' block; `privacy-*` is on the token shell. The four style scenarios exist only in the after-set. If the R3 checkpoint (Task 8 Step 9) ran, compare against `S08A-after/` as well.
+- G7: the output path above is the roadmap §7 text with S01's Addition 1 applied (see the Task 0 notes). Check: `(Get-ChildItem test-artifacts/stage-screens/S08-after -Filter *.png).Count` prints the before-set count plus 20 (the four style scenarios × five widths). Every `home-*` shot changes (the showcase replaces the dark legacy band, the picker and the token footer close the page); every result shot ends with the picker and the new footer, and pending/in-transit/delivered show the '운영자 추천' block; `privacy-*` is on the token shell. The four style scenarios exist only in the after-set. If the R3 checkpoint (Task 8 Step 9) ran, compare against `S08A-after/` as well.
 - G8 budget lines: `[css-budget]` ×3 (fail above 25600 B gzip -9), `[budget] manual slot fill at 375px/1280px` ×2 (fail if the height changes), `[font-budget] <style> deep link` ×3 plus S05's two signal lines (fail above 1 preload or 102400 B), and — unchanged since S06/S07 — `[js-budget]` ×5, `[html-budget]`, `[lcp-budget]`, `[fcp-budget]`, `[cls-budget]`, `[budget] result fill CLS`.
 - G11: this stage's files are the File Structure table plus Additions 5, 6, 8 and 14; `tests/visual/style-matrix.spec.ts-snapshots/` holds exactly 48 PNGs.
 - G12: merge with `git merge --no-ff renewal/s08-supplementary-and-styles -m "merge: S08 supplementary areas and selectable styles"` (or `-m "merge: S08 Part B selectable styles"` when Part A was merged at the R3 checkpoint), then cut the release checkpoint `git branch release/r3b claude/tipoasis-tracking-renewal-ae0e3a` (roadmap §1: R3b = S08 Part B; the operator opens the PR, no agent pushes to `main`).
@@ -4916,6 +4950,8 @@ Run: `git add DESIGN.md design-system/_base.css design-system/foundations/styles
 9. **The fallback keeps one dialog.** Spec §12 says "다이얼로그는 쓰지 않습니다", while §16 item 10 "거절하면" keeps the recommendation dialog; S08 follows §16 until approval 10 (native modal `<dialog>`, links rendered only while open). Task 10 removes it.
 10. **`optional` recommendation placement.** Spec §8 marks customsWaiting/customsCleared recommendations "선택". S08 reads it as an opt-in per item (`contexts`), so the shipped items (pending/inTransit/delivered only) show nothing there (Addition 1). The operator opts an item in by adding the state to its `contexts`.
 11. **Unused fallback copy after approval 10.** `resultCopy.recommendationsOpen`/`recommendationsClose` stay in the config after Task 10 (a possible return to the dialog); a later cleanup may remove them together with their type and slot lines.
+12. **Recommendation time is the page's clock snapshot.** `renderRecommendations` judges validity and price age at S06's `clientNowMs` (read once per page load, never in render), while S07's `ResultSlot` derives the view with the clock at settle time. A tab left open across an item's `validUntil` keeps showing that item on new lookups until the page is reloaded. `LookupState.settledAt` cannot replace the snapshot: S04 fills it with `performance.now()`, not an epoch time. Judging at settle time needs an epoch settle time handed to `renderRecommendations` (a `ResultSlotProps` change, contract §11.9) — propose it only if the operator reports stale items.
+13. **Later readers of the style.** Task 14's style-independence scan (`tests/unit/prepaint.spec.ts`) allows exactly five files to read `html[data-style]`, `tt:style` or the picker. S11's statistics observer (`lib/analytics/dom-observer.ts`, approval 13) reads `[data-style-picker]` and `html[data-style]` for its `style_select` event; the stage that adds such a module adds its path to the scan's `ALLOWED` set in the same commit (a test-only edit, M on `tests/unit/prepaint.spec.ts`).
 
 ## Self-Review
 
@@ -4923,3 +4959,4 @@ Run: `git add DESIGN.md design-system/_base.css design-system/foundations/styles
 - **Placeholder scan.** No "TBD", "TODO", "implement later" or "similar to Task N"; every code step carries complete code; the design-system preview and the DESIGN.md tables are written out in full. Steps that edit earlier stages' files quote the exact text and give a `Select-String` check; branch points (S06 Task 7F's popup, S11's options object in `next.config.ts`, an already-installed axe package, approvals recorded or not) spell out both paths.
 - **Type consistency.** Contract names are used as written: `selectRecommendations`, `SelectedRecommendation`, `RecommendationList`, `StoreShowcase`, `ManualAdSlot({ allowed, slotId })`, `SiteFooter`, `StylePicker`, `PREPAINT_SCRIPT`, `PREPAINT_SCRIPT_SHA256`, `AD_TIMING_POLICY`, `AdGateInput`, `shouldInsertAdLoader`, `setAdSignals`, `STYLE_IDS`, `STYLE_LABELS`, `STYLE_STORAGE_KEY`, `IMPLEMENTED_STYLE_IDS`, `STYLE_COLOR_TOKENS`, `COLOR_TOKENS`, `NON_COLOR_TOKENS`, `CONTRAST_REQUIREMENTS`, `FeaturedItem`, `RevenueView`, `RecommendationContext`, `ViewMode`, `TrackingViewModel`, `ResultSlotProps.renderRecommendations`, `ads`, `style`, `resultCopy`, `featuredProducts`, `disclosures`, `channels`. S08 additions keep one spelling across tasks: `RecommendationPresentation`/`RECOMMENDATION_PRESENTATION`, `RECOMMENDATION_LIMIT`, `WEEKLY_LABEL_MAX_DAYS`, `PRICE_CHECK_MAX_AGE_DAYS`, `isProductDetailLink`, `selectOperatorPicks`, `recommendationsForView` (four parameters until Task 10, three after), `AdGateState`/`adGateState`, `ManualSlotMode`/`manualSlotMode`, `useAdGateState`, `ShowcaseReachedSignal`, `PREPAINT_SCRIPT_ID`, `PREPAINT_CSP_SOURCE`, `readAppliedStyle`/`subscribeAppliedStyle`/`applyStyleChoice`, `MANIFEST_COLORS`/`NIGHT_COLORS`, hooks `data-store-showcase`, `data-ad-scroll-sentinel`, `data-recommendation-weekly`, `data-recommendation-price`, `data-style-picker`, `data-follow-dark`, `data-ad-slot="manual"`. Test counts: `recommendations.spec.ts` (unit) 13 → 15 (Task 2) → 17 (Task 6) → Task 10 rewrites it; `ad-gate.spec.ts` 7 → 11 (Task 7) → 12 (Task 8), 12 after Task 9; `ad-placement.spec.ts` 7 → 11 → 16 (2 skipped) → 20 with Task 9; `recommendations.spec.ts` (e2e) 11; `prepaint.spec.ts` 6 → 7; `style-picker.spec.ts` 9 → 17; `style-a11y.spec.ts` 9; matrix 48.
 - **Review Focus.** (1) storage that throws → Task 12 unit row and E2E rows (light and dark), Task 14 picker row; (2) a customer's clock far from the config dates → Task 1 boundary rows, Task 3 "after every validity span has ended"; (3) a dark device with an earlier or damaged choice, and no JavaScript → Task 12 rows; (4) 320 px in the new styles → Task 13 gallery rows, Task 14 live rows with the 18-digit cargo number; (5) store links that are not product pages → Task 1 "a store-home link is never recommended", Task 3 "no product link is in the page until the dialog opens", Task 10's fact check and inline rows. The roadmap's Review Focus 3 (S08: `style-picker.spec.ts` with storage throwing) is covered by (1).
+- **Cross-stage review (phase 4, 2026-09-27).** Inbound names were re-checked against the producer plans as they stand: S01 (`findDisallowedDigitRuns(text, extraAllowed)`, `EXTRA_ALLOWED`, `ADSENSE_CLIENT_ID`, `buildSecurityHeaders({ extraScriptHashes })`, the internal-isolation control test, `INTERNAL_TEST_CREDENTIALS`, `SCENARIOS` with `prepare?: (page) => Promise<void>`), S02 (`shouldInsertAdLoader`, `AdGateInput`, the seven `ad-gate.spec.ts` tests and their imports, `getAdSignals`/`setAdSignals`/`subscribeAdSignals`, `watchAdLoader`/`AdLoaderWatch.currentDocumentId`/`waitForIdle`, the privacy constants and `AD_TIMING_DISCLOSURE`), S03 (`FIXTURE_FEATURED`, `parseInstant`, `formatKstDateTight`, `fillSlots`, `resultCopy`, `RESULT_COPY_SLOTS` and its strict schema messages, `channels.talk.labels.footer`, `ads`, `style`), S04 (`useAnnounce` is a no-op outside the provider), S05 (primitives' `data-slot`/`data-variant`, `ButtonLink` names and `rel`, `AffiliateLinkGroup`, the gallery `Section` and `<CopySection />`, the token/font test helpers and the exact legacy-font strings), S06 (`IdleExtras` doc comment, RULE-MAP row S1 text, `clientNowMs`, the `globals.css` comments) and S07 (`LegacyRecommendedProducts`, `renderRecommendations`, `currentView`, `data-recommendation-slot`, `data-history-empty`). Fixed in this pass: the legacy showcase hook lives in `failure-causes.spec.ts`, not `status-slot.spec.ts` (Task 0 Steps 8 and 11, Task 4); S01's next.config test now expects the hash option (Task 12 Step 4 (c)); the S01 screen path in Task 0 Step 5 and G7; four shell commands — two whose `\"` quoting PowerShell 5.1 does not parse (Task 5 Step 7, Task 16 Step 4) and two that relied on `\|` alternation in `git grep` (Task 4 Step 8, Task 10 Step 7).

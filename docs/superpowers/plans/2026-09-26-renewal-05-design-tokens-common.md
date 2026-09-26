@@ -96,6 +96,7 @@ Copied verbatim from the roadmap; stage-specific lines follow.
 - The only customer-facing strings the primitives own are the spec's: '조회번호', '배송 여정 4구간', '해외 출발' '입항·통관' '국내 배송' '도착', '위치 확인 전', '인계 대기', '안내', the suffix ' 새 창으로 열기', and the prefix 'D-'. Every other string comes from view models or `config/site.config.ts`. Strings inside `/internal/ui-kit` are internal gallery captions.
 - No existing E2E assertion is changed by this stage. S01's `tests/budgets/font-preload.spec.ts` is extended (new `describe` block), never edited in place. There is therefore no rule→assertion migration in S05.
 - No real tracking numbers anywhere (code, tests, docs, `design-system/`): digits only from `0000…`, `ABCD 0000 0000`, `TEST 0000 0001` style values; tests take numbers from `tests/fixtures/tracking-fixtures.ts`.
+- Earlier stages' documented deviations this plan follows: S01 Addition 1 (stage screens in `test-artifacts/stage-screens/S05-<before|after>/`, Task 0 Step 5 and G7); S03 additions 4 and 5 (`EtaView` `holidayAffected.holidayName` is required; the `today` view's `label` is '오늘 예상' — Task 8 gallery data and test); S03 addition 11 (`app/layout.tsx` only calls `getSiteConfig()`, which logs the holiday warnings itself — Task 4); S02's `copyText` tries the Clipboard API, then `document.execCommand("copy")`, and never rejects (Task 12's `blockClipboard` stubs both paths). S04 deviation 1 / S07 deviation 10 (approval-3 fallback as a view transform: 톡톡 stays the filled primary on error screens) needs no primitive change: `TalkLink` `weight="primary"` and `CopyButton` `variant="primary"` already exist (gallery demos `talk-primary`, `copy-and-open`).
 
 ## Review Focus
 
@@ -113,13 +114,13 @@ Everything below is additive; no §11 name is renamed. Each item is reported in 
 
 1. **`lib/style/tokens.ts` extra exports:** `export const NON_COLOR_TOKENS` (the 27 non-color token names of §11.12, in that order) and `export type NonColorToken`; `export interface ContrastRequirement { readonly fg: ColorToken; readonly bg: ColorToken; readonly min: 3 | 4.5 }`; `export function relativeLuminance(hex: string): number`; `export function contrastRatio(foreground: string, background: string): number` (WCAG 2.x; `#RRGGBB` only, throws otherwise). S08 uses `NON_COLOR_TOKENS` and `contrastRatio` in its `tokens.spec.ts` additions.
 2. **`components/primitives/Button.tsx` extra exports:** `export type ButtonVariant = "primary" | "secondary" | "text"`, `export type ButtonSize = "md" | "lg"`, `export type ButtonProps`, `export function buttonClassName(variant: ButtonVariant, size: ButtonSize, extra?: string): string` — later stages use `buttonClassName` to give non-button elements (e.g. radio-chip labels, `<summary>`) the same slot look. **`CopyButton.tsx`:** `export type CopyButtonProps`.
-3. **Styling hooks (for S08's per-style CSS; not for tests of business rules):** on `data-slot="button"` elements `data-variant` (`primary|secondary|text`) and `data-size` (`md|lg`); inside `JourneySpine` `data-spine-part="track|bar|label|issue|name|sub|unknown"`; inside `EtaDisplay` `data-eta-label`, `data-eta-value`, `data-eta-visual`, `data-eta-dday`, `data-eta-badge`, `data-eta-caption`, `data-eta-text`, and `data-eta-digit` whose value is the digit itself; `data-tone-icon` on `ToneIcon`'s `<svg>` (tone or issue name); `data-notice-variant` (`banner|inline`) on `NoticeBanner`; `data-number-bar-value` / `data-number-bar-actions` inside `NumberBar`; `data-copy-fallback` on `CopyButton`'s fallback `<textarea>`. Gallery-only: `data-ui-kit` on the gallery `<main>`, `data-demo`, `data-copy-text`, `data-copy-outcome`.
+3. **Weight hook (test-selectable):** every `data-slot="button"` element (`Button`, `ButtonLink`, `TalkLink`, `CopyButton`'s trigger) carries `data-variant` (`primary|secondary|text`) equal to the action weight it renders (`ActionWeight`). Later stages assert "one filled primary per screen" and action weights through `[data-slot="button"][data-variant=…]` (S07's result tests and its migration of S04's `data-action-weight` assertions), so the attribute and its three values are part of the contract (roadmap §11.13); S08's per-style CSS may style it but never changes or removes it. **Styling hooks (for S08's per-style CSS; not for tests of business rules):** on `data-slot="button"` elements `data-size` (`md|lg`); inside `JourneySpine` `data-spine-part="track|bar|label|issue|name|sub|unknown"`; inside `EtaDisplay` `data-eta-label`, `data-eta-value`, `data-eta-visual`, `data-eta-dday`, `data-eta-badge`, `data-eta-caption`, `data-eta-text`, and `data-eta-digit` whose value is the digit itself; `data-tone-icon` on `ToneIcon`'s `<svg>` (tone or issue name); `data-notice-variant` (`banner|inline`) on `NoticeBanner`; `data-number-bar-value` / `data-number-bar-actions` inside `NumberBar`; `data-copy-fallback` on `CopyButton`'s fallback `<textarea>`. Gallery-only: `data-ui-kit` on the gallery `<main>`, `data-demo`, `data-copy-text`, `data-copy-outcome`.
 4. **Slot CSS contract:** the element with `data-slot="status-head"` must also carry `data-tone` (`Tone`); tokens.css paints it as the signal color field (padding `16px var(--tt-gutter) 20px`, flex column, gap 16 px) and exposes the component variables `--field-bg`/`--field-fg`; component variables `--journey-fill`, `--journey-todo`, `--journey-on-fill`, `--chip-bg`, `--chip-fg`, `--eta-badge-bg`, `--eta-badge-fg` are not style tokens (they are derived from tokens). `.tt-focus` is the one focus-ring class (3 px `--tt-focus`, offset 2 px; `--field-fg` inside a field). `@keyframes tt-grow` is the spine's one-shot grow. The reduced-motion override is declared under `:root, [data-style][data-style]` so a style file cannot re-enable motion.
 5. **`--tt-status-field-max` meaning:** 300 px = the maximum height of `[data-slot="status-head"]` at 375×812 so that `[data-cta-state]` starts at ≤ 420 px (48 header + 56 number bar + 300 field + 16 gap). It is a layout budget, not a `max-height` (clipping would break 1.4.4/1.4.10). S07's result-layout test measures against it.
 6. **Tailwind:** `transitionTimingFunction.tt` → class `ease-tt` (`var(--tt-ease)`), in addition to the §11.12 keys. `fontSize.tt-*` entries carry line heights (18/20/24/28/32 px, 1.1 for `tt-eta`).
 7. **Fonts:** `next/font` exposes DM Mono through the CSS variable `--font-dm-mono` on `<html>`; `--tt-font-mono` is `var(--font-dm-mono, "DM Mono"), ui-monospace, …`.
 8. **File Map addition:** `app/(internal)/internal/ui-kit/UiKitInteractive.tsx` — C S05 (client island of the gallery for `CopyButton` demos; S08 may add its style-switcher demo here).
-9. **`EtaDisplay` text source:** it renders only `EtaView` strings plus the literal prefix 'D-'; '오늘 예상' reaches the screen through the `today` view's `label` or `caption` (S03 decides which).
+9. **`EtaDisplay` text source:** it renders only `EtaView` strings plus the literal prefix 'D-'; '오늘 예상' reaches the screen through the `today` view's `label` (S03 addition 5: `label = resultCopy.etaTodayLabel`, `caption` stays the secondary line such as '통관 완료 예상 9월 26일 (토)' or `null`). S03 addition 4 (`holidayAffected.holidayName`) is not rendered by `EtaDisplay`; the badge carries the visible sentence.
 
 ## File Structure
 
@@ -173,14 +174,17 @@ Everything below is additive; no §11 name is renamed. Each item is reported in 
   Expected: build exits 0. Start the production server in a background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`
   Wait until `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` prints `200`.
   Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='before'; $env:PW_STAGE='S05'; npx playwright test tests/tools/stage-screens.spec.ts`
-  Expected: PNGs in `test-results/stage-screens/S05-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
+  Expected: PNGs in `test-artifacts/stage-screens/S05-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
 - [ ] **Step 6: Baseline suite.** With the server still running: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test`
   Expected: record "N passed / M skipped / 0 failed" in the stage summary. Then stop the server (Step 4 command) and clear the flags: `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
+
+**S05 note on the standard steps above:** Step 5 and gate G7 name `test-artifacts/stage-screens/S05-<before|after>/` instead of the roadmap's `test-results/stage-screens/…` (S01 Addition 1: `tests/tools/stage-screens.spec.ts` writes outside `test-results/`, which Playwright empties at the start of every run, so Step 6 would otherwise delete the before-set). Check the count after Step 5: `(Get-ChildItem test-artifacts/stage-screens/S05-before -Filter *.png).Count` prints the number of scenarios × 5.
+
 - [ ] **Step 7 (stage-specific): Dependency artifacts exist.** Run:
-  `Test-Path lib/clipboard.ts, lib/site.ts, lib/tracking/types.ts, lib/tracking/number-format.ts, config/site.config.ts, tests/fixtures/tracking-fixtures.ts, tests/support/prod-mode.ts, tests/budgets/font-preload.spec.ts, "app/(internal)/layout.tsx"`
-  Expected: nine lines `True`. Any `False` → stop; the missing file belongs to S01/S02/S03 and that stage is not merged.
+  `Test-Path lib/clipboard.ts, lib/site.ts, lib/tracking/types.ts, lib/tracking/time.ts, lib/tracking/number-format.ts, lib/tracking/inquiry-copy.ts, config/site.config.ts, tests/fixtures/tracking-fixtures.ts, tests/support/prod-mode.ts, tests/budgets/font-preload.spec.ts, tests/unit/module-boundaries.spec.ts, "app/(internal)/layout.tsx"`
+  Expected: twelve lines `True`. Any `False` → stop; the missing file belongs to S01/S02/S03 and that stage is not merged.
 - [ ] **Step 8 (stage-specific): Record the inherited files.** Run: `Get-Content app/layout.tsx; Get-Content tests/budgets/font-preload.spec.ts | Select-Object -First 20`
-  Expected: `app/layout.tsx` imports only `IBM_Plex_Sans_KR` from `next/font/google` (S01 dropped Space Grotesk and set `preload: false`), has no AdSense `<Script>` (S01 moved it to `app/(public)/layout.tsx`), and calls `getSiteConfig()` (S03). Note in the stage summary which import lines `font-preload.spec.ts` already has (`expect`, `test`, `Page`, `IS_PRODUCTION_RUN`, fixtures) — Task 4 merges into them.
+  Expected: `app/layout.tsx` imports only `IBM_Plex_Sans_KR` from `next/font/google` (S01 dropped Space Grotesk and set `preload: false`), has no AdSense `<Script>` (S01 moved it to `app/(public)/layout.tsx`), and calls `getSiteConfig()` (S03). Note in the stage summary which import lines `font-preload.spec.ts` already has (S01 Task 5 ships `import { expect, test } from "@playwright/test";`, `IS_PRODUCTION_RUN` and `FAKE`; no `Page`/`Response` types, no `mockTrack`/`trackData`) — Task 4 Step 2 merges the missing names into them.
 
 ---
 
@@ -901,7 +905,7 @@ Run: `git add tailwind.config.ts tests/unit/tokens.spec.ts; git commit -m "feat:
 - Test: `tests/e2e/ui-kit.spec.ts` (create)
 
 **Interfaces:**
-- Consumes: `DEFAULT_STYLE_ID` (Task 1); `app/styles/tokens.css` (Task 2); `font-tt-body` (Task 3); fixtures `FAKE`, `mockTrack`, `trackData` and `IS_PRODUCTION_RUN` (S01).
+- Consumes: `DEFAULT_STYLE_ID` (Task 1); `app/styles/tokens.css` (Task 2); `font-tt-body` (Task 3); fixtures `FAKE`, `mockTrack`, `trackData` and `IS_PRODUCTION_RUN` (S01); `app/layout.tsx` as S01 Task 5/Task 7 left it plus S03 Task 7 Step 6 (`import { getSiteConfig } from "@/lib/config/server";` below the `Metadata` import and `getSiteConfig();` as the first statement of `RootLayout`); `tests/budgets/font-preload.spec.ts` as S01 Task 5 created it (imports `expect`, `test`, `IS_PRODUCTION_RUN`, `FAKE`; helper names `MAX_FONT_PRELOADS`, `RSC_FONT_HINT`, `tagFontUrls`, `linkHeaderFontUrls`, `rscFontHintUrls` are S01's and are not reused here).
 - Produces: every page has `<html lang="ko" data-style="signal" class="<DM Mono variable class>">`, the `--tt-*` variables, `--font-dm-mono` on `<html>`, and `<body class="font-tt-body google-anno-skip antialiased">`. IBM Plex Sans KR is gone.
 
 - [ ] **Step 1: Write the failing E2E test**
@@ -1038,13 +1042,13 @@ const monoFont = DM_Mono({
 
 5. Replace the `<body …>` opening tag (S01: ``<body className={`${bodyFont.variable} google-anno-skip antialiased`}>``) with `<body className="font-tt-body google-anno-skip antialiased">`.
 
-The resulting file must read as below. The `metadata` object is unchanged from S01. The two `getSiteConfig`/`holidayCoverageWarnings` lines are S03's (shown in their contract form); keep S03's lines exactly as they are in the file.
+The resulting file must read as below. The `metadata` object is unchanged from S01. The `getSiteConfig` import line (directly below the `Metadata` import) and the comment + `getSiteConfig();` statement at the top of `RootLayout` are S03's (S03 Task 7 Step 6; S03 addition 11: `getSiteConfig()` logs the holiday warnings itself, so the layout never calls `holidayCoverageWarnings`). Do not touch S03's lines; if the file differs from S01 + S03 as shown, apply only the five edits above and record the difference in the stage summary.
 
 ```tsx
 import type { Metadata } from "next";
+import { getSiteConfig } from "@/lib/config/server";
 import { DM_Mono } from "next/font/google";
 import { DEFAULT_STYLE_ID } from "@/lib/style/styles";
-import { getSiteConfig, holidayCoverageWarnings } from "@/lib/config/server";
 import "./globals.css";
 import "./styles/tokens.css";
 
@@ -1081,8 +1085,8 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const config = getSiteConfig();
-  for (const warning of holidayCoverageWarnings(config, new Date())) console.warn(warning);
+  // Validates config/site.config.ts: an invalid operator config fails `next build` with Korean 'path: message' lines.
+  getSiteConfig();
   return (
     <html lang="ko" data-style={DEFAULT_STYLE_ID} className={monoFont.variable}>
       <body className="font-tt-body google-anno-skip antialiased">
@@ -1093,7 +1097,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 ```
 
-Why the legacy screen keeps working: `.font-tt-body` on `<body>` outranks the `body { font-family: var(--font-body) … }` rule in `app/globals.css`, and the legacy `h1–h4 { font-family: var(--font-display), var(--font-body), sans-serif }` rule becomes invalid at computed-value time now that `--font-body` is undefined, so headings inherit the body's system gothic. S06 removes those legacy rules.
+Why the legacy screen keeps working: `.font-tt-body` on `<body>` outranks the `body { font-family: var(--font-body) … }` rule in `app/globals.css`, and the legacy `h1–h4 { font-family: var(--font-display, var(--font-body)), sans-serif }` rule (S01's Task 5 form) becomes invalid at computed-value time now that `--font-body` is undefined, so headings inherit the body's system gothic. S06 removes those legacy rules.
 
 - [ ] **Step 5: Confirm no other file needs IBM Plex**
 
@@ -2436,7 +2440,7 @@ Run: `git add components/primitives/JourneySpine.tsx app/styles/tokens.css "app/
 - Test: `tests/e2e/ui-kit.spec.ts` (append)
 
 **Interfaces:**
-- Consumes: `EtaView`, `EtaDate` from `@/lib/tracking/types` (S03); `formatKstDate(value: Date | KstDateKey): string` and `weekdayLabel(key: KstDateKey): string` from `@/lib/tracking/time` (S03, gallery only); `JourneySpine`, `CUSTOMS_SPINE` (Task 7); `--field-bg`/`--field-fg` (Task 6).
+- Consumes: `EtaView`, `EtaDate` from `@/lib/tracking/types` (S03, including S03 addition 4 — `holidayAffected` has a required `holidayName: string` — and addition 5 — `today` carries `label: '오늘 예상'`); `formatKstDate(value: Date | KstDateKey): string` and `weekdayLabel(key: KstDateKey): string` from `@/lib/tracking/time` (S03, gallery only); `JourneySpine`, `CUSTOMS_SPINE` (Task 7); `--field-bg`/`--field-fg` (Task 6).
 - Produces: `EtaDisplay(props: { readonly eta: EtaView }): React.JSX.Element | null` — `null` for kind `none`; otherwise `<div data-slot="eta" data-eta-kind={kind}>` with `<p data-eta-label>`; date kinds render `<p data-eta-value>` = `<span class="sr-only">{date.label}</span>` + `<span aria-hidden="true" data-eta-visual>` built from `<span data-eta-part="month|day|weekday">` with one `<span data-eta-digit="d">d</span>` per digit, plus `<span data-eta-dday="n">D-n</span>` for kind `date` only; `holidayAffected` adds `<span data-eta-badge>`; `caption` renders `<p data-eta-caption>`; `pendingInfo`/`withheld`/`unknown` render `<p data-eta-text>`. Gallery: `etaDate(key)`, `DEMO_ETA`, `HOLIDAY_ETA`, `ETA_DEMOS`, `EtaSection`. Budget line `[budget] status-head field at 375x812: N px (max 300 px)`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -2502,7 +2506,8 @@ test.describe("EtaDisplay", () => {
     const badge = page.locator('[data-demo="eta-holiday"] [data-eta-badge]');
     await expect(badge).toHaveText("추석 연휴 영향 · 1~2일 늦어질 수 있어요");
     await expect(badge.locator('svg[aria-hidden="true"]')).toHaveCount(1);
-    await expect(page.locator('[data-demo="eta-today"] [data-eta-caption]')).toHaveText("오늘 예상");
+    await expect(page.locator('[data-demo="eta-today"] [data-eta-label]')).toHaveText("오늘 예상");
+    await expect(page.locator('[data-demo="eta-holiday"] [data-eta-label]')).not.toHaveText("오늘 예상");
   });
 
   test("text kinds say what is known instead of a date", async ({ page }) => {
@@ -2844,18 +2849,20 @@ const HOLIDAY_ETA: EtaView = {
   label: "도착 예상",
   date: etaDate("2026-09-30"),
   badge: "추석 연휴 영향 · 1~2일 늦어질 수 있어요",
+  holidayName: "추석 연휴",
   caption: "통관 완료 예상 9월 28일 (월)"
 };
 
 const ETA_DEMOS: ReadonlyArray<{ readonly demo: string; readonly eta: EtaView }> = [
   { demo: "eta-date", eta: DEMO_ETA },
-  { demo: "eta-today", eta: { kind: "today", label: "도착 예상", date: etaDate("2026-09-26"), caption: "오늘 예상" } },
+  // S03 addition 5: the "today" view carries '오늘 예상' as its label (resultCopy.etaTodayLabel); caption stays the secondary line.
+  { demo: "eta-today", eta: { kind: "today", label: "오늘 예상", date: etaDate("2026-09-26"), caption: null } },
   { demo: "eta-holiday", eta: HOLIDAY_ETA },
   { demo: "eta-overdue", eta: { kind: "overdue", label: "예상했던 날짜", date: etaDate("2026-09-30") } },
   { demo: "eta-delivered", eta: { kind: "deliveredOn", label: "배송 완료일", date: etaDate("2026-09-25") } },
   { demo: "eta-pending", eta: { kind: "pendingInfo", label: "도착 예상", text: "정보 등록 후 안내" } },
   { demo: "eta-withheld", eta: { kind: "withheld", label: "도착 예상", text: "지금은 도착 예상일을 안내하기 어려워요" } },
-  { demo: "eta-unknown", eta: { kind: "unknown", label: "도착 예상", text: "예상일을 계산할 정보가 아직 없어요" } },
+  { demo: "eta-unknown", eta: { kind: "unknown", label: "도착 예상", text: "아직 예상일을 계산할 기록이 없어요" } },
   { demo: "eta-none", eta: { kind: "none" } }
 ];
 
@@ -4183,8 +4190,8 @@ Expected: 5 FAIL (the old DESIGN.md has no `--tt-*` rows, names none of the hook
 
 - [ ] **Step 3: Check which disclosure sentence is configured**
 
-Run: `Select-String -Path config/site.config.ts -Pattern '쿠팡 파트너스 활동의 일환으로|일정 수수료를 받을 수 있으며'`
-Expected: one match. The DESIGN.md text below quotes the fallback sentence '쿠팡 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.' (approval 9 pending). If the match is the approved sentence '쿠팡 링크는 쿠팡 파트너스 활동의 일환으로, 구매 시 운영자가 수수료를 받습니다.', write that sentence in §10 instead; Task 15 then only verifies.
+Run: `Select-String -Path config/site.config.ts -Pattern '^\s*coupang: "'`
+Expected: one match — the `disclosures.coupang` line (the `channels.coupang` entry opens with `{`, not a quote, so it does not match). The DESIGN.md text below quotes the fallback sentence '쿠팡 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.' (approval 9 pending). If the matched line holds any other sentence, S03's approval-9 follow-up (S03 Task 16) already ran: that is the default proposal '쿠팡 링크는 쿠팡 파트너스 활동의 일환으로, 구매 시 운영자가 수수료를 받습니다.' or the legally reviewed wording recorded in roadmap §4 row 9, which S03 Task 16 Step 2 puts in place of the proposal. Write that exact sentence (the text between the quotes) in §10 instead; Task 14 Steps 12–13 quote the same sentence, and Task 15 then only verifies.
 
 - [ ] **Step 4: Replace `DESIGN.md` with this content**
 
@@ -4365,8 +4372,9 @@ framer-motion 대체(패키지 제거는 S06):
 | `data-affiliate-disclosure` | 묶음의 첫 줄 고지 | `coupang` |
 | `data-link-placement` | 톡톡·스토어 링크 | 위치 id |
 | `data-notice-kind` | 공지 줄 | `outage` `delay` `holiday` `info` |
+| `data-variant` | 버튼·버튼 모양 링크(`data-slot="button"`) | 행동 무게 `primary` `secondary` `text` |
 
-모양 전용 훅(스타일 CSS용, 비즈니스 규칙 테스트에는 쓰지 않음): `data-variant`, `data-size`, `data-spine-part`, `data-eta-label`, `data-eta-value`, `data-eta-visual`, `data-eta-part`, `data-eta-digit`, `data-eta-dday`, `data-eta-badge`, `data-eta-caption`, `data-eta-text`, `data-tone-icon`, `data-notice-variant`, `data-number-bar-value`, `data-number-bar-actions`, `data-copy-fallback`.
+모양 전용 훅(스타일 CSS용, 비즈니스 규칙 테스트에는 쓰지 않음): `data-size`, `data-spine-part`, `data-eta-label`, `data-eta-value`, `data-eta-visual`, `data-eta-part`, `data-eta-digit`, `data-eta-dday`, `data-eta-badge`, `data-eta-caption`, `data-eta-text`, `data-tone-icon`, `data-notice-variant`, `data-number-bar-value`, `data-number-bar-actions`, `data-copy-fallback`.
 
 ## 9. 공통 부품 (`components/primitives/`)
 
@@ -5106,19 +5114,19 @@ Run: `git add design-system; git commit -m "docs: rebuild the design-system prev
 
 - [ ] **Step 2: Confirm the configuration already carries the approved wording**
 
-Run: `Select-String -Path config/site.config.ts -Pattern '쿠팡 링크는 쿠팡 파트너스 활동의 일환으로, 구매 시 운영자가 수수료를 받습니다.'`
-Expected: one match. No match → stop: the value belongs to S03 (`disclosures.coupang`, roadmap §4 row 9). Ask the operator to run S03's approval-9 follow-up task first, then resume here.
+Run: `Select-String -Path config/site.config.ts -Pattern '^\s*coupang: "'`
+Expected: one match — the `disclosures.coupang` line — whose quoted sentence is exactly the wording recorded in roadmap §4 row 9: the default proposal '쿠팡 링크는 쿠팡 파트너스 활동의 일환으로, 구매 시 운영자가 수수료를 받습니다.', or the legally reviewed wording that S03 Task 16 Step 2 puts in its place when the ledger records one. If the line still holds the fallback '쿠팡 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.', or a sentence that differs from the ledger → stop: the value belongs to S03 (`disclosures.coupang`, roadmap §4 row 9). Ask the operator to run S03's approval-9 follow-up task (S03 Task 16) first, then resume here. Keep the printed sentence (the text between the quotes) for Step 4.
 
 - [ ] **Step 3: Run the parity tests to see the docs lag behind**
 
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit/tokens.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
-Expected: 2 FAIL — "documents every primitive and the configured disclosure wording" and "store previews put the configured disclosure first" (the docs still quote the old sentence); 25 pass. If both already pass (Task 13 Step 3 found the approved sentence), go to Step 5.
+Expected: 2 FAIL — "documents every primitive and the configured disclosure wording" and "store previews put the configured disclosure first" (the docs still quote the old sentence); 25 pass. If both already pass (Task 13 Step 3 already found the configured approved sentence and Tasks 13–14 quote it), go to Step 5.
 
 - [ ] **Step 4: Replace the sentence in the three files**
 
 Use the Edit tool with `replace_all: true` in `DESIGN.md`, `design-system/components/customer-cta.html` and `design-system/components/tracking-form.html` (not PowerShell `Set-Content`, which would add a byte-order mark before the `<!-- @dsCard` marker):
 - old: `쿠팡 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.`
-- new: `쿠팡 링크는 쿠팡 파트너스 활동의 일환으로, 구매 시 운영자가 수수료를 받습니다.`
+- new: the sentence Step 2 printed, character for character (with the default proposal: `쿠팡 링크는 쿠팡 파트너스 활동의 일환으로, 구매 시 운영자가 수수료를 받습니다.`). The parity tests compare against `disclosures.coupang`, so any other text keeps them red.
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
@@ -5213,7 +5221,7 @@ Run: `git add package.json package-lock.json tests/e2e/ui-kit.spec.ts; git commi
 - [ ] **G4. Build.** `npm run build` → exit 0. Route table: `ƒ /[trackingNumber]` always; `/` is `ƒ` in S01 (it still reads `searchParams`), `○ /` from S02 on, and `○ /` with `Revalidate 5m` from S06 on.
 - [ ] **G5. Dev-mode E2E.** `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npm run test:e2e` → "N passed", 0 failed (skips allowed only for tests guarded by `PW_MODE`, `PW_SHOTS`, `PW_VISUAL`, or an approval-gated `test.skip` naming the approval).
 - [ ] **G6. Production-mode E2E.** Re-run `npm run build` if `next start` reports a missing or stale build. Background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`; wait for `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` = `200`; then `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test` → 0 failed, including `tests/budgets/*`.
-- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S05'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-results/stage-screens/S05-after/` at 320, 375, 768, 1024, 1440. Compare with `S05-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
+- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S05'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-artifacts/stage-screens/S05-after/` at 320, 375, 768, 1024, 1440. Compare with `S05-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 - [ ] **G8. Budgets.** Paste the measured numbers of every budget this plan lists (from the G6 output) into the stage summary. Any budget over its fail line fails the gate.
 - [ ] **G9. Code review.** Invoke the `code-review` skill on `git diff claude/tipoasis-tracking-renewal-ae0e3a...HEAD`. Fix every CRITICAL and HIGH finding; if code changed, re-run G2–G6.
 - [ ] **G10. Verification.** Invoke `superpowers:verification-before-completion`; paste each command and its result line into the stage summary.
@@ -5242,7 +5250,7 @@ Additive, no §11 name renamed; reported as contract deviations together with it
 ## Self-Review
 
 - **Spec coverage.** §6 번호 바 → Task 9 (4-character groups, monospace, no truncation, 320 px wrap); 상태 카드 칩·톤 → Task 6; 4구간 척추 with exactly one `aria-current=step`, 0 before the location is known, code 4 on ②, 멈춤·끊김·갈림 as color + icon + word → Task 7; 도착 예상 largest text 32–40 px, D-n, holiday badge hiding D-n, withheld/pendingInfo copy → Task 8; '안내' line in the card → Task 11; building blocks of 지금 할 일 (톡톡 text link, copy-and-open with fallback, disclosure-first store group) → Tasks 10 and 12. §8 disclosure first with `isAffiliate` deciding `rel` → Task 10; 톡톡 one style → Task 10. §12: targets 44–52 px (Task 5), focus ring 3 px ≥ 3:1 and text ≥ 4.5:1 across every demo including fields (Task 5 generic tests + in-field demos of Tasks 6–11), 0 text ≤ 11 px (Task 5), 320 px no horizontal scroll (Tasks 5, 9), no infinite animation and reduced motion 0 (Task 11), fonts ≤ 2 preloads and ≤ 100 KB (Task 4). §13: signal tokens and supplements — amber + ink, red only for 문제, link separate from 정상 진행 (Task 1), status-field cap (Task 8 budget), four variant slots (Tasks 5–8), `data-style="signal"` (Task 4); style picker, pre-paint and other styles stay with S08 (S05 ships `STYLE_IDS`, labels, storage key). §14 CopyButton fallback (Task 12), LiveAnnouncer adopted unchanged (not edited; documented in DESIGN.md §9), framer-motion removal prepared (Task 11 + DESIGN.md §7). §16 item 9 → Task 15 (fallback already implemented by Tasks 10/13/14); item 13 → Task 16 (manual checklist fallback). DESIGN.md as the single source → Task 13; `design-system/` regenerated from tokens incl. `journey-spine.html` → Task 14. The home shortcut-row geometry supplement belongs to S06 (roadmap §9).
-- **Placeholder scan.** Every code and document step carries its full content; the only branch (which disclosure sentence to quote) names both concrete sentences and the command that decides. Gallery captions are internal strings; customer-facing strings come from the spec or from `config/site.config.ts`.
+- **Placeholder scan.** Every code and document step carries its full content; the only branch (which disclosure sentence to quote) names the fallback sentence, the default proposal, and the command that prints the configured `disclosures.coupang` value to copy verbatim (Task 13 Step 3, Task 15 Steps 2 and 4). Gallery captions are internal strings; customer-facing strings come from the spec or from `config/site.config.ts`.
 - **Type consistency.** `JourneySpine`, `EtaDisplay`, `NumberBar`, `TalkLink`, `AffiliateLinkGroup`, `NoticeBanner`, `CopyButton` props match roadmap §11.9 exactly; `CopyButtonProps` is the Addition-2 export. `SpineView`, `EtaView`, `EtaDate`, `NumberView`, `StoreLinksView`, `StoreLinkView`, `StorePlacementId`, `ActionWeight`, `TalkPlacement`, `NoticeView`, `Tone` come from `@/lib/tracking/types` only. Gallery helpers keep one name each across tasks (`Field`, `Section`, `StatusHeadDemo`, `CUSTOMS_SPINE`, `DEMO_ETA`, `numberView`, `DELIVERED_STORES`); the type-import line is replaced by exact old/new text in Tasks 7–11. Test totals: `ui-kit.spec.ts` 1 → 10 → 13 → 21 → 28 → 32 → 36 → 40 → 44 (→ 46 with approval 13); `tokens.spec.ts` 12 → 15 → 17 → 22 → 27.
 - **Review Focus.** (1) blocked clipboard → Task 12 "falls back …" ×2 and "copyAndOpen …"; (2) long numbers at 320 px → Task 9 "long numbers wrap between groups …"; (3) primitives on a tone field → Task 5 generic contrast/focus tests over the in-field demos of Tasks 6–11 plus Task 10 "no text uses the muted color"; (4) disclosure disagreeing with links → Task 10 "affiliate groups start with the disclosure exactly when a link is affiliate" (`affiliate-missing-disclosure`, `affiliate-naver-only`); (5) forced colors → Task 6 chip border and Task 7 "forced colors: done and current bars keep a CanvasText fill".
 - **Stage constraints kept.** No legacy component or `app/globals.css` edit; `app/styles/tokens.css` rules stay keyed by `[data-slot]`, `[data-status-chip]`, `[data-spine-part]` (inside `[data-slot="journey"]`), `[data-eta-dday]` (inside `[data-slot="eta"]`), `[data-affiliate-disclosure]` and `.tt-focus` (the `@keyframes` and `@media` blocks only wrap such rules); no primitive renders a live region; no existing E2E assertion changes, so there is no rule→assertion migration in S05.

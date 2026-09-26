@@ -98,7 +98,10 @@ Copied verbatim from the roadmap; stage-specific lines follow.
 - Tests that depend on lookup timing or the NOT_FOUND caveat set those values explicitly (`withConfig({ lookup: … })` or a local `LoadingConfig`), so S10 Part B can flip `lookup.timeoutMs`, `lookup.notFoundServiceCaveat` and `lookup.stageMs` without editing S03 tests; `tests/unit/config.spec.ts` accepts both the pre-R4 and the R4 values.
 - `config/site.config.ts` has only `import type` statements (client code imports single named exports). `lib/tracking/*` obeys contract §11.1 rule 5 (time only from `now: Date`). Neither may import zod; `tests/unit/module-boundaries.spec.ts` (Task 14) enforces it.
 - Customer copy the spec gives is used verbatim. Copy the spec does not give lives in `config/site.config.ts` (`stateGuide`, `resultCopy`, `help`) so the operator and later stages change it in one place. Two exceptions, both internal protocol or internal-only text: the inquiry-copy format in `lib/tracking/inquiry-copy.ts` (the CS tool parses it) and the CS reply templates in `lib/cs/cs-templates.ts`.
-- Holiday data for 2026–2027 was checked on 2026-09-26 against the 2027 월력요항 (published 2026-06-29) and the 2026 law changes (노동절 from 2026-05-01, 제헌절 from 2026-05-11); Task 5 Step 2 repeats that check against the official source before committing.
+- Holiday data for 2026–2027 was checked on 2026-09-26 against the 2027 월력요항 (published 2026-06-29) and the 2026 law changes (노동절 from 2026-05-01, 제헌절 from 2026-05-11); Task 5 Step 3 repeats that check against the official source before committing.
+- Stage screenshots go to `test-artifacts/stage-screens/S03-before/` and `test-artifacts/stage-screens/S03-after/` (S01 "Additions to the contract" item 1: Playwright empties `test-results/` at the start of every run, so before-screens written there would be deleted by Task 0 Step 6). Task 0 Step 5 and gate G7 below already use that path.
+- S10 Part B (its Task B1 Step 5) greps `tests/` for `timeoutMs|45000|notFoundServiceCaveat|조회 서비스 사정으로|stageMs`. In S03's files it finds `tests/unit/config.spec.ts` (accepts the pre-R4 and the R4 set; S10 edits this file) and explicit-value fixtures in `tests/unit/derive-view.spec.ts` (`withConfig({ lookup: { notFoundServiceCaveat: true } })` / `false`, the caveat sentence asserted only under the `true` fixture) and `tests/unit/loading-view.spec.ts` (the local `LOADING` config and the `withConfig({ lookup: { stageMs: [3000, 7000], timeoutMs: 25000, … } })` row). None of them reads the shipped `lookup` values, so they stay green after the flip and are not literals that block it.
+- The approval-2 and approval-3 fallbacks are view-layer transforms owned by S04 (`components/status-slot/status-view.ts`: `LEGACY_RESULT_COPY`, `applyApprovalFallbacks`) and S07 (`components/result/approvals.ts`: `applyResultApprovals`, `deriveResultView`). S03 ships the spec §7 copy and the §7 error-row actions in `config/site.config.ts`; no fallback edits that file, and the `derive-view`, `config` and `cs-reply` specs pin the shipped values.
 
 ## Review Focus
 
@@ -106,7 +109,7 @@ Conditions the spec implies but no rule names; the pinning test is added to the 
 
 1. **Customer device not in KST** (overseas buyer with `TZ=America/New_York`, or a phone clock hours off): ETA labels, D-n, worry dates, overdue and notice windows come from the `now` argument in `Asia/Seoul`; overdue flips exactly at KST midnight after the worry date. Owner: Task 2 (`kst-time.spec.ts` "same answers in America/New_York") and Task 9/10 (`derive-view.spec.ts` "…in America/New_York" rows and the 23:59:59 / 00:00:00 boundary rows).
 2. **Carrier data with broken or unordered event times** (an empty `datetime`, a non-date string, events not sorted by time, a missing `location`): history, last event, worry dates and stale checks skip unparsable events and sort the rest; no view string ever contains `Invalid Date`, `NaN` or `undefined`. Owner: Task 10 ("broken event times never leak into the view").
-3. **Operator config typos** (a notice whose `endsAt` precedes `startsAt`, an `http://` or foreign-host link, a pasted real waybill in a notice, a token the renderer does not know, `staleDays` changed to 15): the build fails with one Korean line per problem that names the exact path. Owner: Task 6 (`config.spec.ts` invariant rows) and Task 7 ("`next build` stops on invalid config").
+3. **Operator config typos** (a notice whose `endsAt` precedes `startsAt`, an `http://` or foreign-host link, a pasted real waybill in a notice, a token the renderer does not know, `staleDays` changed to 15): the build fails with one Korean line per problem that names the exact path. Owner: Task 6 (`config.spec.ts` rows "notice limits, windows and ids", "links must be https on an allowed host", "copy with a real-looking number, an HBL token or AI wording fails", "stateGuide copy uses only the five tokens; other copy uses none or its fixed slots", "staleDays must equal the server's 14") and Task 7 (`config.spec.ts` "parseSiteConfig throws with one Korean line per problem" plus Step 7, which proves that `next build` stops on a broken `config/site.config.ts`).
 4. **Holiday data running out** (a December build without next year's 월력요항): business days silently lose holidays, so the build must warn with the missing year and the first affected date. Owner: Task 7 (`holidayCoverageWarnings` rows for a covered window, a window crossing into 2028, and an empty holiday list).
 5. **A customer pastes an edited inquiry message into 톡톡** (chat text around it, line breaks, full-width digits, the number followed by other words without the ' / ' separator): the CS side extracts the number only when the segment after '조회번호' is a clean identifier and otherwise returns `null` — never a wrong number. Owner: Task 8 (`inquiry-copy.spec.ts` paste rows).
 
@@ -115,7 +118,7 @@ Conditions the spec implies but no rule names; the pinning test is added to the 
 Everything below is additive; no §11 name is renamed or retyped. Each item goes into the stage summary as a contract deviation so the roadmap can be amended (§5 "Contract changes").
 
 1. **New module `lib/tracking/carriers.ts` (S03, pure, client-safe)** — carrier names and official tracking URLs without importing `lib/delivery-carriers.ts` (which imports zod and must not reach the initial bundle through `deriveLoadingView`): `export const CONCRETE_CARRIER_CODES: readonly ConcreteCarrierCode[]` (`["CJ","EPOST","HANJIN","LOTTE","LOGEN"]`), `export const CARRIER_NAMES: Readonly<Record<ConcreteCarrierCode, string>>`, `export function isConcreteCarrier(code: DeliveryCarrierCode): code is ConcreteCarrierCode`, `export function carrierOfficialUrl(code: DeliveryCarrierCode, invoiceNumber: string): string | null`, `export function carrierDisplayName(rawName: string | null | undefined, code: DeliveryCarrierCode): string | null` (never returns the internal '택배사 자동 확인'), `export function requestCarrierView(request: LookupRequest, unknownLabel: string): CarrierView`. Parity with `lib/delivery-carriers.ts` is tested in the new `tests/unit/carriers.spec.ts`. S06 should take carrier option names from here, not from `lib/delivery-carriers.ts`.
-2. **`SiteConfig.resultCopy: ResultCopyConfig`** (type in `lib/config/types.ts`, named export `resultCopy` in `config/site.config.ts`) — the stage-authored result copy the spec does not give per state: ETA labels ('도착 예상', '오늘 예상', '예상했던 날짜', '배송 완료일'), ETA texts, captions, carrier bar labels, issue labels ('멈춤' '끊김' '갈림'), station names, history summary templates, action labels ('번호 수정', '다시 조회', '{carrier} 공식 배송조회', '{carrier}에서 실시간 위치 보기', '기사님께 전화', '다시 볼 링크 복사', '받지 못하셨나요?'), the pending store intro, the NOT_FOUND caveat line, the carrier-cut line, the 429 reason, the overdue sentence and chip, the customs-check note, the choose-carrier sentence. Each field has a fixed slot list (`{date}`, `{n}`, `{time}`, `{seconds}`, `{carrier}`) checked by the schema.
+2. **`SiteConfig.resultCopy: ResultCopyConfig`** (type in `lib/config/types.ts`, named export `resultCopy` in `config/site.config.ts`) — the stage-authored result copy the spec does not give per state: ETA labels ('도착 예상', '오늘 예상', '예상했던 날짜', '배송 완료일'), ETA texts, captions, carrier bar labels, issue labels ('멈춤' '끊김' '갈림'), station names, history summary templates, action labels ('번호 수정', '다시 조회', '{carrier} 공식 배송조회', '{carrier}에서 실시간 위치 보기', '기사님께 전화', '다시 볼 링크 복사', '받지 못하셨나요?'), the pending store intro, the NOT_FOUND caveat line, the carrier-cut line, the 429 reason, the overdue sentence and chip, the customs-check note, the choose-carrier sentence. Each field has a fixed slot list (`{date}`, `{n}`, `{time}`, `{seconds}`, `{carrier}`) checked by the schema. The slot table `RESULT_COPY_SLOTS` (in `lib/config/invariants.ts`) is exported and is the single list of `resultCopy` keys: `ResultCopySchema` derives its keys from it. Later stages extend `ResultCopyConfig` by editing three places together — the interface in `lib/config/types.ts`, the `RESULT_COPY_SLOTS` entry, and the `resultCopy` value in `config/site.config.ts` — so no S03 test changes: S07 (its addition 6: `returnLinkCopied`, `returnLinkShared`, `returnLinkFallback`, `inquiryCopied`) and S08 (its addition 3: `recommendationsOpen`, `recommendationsClose`, `recommendationPriceChecked` with `{date}`, `showcaseTitle`, `footerNote`, `adSlotLabel`). S06 (its addition 3) adds `LookupConfig.copy.noscriptNotice` the same way through the type, the `LookupSchema` copy object in `lib/config/schema.ts` and the value (S03 keeps no slot table for `lookup.copy`; only `lookup.copy.elapsed` has a fixed `{seconds}` slot). File Map rows needed: `lib/config/types.ts` C S03, M S06, M S07, M S08; `lib/config/schema.ts` C S03, M S06; `lib/config/invariants.ts` C S03, M S07, M S08; `config/site.config.ts` C S03, M S06, M S07, M S08 (+ approval-10 `featuredProducts` values), M S10; `tests/unit/config.spec.ts` C S03, M S06, M S10.
 3. **`LookupConfig.copy` gains `carrierAuto: string`** ('택배사 자동 확인', the loading-only number-bar suffix) **and `typicalSummary: string`** ('보통 이렇게 걸려요', the summary of the typical-durations details that S06/S07 render from `durations.typical`).
 4. **`EtaView` `holidayAffected` gains `readonly holidayName: string`** (e.g. '추석 연휴'), so the CS reply can say '추석 연휴 영향으로 1~2일 늦어질 수 있습니다' without parsing the badge.
 5. **`EtaView` `today` uses `label: '오늘 예상'`** (answers S05 addition 9); `date` keeps the real date and `caption` stays the secondary line. When the estimate lies before today's KST date, `today` shows today's date.
@@ -123,11 +126,11 @@ Everything below is additive; no §11 name is renamed or retyped. Each item goes
 7. **`lib/tracking/loading-view.ts` adds `export function nextLoadingChangeMs(elapsedMs: number, config: LoadingConfig): number`** — the next elapsed time at which `deriveLoadingView` returns a different model (skeleton delay, stage bounds, spinner stop, then every `elapsedStepSeconds` after the very-long stage starts). S04's `useLookup` can schedule one timer with it. The elapsed text shows `veryLongStart + k × step` seconds (8, 13, 18 … with the defaults).
 8. **Worry-date bases, clarified** (contract §11.6 "Worry dates"): `customsArrived`/`customsWaiting` base = the earlier of the KST date of `estimatedCustomsClearanceDate` and (last customs event date + `stages.customs.max` days); `customsCleared`/`handedToCarrier`/`pickedUp` base = the later of the code-4 event date and the last delivery event date (fallbacks `estimatedCustomsClearanceDate`, then the last customs event); `inTransit` base = the earlier of the KST date of `estimatedDeliveryDate` and (last delivery event date + `stages.domestic.max` days). Reason: the normalizer moves past estimates to "today", so the contract's literal bases would move the worry date every day and overdue would never trigger; a pickup after a long customs wait would be overdue on arrival. With un-moved estimates the results equal the contract's (spec example 통관 완료 9/23 → 9/29 holds).
 9. **`guideKeyForData` also detects stale from `now`** (last valid event older than `durations.staleDays`, code ≠ 7), matching the server rule, so a result cached across days still switches to `stale`.
-10. **Error rows' `GuideRow.primaryAction` decides the recovery action** (`fixNumber` for invalidNumber/notFound, `retry` for temporaryDelay/offline/noResponse, `copyAndTalk` for serverError — the approval-3 proposal). The 톡톡 action is always the first link of the error CTA block. The approval-3 fallback ('톡톡 is the filled primary on every error screen') is a config-only change: set those rows' `primaryAction` to `"copyAndTalk"` — the owning stage (S04) must list `config/site.config.ts` as "M S04" in the File Map when it does so.
+10. **Error rows' `GuideRow.primaryAction` decides the recovery action** (`fixNumber` for invalidNumber/notFound, `retry` for temporaryDelay/offline/noResponse as in the spec §7 rows, `copyAndTalk` for serverError). The 톡톡 action is always the first link of the error CTA block. For `noResponse` the other recovery action is the secondary (`retry` row → [번호 수정] secondary; a `fixNumber` row → [다시 조회] secondary), so changing that one row is enough if the approval-3 decision names [번호 수정] for 응답 없음 (spec §16 item 3; Open Issue 6). A `copyAndTalk` row makes 톡톡 the filled primary and the recovery action a secondary (tested in Task 11). **The approval-3 fallback while approval 3 is pending is not a config edit:** S04 (`applyApprovalFallbacks` in `components/status-slot/status-view.ts`) and S07 (`applyResultApprovals` in `components/result/approvals.ts`) promote 톡톡 to the filled primary in the view layer, because a `copyAndTalk` row would replace the E2E-locked '톡톡으로 문의하기' error link with '문의 내용 복사하고 톡톡 열기' while approval 2 is pending, and S03's specs pin the shipped rows. `config/site.config.ts` keeps the rows above.
 11. **`lib/config/server.ts` adds `export function parseSiteConfig(value: unknown): SiteConfig`** (throws `Error` with `formatConfigIssues` lines; used by `getSiteConfig` and tests) and **`export const HOLIDAY_WINDOW_DAYS = 60`**. `getSiteConfig()` itself logs `holidayCoverageWarnings(config, new Date())` with `console.warn` once, on its first parse; `app/layout.tsx` only calls `getSiteConfig()`.
 12. **`formatConfigIssues` translates zod's built-in issue codes into Korean** (`invalid_type`, `invalid_enum_value`, `invalid_literal`, `unrecognized_keys`, `too_small`, `too_big`, `invalid_string`); the path of the whole object prints as `(설정 전체)`.
 13. **Config invariants beyond §11 "Config"** (all Korean, all in `lib/config/invariants.ts`): day counts in `stateGuide.notFound.worry` / `stateGuide.pending.worry` / `stateGuide.notFound.reason` must match `durations.worry.notFoundDays` / `pendingDays` / `stages.visibleAfterDeparture`; `overdueTitle` non-null exactly for `OVERDUE_CAPABLE_KEYS` whose `worry` contains `{worryDate}`; `docTitle` has no digits or tokens; tone `problem` only on error keys; customsArrived/customsWaiting/customsCleared have `primaryAction: "none"`; `loading` has no stores/recommendations/ads; stale/pending/delivered have ETA modes withheld/pendingInfo/deliveredOn; `lookup` timings increase; notices/featured/help/holiday ids unique; `help[].openIn ⊆ showIn`; a price needs `priceCheckedAt`; non-stateGuide copy has no `{…}` tokens except the fixed slots.
-14. **Private files (File Map additions, S03-owned, not imported by other stages):** `lib/config/invariants.ts` (superRefine rules), `lib/tracking/derive/{events,keys,worry,spine,eta,carrier-view,actions,history,next-action,success-view,failure-view,shared}.ts`. **Test files:** `tests/unit/carriers.spec.ts`, and the fixture module `tests/fixtures/derive-scenarios.ts` (explicit `normalizeTrackingData` inputs for the per-state rows; S04/S07/S09 may import it for their own tests).
+14. **Private files (File Map additions, S03-owned, not imported by other stages):** `lib/config/invariants.ts` (superRefine rules; the one exception is the exported `RESULT_COPY_SLOTS`, which S07 and S08 extend and import in their tests — addition 2), `lib/tracking/derive/{events,keys,worry,spine,eta,carrier-view,actions,history,next-action,success-view,failure-view,shared}.ts`. **Test files:** `tests/unit/carriers.spec.ts`, and the fixture module `tests/fixtures/derive-scenarios.ts` (explicit `normalizeTrackingData` inputs for the per-state rows; S04/S07/S09 may import it for their own tests).
 15. **`lib/cs/cs-templates.ts` adds `export const CS_PHRASES`** (the ETA, worry, overdue, notice, last-event and link sentences shared by all states).
 
 ## File Structure
@@ -188,7 +191,7 @@ Execution order: Task 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 �
   Expected: build exits 0. Start the production server in a background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`
   Wait until `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` prints `200`.
   Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='before'; $env:PW_STAGE='S03'; npx playwright test tests/tools/stage-screens.spec.ts`
-  Expected: PNGs in `test-results/stage-screens/S03-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
+  Expected: PNGs in `test-artifacts/stage-screens/S03-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
 - [ ] **Step 6: Baseline suite.** With the server still running: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test`
   Expected: record "N passed / M skipped / 0 failed" in the stage summary. Then stop the server (Step 4 command) and clear the flags: `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 - [ ] **Step 7 (stage-specific): S01 artifacts this stage imports exist.** Run:
@@ -1575,7 +1578,7 @@ git add lib/tracking/carriers.ts lib/tracking/notices.ts tests/unit/carriers.spe
 
 **Interfaces:**
 - Consumes: all config types (Task 1), `GUIDE_KEYS` (Task 1).
-- Produces: `config/site.config.ts` named exports `channels`, `disclosures`, `calendar`, `durations`, `lookup`, `stateGuide`, `glossary`, `help`, `featuredProducts`, `notices`, `ads`, `style`, `resultCopy`, `siteConfig` (each `satisfies` its type); `SiteConfigSchema: z.ZodType<SiteConfig, z.ZodTypeDef, unknown>`, `formatConfigIssues(error: z.ZodError): string` (`lib/config/schema.ts`); `RESULT_COPY_SLOTS: Readonly<Record<keyof ResultCopyConfig, readonly string[]>>` (`lib/config/invariants.ts`, private to S03); `FIXTURE_CONFIG: SiteConfig`, `withConfig(patch: DeepPartialConfig): SiteConfig`, `type DeepPartialConfig`, `FIXTURE_HOLIDAYS`, `FIXTURE_NOTICES`, `FIXTURE_FEATURED` (`tests/fixtures/config-fixtures.ts`).
+- Produces: `config/site.config.ts` named exports `channels`, `disclosures`, `calendar`, `durations`, `lookup`, `stateGuide`, `glossary`, `help`, `featuredProducts`, `notices`, `ads`, `style`, `resultCopy`, `siteConfig` (each `satisfies` its type); `SiteConfigSchema: z.ZodType<SiteConfig, z.ZodTypeDef, unknown>`, `formatConfigIssues(error: z.ZodError): string` (`lib/config/schema.ts`); `RESULT_COPY_SLOTS: Readonly<Record<keyof ResultCopyConfig, readonly string[]>>` (`lib/config/invariants.ts`; exported because S07 and S08 add their `ResultCopyConfig` fields here — contract addition 2); `FIXTURE_CONFIG: SiteConfig`, `withConfig(patch: DeepPartialConfig): SiteConfig`, `type DeepPartialConfig`, `FIXTURE_HOLIDAYS`, `FIXTURE_NOTICES`, `FIXTURE_FEATURED` (`tests/fixtures/config-fixtures.ts`).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1625,11 +1628,16 @@ test.describe("shipped config", () => {
     expect(stateGuide.invalidNumber.title).toBe("번호 형식이 달라요. 숫자 10~14자리 또는 영문 3~4자+숫자예요.");
   });
 
-  test("ETA labels and texts are the spec's", () => {
+  test("ETA labels and texts, journey station names and issue marks are the spec's", () => {
     expect([resultCopy.etaLabel, resultCopy.etaTodayLabel, resultCopy.etaOverdueLabel, resultCopy.etaDeliveredLabel])
       .toEqual(["도착 예상", "오늘 예상", "예상했던 날짜", "배송 완료일"]);
     expect(resultCopy.etaPendingText).toBe("정보 등록 후 안내");
     expect(resultCopy.etaWithheldText).toBe("지금은 도착 예상일을 안내하기 어려워요");
+    // S05's JourneySpine draws these names as literals (contract §11.11); history segment titles read them from here,
+    // so an edit here would make the two disagree. The spec fixes them; this row keeps both sources equal.
+    expect([resultCopy.stationDeparted, resultCopy.stationCustoms, resultCopy.stationDomestic, resultCopy.stationArrived])
+      .toEqual(["해외 출발", "입항·통관", "국내 배송", "도착"]);
+    expect([resultCopy.issueStopped, resultCopy.issueCut, resultCopy.issueBranch]).toEqual(["멈춤", "끊김", "갈림"]);
   });
 
   test("lookup copy is the spec's", () => {
@@ -1712,7 +1720,13 @@ test.describe("shipped config", () => {
   });
 
   test("featured products carry no unverified prices", () => {
-    expect(featuredProducts.filter((item) => item.priceLabel !== null)).toEqual([]);
+    // S03 ships store-home links and no prices. S08 Task 10 (approval 10) may add product-detail links with a price and its
+    // check time; a price on a store-home link or without a check time stays forbidden, so that follow-up needs no edit here.
+    const storeHomes = new Set<string>([...Object.values(channels.naver.urls), ...Object.values(channels.coupang.urls)]);
+    const unverified = featuredProducts.filter(
+      (item) => item.priceLabel !== null && (item.priceCheckedAt === null || storeHomes.has(item.href))
+    );
+    expect(unverified.map((item) => item.id)).toEqual([]);
   });
 });
 
@@ -5204,7 +5218,7 @@ git add lib/tracking/derive lib/tracking/derive-view.ts tests/unit/derive-view.s
 
 **Interfaces:**
 - Consumes: Task 10 helpers; `GAP3_06_VARIANTS`, `trackData`, `FixtureState` (S01 fixtures, contract §11.10); `classifyFailure` (Task 1); `withConfig` (Task 5).
-- Produces: the complete error view of contract §11.6/§11.8 — NOT_FOUND 7-day worry line and the pre-R4 caveat line (`lookup.notFoundServiceCaveat`), 429 countdown reason and `cooldownSeconds`, offline `autoRetryWhenOnline`, 2-failure escalation (`retry.escalated`, 톡톡 primary, `inquiryLevel` `primary`), the chosen carrier's official lookup on temporary delays, `inquiryCopy` for copy-and-talk; the approval-3 fallback as a pure config change (contract addition 10).
+- Produces: the complete error view of contract §11.6/§11.8 — NOT_FOUND 7-day worry line and the pre-R4 caveat line (`lookup.notFoundServiceCaveat`), 429 countdown reason and `cooldownSeconds`, offline `autoRetryWhenOnline`, 2-failure escalation (`retry.escalated`, 톡톡 primary, `inquiryLevel` `primary`), the chosen carrier's official lookup on temporary delays, `inquiryCopy` for copy-and-talk; `GuideRow.primaryAction` as the only switch for an error row's action order (`copyAndTalk` row → 톡톡 filled primary; `noResponse` `fixNumber` row → [다시 조회] secondary) — contract addition 10. The pending-approval-3 fallback itself is S04's/S07's view transform, not a config edit.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -5366,6 +5380,10 @@ test.describe("error views by cause", () => {
     expect(view.nextAction.secondary).toEqual([
       TALK_SECONDARY, { kind: "fixNumber", label: "번호 수정", weight: "secondary", href: null, external: false, cooldownSeconds: null }
     ]);
+    // Spec §16 item 3 names [번호 수정] for 응답 없음: a fixNumber row swaps the two recovery actions, never duplicates one.
+    const fixFirst = deriveTrackingView(failure("clientTimeout"), FIXTURE_NOW, withConfig({ stateGuide: { noResponse: { primaryAction: "fixNumber" } } }));
+    expect(fixFirst.nextAction.primary?.kind).toBe("fixNumber");
+    expect(fixFirst.nextAction.secondary).toEqual([TALK_SECONDARY, RETRY_SECONDARY]);
   });
 
   test("500 and contract violation: red tone, copy-and-talk primary with a screen-error inquiry text", () => {
@@ -5407,7 +5425,7 @@ test.describe("error views by cause", () => {
     expect(deriveTrackingView(failure("upstreamTimeout"), FIXTURE_NOW, CONFIG).notice).toBeNull();
   });
 
-  test("approval-3 fallback is a config change: 톡톡 becomes the filled primary, the recovery action a secondary", () => {
+  test("a copyAndTalk error row makes 톡톡 the filled primary and the recovery action a secondary", () => {
     const fallback = withConfig({ stateGuide: { notFound: { primaryAction: "copyAndTalk", inquiryLevel: "primary" } } });
     const view = deriveTrackingView(failure("notFound"), FIXTURE_NOW, fallback);
     expect(view.nextAction.primary).toEqual(COPY_AND_TALK);
@@ -5455,7 +5473,7 @@ test.describe("GAP3-06: 12 state variants and the 5 API error codes show 0 contr
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit/derive-view.spec.ts; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null`
-Expected: `8 failed, 54 passed` — failing: the two NOT_FOUND rows, 429, 503/504 with a carrier, offline, client timeout, escalation, approval-3 fallback (the basic error view has no cause-specific behavior yet). The GAP3-06 rows already pass; if one fails, its message names the state and the broken rule — fix `lib/tracking/derive/*` (never the S01 fixture or the rule).
+Expected: `8 failed, 54 passed` — failing: the two NOT_FOUND rows, 429, 503/504 with a carrier, offline, client timeout, escalation, the copyAndTalk-row test (the basic error view has no cause-specific behavior yet). The GAP3-06 rows already pass; if one fails, its message names the state and the broken rule — fix `lib/tracking/derive/*` (never the S01 fixture or the rule).
 
 - [ ] **Step 3: Write the cause-specific error view**
 
@@ -5519,7 +5537,8 @@ function extraSecondary(context: FailureContext): readonly ActionView[] {
         ? []
         : [carrierOfficialAction(config, carrier.name, carrier.officialUrl, "text", false)];
     case "noResponse":
-      return [fixNumberAction(config, "secondary")];
+      // The recovery action the row did not make primary (spec §7: retry first; §16 item 3 proposal: fixNumber first).
+      return [context.row.primaryAction === "fixNumber" ? retryAction(config, "secondary") : fixNumberAction(config, "secondary")];
     default:
       return [];
   }
@@ -6352,6 +6371,7 @@ git add tests/unit/module-boundaries.spec.ts; git commit -m "test: enforce clien
 **Files:**
 - Modify: `config/site.config.ts` (`durations.pendingRecheck`; `channels.naver.urls.pending` and `channels.coupang.urls.pending` only when the ledger gives new links; `channels.allowedHosts` only for a new host)
 - Modify: `tests/unit/config.spec.ts` (replace the test "the pending recheck sentence is the current one until approval 4"; add one test when new links are given)
+- Modify (only when this task runs after S04 is merged and before S07 deletes the file): `tests/tracking.spec.ts` (the pending recheck assertion reads `durations.pendingRecheck`), after a roadmap §10.4 amendment commit in `docs/superpowers/plans/2026-09-26-renewal-00-roadmap.md`
 
 **Interfaces:**
 - Consumes: the ledger row of approval 4 (roadmap §4) — the approved range (`N~M시간` or `N~M일`) and, optionally, two partner-dashboard link URLs for the `pending` placement.
@@ -6391,19 +6411,27 @@ Expected: the approval-4 test(s) fail (`Received: "정보 반영까지 시간이
 ```
 
   If the ledger gives new pending links, set `channels.naver.urls.pending` and `channels.coupang.urls.pending` to them (https only) and add any new host to `channels.allowedHosts`.
-  Then find tests outside `tests/unit/config.spec.ts` that pin the old sentence: `Get-ChildItem tests -Recurse -Include *.ts | Select-String -Pattern '2~3시간'`
-  Expected: only `tests/tracking.spec.ts` (the legacy E2E, whose component still hard-codes the old sentence until S04 retires it). If a file created by S04 or later pins the literal while its component reads `durations.pendingRecheck`, replace the literal with an import of `durations` from `@/config/site.config` and note the rule → assertion mapping in the stage summary.
+  Then find tests outside `tests/unit/config.spec.ts` that pin the old sentence, and the components that still hard-code it:
+  `Get-ChildItem tests -Recurse -Include *.ts | Select-String -Pattern '2~3시간'; Get-ChildItem components -Recurse -Include *.ts,*.tsx | Select-String -Pattern '2~3시간'`
+  Expected before S04 is merged: `tests/tracking.spec.ts` (test "pending state offers inquiry and purchase-channel choices") and `components/TrackingResultSummary.tsx` — the legacy component still hard-codes the sentence, so the test stays as it is. S04 Task 6 Step 5 (its approval-4 case) switches that literal to `durations.pendingRecheck` when S04 later re-points the file, so S03 never edits `tests/tracking.spec.ts` on this path.
+  Expected after S04 is merged (S04 deletes `components/TrackingResultSummary.tsx`; its status slot reads `durations.pendingRecheck`): only the `tests/tracking.spec.ts` line, and it now fails. `tests/tracking.spec.ts` is owned by S01/S04/S06/S07, so first amend roadmap §10.4 in its own commit (roadmap §5), adding "M S03 (approval 4 follow-up)" to the `tests/tracking.spec.ts` row (skip this commit if the row already reads "M S03 only for approval 4/9 follow-ups", as the phase-4 roadmap does):
+  `git add docs/superpowers/plans/2026-09-26-renewal-00-roadmap.md; git commit -m "docs: amend renewal contract — S03 Task 15 edits tests/tracking.spec.ts"`
+  Then in `tests/tracking.spec.ts` replace `summary.getByText("정보 반영까지 시간이 걸릴 수 있어 2~3시간 뒤 다시 확인해 주세요.")` with `summary.getByText(durations.pendingRecheck)` and add `import { durations } from "@/config/site.config";` below the file's last `import` line (skip the import if S04 already added it). Write the rule → assertion mapping into the stage summary: "pending recheck sentence → `durations.pendingRecheck`". After S07 (which deletes `tests/tracking.spec.ts`) there is no hit and nothing to change.
 
 - [ ] **Step 6: Run to verify it passes**
 
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; npm run typecheck; npm run build`
 Expected: 0 failed (the day-count invariants still hold — the pending worry line keeps '10일'); typecheck and build exit 0.
+If Step 5 edited `tests/tracking.spec.ts`, also run it (port 43210 free; Playwright starts the dev server): `npx playwright test tests/tracking.spec.ts --grep "pending state offers inquiry"`
+Expected: `1 passed`.
 
 - [ ] **Step 7: Commit**
 
 ```powershell
 git add config/site.config.ts tests/unit/config.spec.ts; git commit -m "feat: apply the approved pending recheck range (approval 4)"
 ```
+
+  If Step 5 edited `tests/tracking.spec.ts`, commit it separately: `git add tests/tracking.spec.ts; git commit -m "test: read the pending recheck sentence from the config (approval 4)"`
 
 ---
 
@@ -6412,6 +6440,7 @@ git add config/site.config.ts tests/unit/config.spec.ts; git commit -m "feat: ap
 **Files:**
 - Modify: `config/site.config.ts` (`disclosures.coupang` and its comment)
 - Modify: `tests/unit/config.spec.ts` (replace the test "the disclosure is the current wording until approval 9, then the approved wording")
+- Modify (only when this task runs after S04 is merged and before S07 deletes the file): `tests/tracking.spec.ts` (the two CTA disclosure assertions read `disclosures.coupang`), after a roadmap §10.4 amendment commit in `docs/superpowers/plans/2026-09-26-renewal-00-roadmap.md`
 
 **Interfaces:**
 - Consumes: the ledger row of approval 9 with the legal-reviewed wording (default proposal: '쿠팡 링크는 쿠팡 파트너스 활동의 일환으로, 구매 시 운영자가 수수료를 받습니다.').
@@ -6442,18 +6471,27 @@ export const disclosures = {
 ```
 
   Then list the places that still show the old wording: `Get-ChildItem components, app, tests -Recurse -Include *.ts,*.tsx | Select-String -Pattern '일정 수수료를 받을 수 있으며'`
-  Expected: only legacy files that hard-code it (`components/CustomerCta.tsx`, `components/StorefrontShowcase.tsx`, `components/RecommendedProducts.tsx`, `app/(public)/privacy/page.tsx`, `tests/tracking.spec.ts`) — they are replaced by S04/S06/S07/S08 (and the privacy text by S08), which read `disclosures.coupang`. Write this list into the stage summary; do not edit those files here.
+  Expected: only legacy files that hard-code it — `components/CustomerCta.tsx` (its legacy variants), `components/StorefrontShowcase.tsx` ('일부 링크로 구매하면…'), `components/RecommendedProducts.tsx` and `tests/tracking.spec.ts` — which S04/S06/S07/S08 replace with components that read `disclosures.coupang`. (The privacy page's own affiliate sentence '…일정 수수료를 받을 수 있습니다' does not match the pattern; it is legal text owned by S02/S08.) Write this list into the stage summary; do not edit those components here.
+  The docs copies are S05's: `design-system/components/customer-cta.html` quotes the old sentence today, and once S05 is merged `DESIGN.md` and `design-system/components/tracking-form.html` do too. S05's own approval-9 task (its Task 15 "Approved disclosure wording in the docs") replaces them after this task; do not edit them here.
+  Spec §16 item 9 also replaces the E2E disclosure literal once. That matters only when this task runs after S04 is merged and before S07 deletes `tests/tracking.spec.ts`: S04's view-driven `CustomerCta` then renders `disclosures.coupang`, so the two CTA assertions `cta.getByText("쿠팡 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.")` (tests "pending state offers inquiry and purchase-channel choices" and "delivered state leads with store choices") no longer match. In that case first amend roadmap §10.4 in its own commit, adding "M S03 (approval 9 follow-up)" to the `tests/tracking.spec.ts` row (skip this commit if the row already reads "M S03 only for approval 4/9 follow-ups", as the phase-4 roadmap does):
+  `git add docs/superpowers/plans/2026-09-26-renewal-00-roadmap.md; git commit -m "docs: amend renewal contract — S03 Task 16 edits tests/tracking.spec.ts"`
+  then replace both CTA literals with `cta.getByText(disclosures.coupang)` and add `import { disclosures } from "@/config/site.config";` below the last `import` line (or add `disclosures` to an existing import from `@/config/site.config`). Leave the `storefront.getByText("일부 링크로 구매하면…")` assertion: `StorefrontShowcase` still hard-codes that sentence until S08. Write the rule → assertion mapping into the stage summary: "affiliate disclosure in the CTA → `disclosures.coupang`".
+  When this task runs before S04 is merged, do not edit `tests/tracking.spec.ts`: the legacy CTA still hard-codes the old sentence, and S04 Task 6 Step 5 (its approval-9 case) replaces the two CTA literals with `disclosures.coupang` when S04 re-points the file. S03 edits that file only on the after-S04 path above.
 
 - [ ] **Step 5: Run to verify it passes**
 
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; npm run typecheck`
-Expected: 0 failed (derive-view rows compare against `CONFIG.disclosures.coupang`, so they follow the new value); typecheck exits 0.
+Expected: 0 failed (derive-view rows compare against `CONFIG.disclosures.coupang`, so they follow the new value); typecheck exits 0. Exception once S05 is merged (`Test-Path tests/unit/tokens.spec.ts` prints `True`): exactly 2 failures in `tests/unit/tokens.spec.ts` — "documents every primitive and the configured disclosure wording" and "store previews put the configured disclosure first" — because S05's docs still quote the old sentence. That is the hand-off to S05's approval-9 task (S05 Task 15, which checks that `config/site.config.ts` already carries the approved wording and then updates the docs); write "S05 Task 15 must run next" into the stage summary and give it to the operator. Any other failure is a real one.
+If `tests/tracking.spec.ts` still exists, run it (port 43210 free; Playwright starts the dev server): `npx playwright test tests/tracking.spec.ts`
+Expected: 0 failed. A failure that quotes the old CTA disclosure sentence means Step 4's E2E replacement was needed and not done.
 
 - [ ] **Step 6: Commit**
 
 ```powershell
 git add config/site.config.ts tests/unit/config.spec.ts; git commit -m "feat: switch to the definitive affiliate disclosure (approval 9)"
 ```
+
+  If Step 4 edited `tests/tracking.spec.ts`, commit it separately: `git add tests/tracking.spec.ts; git commit -m "test: read the affiliate disclosure from the config (approval 9)"`
 
 ---
 
@@ -6587,6 +6625,9 @@ In `DEPLOYMENT.md`, section '공휴일 넣기(매년 6월 말)', append the sent
 
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/unit; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; npm run typecheck; npm run lint; npm run build`
 Expected: 0 failed (all earlier rows use `FIXTURE_CONFIG` with `shiftEstimates: false`, so their dates are unchanged; the GAP3-06 table still reports 0 contradictions); typecheck, lint and build exit 0.
+When this task runs as a follow-up after S04 or a later stage is merged, the shipped config now moves displayed estimates on those stages' pages, so also run the browser suite (port 43210 free; Playwright starts the dev server): `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npm run test:e2e`
+Expected: 0 failed. A failure that pins a displayed estimate date the shift now moves belongs to the stage that owns that spec file: do not edit it here; stop, record the file, test name and old/new date in the stage summary as a rule → assertion item for that stage (roadmap §5, §8), commit this task (Step 7) on the stage branch, and do not hand it over for merge until that stage's fix is in.
+When this task runs before S04 is merged, the legacy page does not read the derived estimate, so `tests/tracking.spec.ts` still passes and is not edited here: S04 Task 6 Step 5 (its approval-8 case) replaces the '7월 17일' estimate literal with the shifted date when S04 re-points the file.
 
 - [ ] **Step 7: Commit**
 
@@ -6604,7 +6645,7 @@ git add lib/config/types.ts lib/config/schema.ts config/site.config.ts lib/track
 - [ ] **G4. Build.** `npm run build` → exit 0. Route table: `ƒ /[trackingNumber]` always; `/` is `ƒ` in S01 (it still reads `searchParams`), `○ /` from S02 on, and `○ /` with `Revalidate 5m` from S06 on.
 - [ ] **G5. Dev-mode E2E.** `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npm run test:e2e` → "N passed", 0 failed (skips allowed only for tests guarded by `PW_MODE`, `PW_SHOTS`, `PW_VISUAL`, or an approval-gated `test.skip` naming the approval).
 - [ ] **G6. Production-mode E2E.** Re-run `npm run build` if `next start` reports a missing or stale build. Background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`; wait for `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` = `200`; then `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test` → 0 failed, including `tests/budgets/*`.
-- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S03'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-results/stage-screens/S03-after/` at 320, 375, 768, 1024, 1440. Compare with `S03-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
+- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S03'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-artifacts/stage-screens/S03-after/` at 320, 375, 768, 1024, 1440. Compare with `S03-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 - [ ] **G8. Budgets.** Paste the measured numbers of every budget this plan lists (from the G6 output) into the stage summary. Any budget over its fail line fails the gate.
 - [ ] **G9. Code review.** Invoke the `code-review` skill on `git diff claude/tipoasis-tracking-renewal-ae0e3a...HEAD`. Fix every CRITICAL and HIGH finding; if code changed, re-run G2–G6.
 - [ ] **G10. Verification.** Invoke `superpowers:verification-before-completion`; paste each command and its result line into the stage summary.
@@ -6617,11 +6658,12 @@ S03 checks for G8 (roadmap §9 "Table tests; config invariants; module boundarie
 
 ## Open Issues for the Operator and Later Stages
 
-1. **Approval 2 fallback (S04).** While approval 2 is pending, the roadmap asks S04 to keep the strings the current E2E asserts. Several of them are the legacy components' own sentences, not spec §7 copy: customs-waiting h2 '통관대기', '정상 통관 대기 상태입니다. 지금은 별도 문의 없이 조금만 기다려 주세요.', '배송 중입니다. 문자로 안내된 배송 예정 시간을 확인해 주세요.', '배송이 완료됐습니다. 상품 상태를 확인해 주세요.', stale '배송 이력 확인 필요' / '마지막 처리 이후 오래 지났습니다', error CTA '조회가 잘되지 않나요?' (kept), ETA label '배송 완료 예상일'. S03 ships the spec §7 copy. If S04 must render the legacy strings, it changes `stateGuide`/`resultCopy` values through a task that edits `config/site.config.ts` and its tests (roadmap §8), and the File Map needs "M S04" for that file.
-2. **Approval 3 fallback (S04/S07).** Contract addition 10: the fallback is the config change "error rows' `primaryAction` → `copyAndTalk`" (tested in Task 11). The owning stage needs "M S04" (or S07) on `config/site.config.ts` in the File Map.
-3. **Featured products point at store homes.** `featuredProducts[].href` are the store-home links until the operator supplies product-detail URLs; their validity ends at `2027-03-31T23:59:59+09:00`, after which the recommendation block disappears. S08 E2E that needs recommendations should use the page clock or its own fixture items.
+1. **Approval 2 fallback (S04).** While approval 2 is pending, the roadmap asks S04 to keep the strings the current E2E asserts. Several of them are the legacy components' own sentences, not spec §7 copy: customs-waiting h2 '통관대기', '정상 통관 대기 상태입니다. 지금은 별도 문의 없이 조금만 기다려 주세요.', '배송 중입니다. 문자로 안내된 배송 예정 시간을 확인해 주세요.', '배송이 완료됐습니다. 상품 상태를 확인해 주세요.', stale '배송 이력 확인 필요' / '마지막 처리 이후 오래 지났습니다', error CTA '조회가 잘되지 않나요?' (kept), ETA label '배송 완료 예상일'. S03 ships the spec §7 copy. S04 renders the legacy strings through a wording overlay in its transitional slot (`LEGACY_RESULT_COPY` in `components/status-slot/status-view.ts`, S04 contract deviation 2), so `config/site.config.ts` is not edited for approval 2 and the internal CS reply keeps the spec copy. The overlay disappears with `components/status-slot/` in S07.
+2. **Approval 3 fallback (S04/S07).** While approval 3 is pending, S04 (`applyApprovalFallbacks`) and S07 (`applyResultApprovals`) promote 톡톡 to the filled primary in the view layer (contract addition 10). `config/site.config.ts` keeps the §7 error rows; no "M S04" or "M S07" is needed on it for this fallback.
+3. **Featured products point at store homes.** `featuredProducts[].href` are the store-home links until the operator supplies product-detail URLs; their validity ends at `2027-03-31T23:59:59+09:00`, after which the recommendation block disappears. S08 E2E that needs recommendations should use the page clock or its own fixture items. S08 Task 10 (approval 10) replaces the hrefs with product-detail links and may add prices; the Task 5 test "featured products carry no unverified prices" accepts a price only with `priceCheckedAt` on a link that is not a configured store home, so that follow-up does not edit S03's tests.
 4. **S01 fixture assumptions.** The GAP3-06 rows assume the 12 `GAP3_06_VARIANTS` map to the keys in `GAP3_06_KEYS` (Task 11). If S01's `trackData` builds a variant differently (e.g. `customsCleared` already overdue at `FIXTURE_NOW`), the key test still holds and the contradiction rules are written to hold for overdue views; a genuine mismatch is a contract question for S01, not a reason to weaken the rules.
 5. **Holiday data upkeep.** 2028 holidays must be added after the 2028 월력요항 (late June 2027); from 2027-11-03 (when the 60-day window first reaches 2028) the build prints the `[site.config]` warning until they are added.
+6. **응답 없음: spec §7 and §16 item 3 disagree (S04 and S07 report it too).** §7's 'error · 응답 없음' row makes [다시 조회] the primary and [번호 수정] the secondary; §16 item 3's proposal lists 응답 없음 with [번호 수정]. S03 ships §7 (`stateGuide.noResponse.primaryAction: "retry"`). If the operator's approval-3 decision names [번호 수정], a follow-up task changes that one value to `"fixNumber"` and the Task 11 "client timeout" expectations (primary `fixNumber`, secondary [톡톡, 다시 조회] — the `fixFirst` rows already pin that order); no derive code changes.
 
 ---
 
@@ -6630,5 +6672,5 @@ S03 checks for G8 (roadmap §9 "Table tests; config invariants; module boundarie
 - **Spec coverage.** §5 time axis and causes → Tasks 1, 12 (0.4/3/8 s stages, cancel, elapsed steps, carrier-first link, spinner stop, outage-only notices), 11 (429 countdown, offline auto re-lookup, 2-failure escalation, timeout wording without '번호 문제는 아니에요', 500/contract copy-and-talk, no server raw message). §6 order/number bar/spine/tones/ETA/지금 할 일/overdue/상세 → Tasks 3, 9, 10 (spine codes and marks, ETA kinds and holiday badge, worry lines, overdue at KST midnight, last event with the original term, history segments and summary). §7 per-state rows → Task 5 `stateGuide` (19 rows) + Tasks 10–11 (each state's actions, stores, recommendations, ads). §8 placement → Task 6 invariants + `RevenueView` in Task 10. §9 config, notices, holidays, build validation and 60-day warning → Tasks 4, 5, 6, 7 (+ DEPLOYMENT.md, §17 Q3). §10 CS replies, new NOT_FOUND/ambiguous/lookupUnavailable/error templates, customer link, cs notices, no internal labels or follow-up promises, inquiry-copy round trip → Tasks 8, 13. §14 pure modules and test contract items 4 (table tests with the TZ row and 3 overdue rows) → Tasks 9–11, 14. §16 items 4, 8, 9 → Tasks 15, 17, 16 with the "거절하면" fallbacks. §17 Q1/Q3 defaults → Task 5 `durations`, `calendar`, Korean comments; Task 7 guide.
 - **Placeholder scan.** Every code step contains complete code. The only operator-supplied values are the approval-4 range and optional pending links (Task 15, validated by a format test and the host invariant) and a legal-reviewed disclosure text if it differs from the proposal (Task 16).
 - **Type consistency.** Contract names are used as written in §11.6–§11.8; additions are listed once. `DataGuideKey`/`CodeGuideKey`/`ErrorKey` are private narrowings of `GuideKey`. `fillSlots` is used for non-stateGuide slots everywhere, `fillCopy` for stateGuide rows. `requestCarrierView` serves both loading (`lookup.copy.carrierAuto`) and errors (`resultCopy.carrierUnknown`). Test counts: 22, 14, 4, 5, 5, 5, 7, 43, 7, 62, 10, 7, 6.
-- **Review Focus.** Line 1 → Task 2 NY describe, Task 9 NY describe and boundary rows, Task 10 whole-view equality in New York. Line 2 → Task 10 "broken event times never leak into the view". Line 3 → Task 6 invariant rows, Task 7 Step 7 build failure. Line 4 → Task 7 holiday coverage rows. Line 5 → Task 8 paste rows.
+- **Review Focus.** Line 1 → Task 2 NY describe, Task 9 NY describe and boundary rows, Task 10 whole-view equality in New York. Line 2 → Task 10 "broken event times never leak into the view". Line 3 → Task 6 invariant rows, Task 7 "parseSiteConfig throws with one Korean line per problem" and the Step 7 build failure. Line 4 → Task 7 holiday coverage rows. Line 5 → Task 8 paste rows.
 
