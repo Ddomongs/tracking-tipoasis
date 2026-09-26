@@ -64,6 +64,14 @@ test("records older than 14 days are dropped at the boundary", () => {
   expect(parsed.needsRewrite).toBe(true);
 });
 
+test("a record dated more than a day in the future is dropped, so a wrong clock cannot keep it forever", () => {
+  const skewed = record("skewed", new Date(NOW + 60 * 60 * 1000).toISOString());
+  const future = record("future", new Date(NOW + 2 * DAY_MS).toISOString());
+  const parsed = parseMismatchPayload(serializeMismatchPayload([skewed, future]), NOW);
+  expect(parsed.records.map((item) => item.id)).toEqual(["skewed"]);
+  expect(parsed.needsRewrite).toBe(true);
+});
+
 test("garbage, foreign versions and non-objects give an empty list", () => {
   for (const raw of ["not json", '{"v":2,"records":[]}', "null", "42", '{"records":[]}']) {
     expect(parseMismatchPayload(raw, NOW), raw).toEqual({ records: [], needsRewrite: true });

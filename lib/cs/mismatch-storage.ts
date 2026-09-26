@@ -64,7 +64,13 @@ function candidateRecords(value: unknown): readonly unknown[] {
   return payload.success ? payload.data.records : [];
 }
 
-const isFresh = (record: MismatchRecord, now: number): boolean => now - Date.parse(record.createdAt) <= TTL_MS;
+/** Clock skew tolerated for createdAt; anything later came from a wrong clock or a hand edit and would never expire. */
+const FUTURE_TOLERANCE_MS = DAY_MS;
+
+const isFresh = (record: MismatchRecord, now: number): boolean => {
+  const age = now - Date.parse(record.createdAt);
+  return age <= TTL_MS && age >= -FUTURE_TOLERANCE_MS;
+};
 
 export function parseMismatchPayload(raw: string | null, now: number): ParsedMismatchPayload {
   if (raw === null) return { records: EMPTY_RECORDS, needsRewrite: false };
