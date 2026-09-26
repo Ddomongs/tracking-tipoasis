@@ -94,7 +94,8 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
         <section id="tracking" data-ad-exclude="true" className="scroll-mt-24 pb-9 pt-4 sm:pb-14 sm:pt-10">
           <motion.div
             className="grid gap-10 lg:grid-cols-12 lg:items-center lg:gap-8"
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
+            // No enter animation for the lookup hero: the server HTML must paint it (spec §12, PERF-02).
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: prefersReducedMotion ? 0 : 0.35 }}
           >
