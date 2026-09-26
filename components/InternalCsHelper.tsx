@@ -24,6 +24,8 @@ import {
   type CustomsMismatchTemplateKey
 } from "@/lib/services/cs-reply-template";
 import {
+  MISMATCH_TTL_DAYS,
+  clearAllStoredRecords,
   createRecordId,
   getServerStoredRecordsSnapshot,
   getStoredRecordsSnapshot,
@@ -31,12 +33,13 @@ import {
   subscribeStoredRecords,
   writeStoredRecords,
   type MismatchRecord
-} from "@/lib/services/cs-mismatch-storage";
+} from "@/lib/cs/mismatch-storage";
 import { ApiTrackResponseSchema } from "@/lib/schemas";
 
 type ActiveTab = "delivery" | "mismatch";
 
 const CustomsMismatchTemplateKeySchema = z.enum(["default", "recipient", "hold"]);
+const STORAGE_REFUSED_MESSAGE = "이 브라우저에서는 목록을 저장할 수 없어요. 내용 복사 버튼으로 옮겨 주세요.";
 
 const copyText = async (text: string): Promise<boolean> => {
   if (!navigator.clipboard?.writeText) return false;
@@ -122,6 +125,16 @@ export const InternalCsHelper = () => {
     }
   };
 
+  const saveRecords = (next: readonly MismatchRecord[]): boolean => {
+    try {
+      writeStoredRecords(next);
+      return true;
+    } catch {
+      setError(STORAGE_REFUSED_MESSAGE);
+      return false;
+    }
+  };
+
   const handleSaveMismatch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -141,14 +154,19 @@ export const InternalCsHelper = () => {
       templateKey,
       createdAt: new Date().toISOString()
     };
-    writeStoredRecords([record, ...records]);
+    if (!saveRecords([record, ...records])) return;
     setMismatchPhone("");
     setTrackingMemo("");
     setError("");
   };
 
   const handleDeleteRecord = (id: string) => {
-    writeStoredRecords(records.filter((record) => record.id !== id));
+    saveRecords(records.filter((record) => record.id !== id));
+  };
+
+  const handleClearAll = () => {
+    if (!window.confirm("저장된 통관부호 불일치 안내를 모두 삭제할까요?")) return;
+    clearAllStoredRecords();
   };
 
   return (
@@ -352,8 +370,23 @@ export const InternalCsHelper = () => {
               <div>
                 <h2 className="text-sm font-semibold text-slate-100">불일치 안내 목록</h2>
                 <p className="mt-1 text-xs text-slate-400">{sortedRecords.length}건 저장됨</p>
+                <p className="mt-1 break-keep text-xs text-slate-400">
+                  이 브라우저에만 {MISMATCH_TTL_DAYS}일 동안 보관하고, 지나면 자동으로 지워요.
+                </p>
               </div>
-              <MessageSquareText className="h-5 w-5 text-amber-200" aria-hidden="true" />
+              <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleClearAll}
+                  disabled={sortedRecords.length === 0}
+                  className="h-9 gap-2 px-3"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  전체 삭제
+                </Button>
+                <MessageSquareText className="h-5 w-5 text-amber-200" aria-hidden="true" />
+              </div>
             </div>
 
             <div className="space-y-3">
