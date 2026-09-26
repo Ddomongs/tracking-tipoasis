@@ -39,5 +39,27 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: E2E smoke
+      - name: Start production server
+        env:
+          INTERNAL_ACCESS_PASSWORD: playwright-internal-access
+        run: |
+          nohup npx next start --port 43210 --hostname 127.0.0.1 > next-start.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail --output /dev/null http://127.0.0.1:43210/; then
+              echo "next start answered after ${attempt} s"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat next-start.log
+          exit 1
+
+      - name: E2E on the production build
+        env:
+          PLAYWRIGHT_SKIP_WEB_SERVER: "1"
+          PW_MODE: production
         run: npm run test:e2e
+
+      - name: Server log on failure
+        if: failure()
+        run: cat next-start.log || true
