@@ -1,18 +1,13 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { IBM_Plex_Sans_KR, Space_Grotesk } from "next/font/google";
+import { IBM_Plex_Sans_KR } from "next/font/google";
 import "./globals.css";
 
 const bodyFont = IBM_Plex_Sans_KR({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-body"
-});
-
-const displayFont = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-display"
+  weight: ["400", "700"],
+  variable: "--font-body",
+  preload: false
 });
 
 export const metadata: Metadata = {
@@ -39,7 +34,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body className={`${bodyFont.variable} ${displayFont.variable} google-anno-skip antialiased`}>
+      <body className={`${bodyFont.variable} google-anno-skip antialiased`}>
         <Script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7351210358018620"
