@@ -154,9 +154,10 @@ Reported to the roadmap owner; nothing here renames or changes a §11 name or si
 
 1. **Stage-screen output path.** Playwright empties its output directory (`test-results/`) at the start of every run ("This directory is cleaned at the start", `TestProject.outputDir`), so before-screens written to `test-results/stage-screens/` in Task 0 would be deleted by Task 0 Step 6 and by every later run. `tests/tools/stage-screens.spec.ts` therefore writes to `test-artifacts/stage-screens/<PW_STAGE>-<PW_SHOTS>/<scenario>-<width>.png` (git- and vercel-ignored). Wherever the verbatim Task 0 Step 5 or gate G7 text says `test-results/stage-screens/…`, read `test-artifacts/stage-screens/…`. Proposed amendment: replace the path in roadmap §6 Step 5 and §7 G7.
 2. **`findDisallowedDigitRuns` details.** It returns the raw matched substrings (separators kept, in document order), and it skips a match whose raw text is an ISO date plus one space plus a two-digit hour (`YYYY-MM-DD HH`, which is what `DIGIT_RUN_PATTERN` takes from `2026-09-26 14:05`). `isAllowedDigitRun` is exactly as in §11.4.
-3. **S01-private exports** (used only by S01's own tests; not for other stages): `parseMismatchPayload(raw: string | null, now: number): ParsedMismatchPayload`, `serializeMismatchPayload(records: readonly MismatchRecord[]): string` and `interface ParsedMismatchPayload` in `lib/cs/mismatch-storage.ts`; `ALL_ROUTES_SOURCE` and `INTERNAL_ROUTES_SOURCE` in `lib/security/headers.ts`.
+3. **S01-private exports** (used only inside their own module and by S01's unit specs `tests/unit/mismatch-storage.spec.ts` and `tests/unit/security-headers.spec.ts`; a later stage that modifies the owning module or spec — S09 for `lib/cs/mismatch-storage.ts` and its spec, S11 for `lib/security/headers.ts` and its spec — may keep using them there; no other module imports them): `parseMismatchPayload(raw: string | null, now: number): ParsedMismatchPayload`, `serializeMismatchPayload(records: readonly MismatchRecord[]): string` and `interface ParsedMismatchPayload` in `lib/cs/mismatch-storage.ts`; `ALL_ROUTES_SOURCE` and `INTERNAL_ROUTES_SOURCE` in `lib/security/headers.ts`.
 4. **Test files not in File Map §10.4:** `tests/unit/tracking-fixtures.spec.ts`, `tests/unit/site.spec.ts`, `tests/unit/ci-workflow.spec.ts` (all S01). Files not in §10: `.gitignore`, `.vercelignore` (S01, one line each).
 5. **Cross-stage note for `tests/e2e/internal-isolation.spec.ts`:** its control test "public pages still load the AdSense loader" asserts one `script[src*="adsbygoogle.js"]` on `/`. S02's `AdLoader` keeps that true for the home entry; if approval 7 moves the home loader behind a result or a scroll (S08 `afterAllowedResult`), S08 must adapt that one test (File Map row should read "C S01, M S08").
+6. **`lib/site.ts` shape.** `ADSENSE_PUBLISHER_DIGITS` is declared first and `ADSENSE_CLIENT_ID` / `ADSENSE_LOADER_URL` are template literals built from it, so the 16 digits are written once. The values are exactly the §11.3 values (pinned by `tests/unit/site.spec.ts`); `ADSENSE_CLIENT_ID` is typed `string` rather than the string-literal type, which no consumer relies on.
 
 ## Conventions for this plan
 
@@ -180,14 +181,14 @@ Reported to the roadmap owner; nothing here renames or changes a §11 name or si
   Expected: build exits 0. Start the production server in a background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`
   Wait until `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` prints `200`.
   Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='before'; $env:PW_STAGE='S01'; npx playwright test tests/tools/stage-screens.spec.ts`
-  Expected: PNGs in `test-results/stage-screens/S01-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
+  Expected: PNGs in `test-artifacts/stage-screens/S01-before/` for widths 320, 375, 768, 1024, 1440. (S01 creates the tool first; S01 runs this step after its Task 1.)
 - [ ] **Step 6: Baseline suite.** With the server still running: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test`
   Expected: record "N passed / M skipped / 0 failed" in the stage summary. Then stop the server (Step 4 command) and clear the flags: `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 
 **S01 notes on the standard steps above**
 - Step 1: the "Gated by" list is approval 11 only. Its fallback is part of Task 12.
 - Step 2: S01 depends on nothing. Expected: the log shows `e079461 docs: add renewal roadmap, shared contract and R4 server-path plan` (or a later commit); no `merge: SNN …` commit is required.
-- Step 5: `tests/tools/stage-screens.spec.ts` does not exist yet. Do Step 5's build now (it doubles as the baseline build), skip its screenshot command, and run the screenshot command at the end of Task 1 (Task 1 Step 8). The PNGs land in `test-artifacts/stage-screens/S01-before/`, not `test-results/…` (Additions to the contract, item 1).
+- Step 5: `tests/tools/stage-screens.spec.ts` does not exist yet. Do Step 5's build now (it doubles as the baseline build), skip its screenshot command, and run the screenshot command at the end of Task 1 (Task 1 Step 8). The PNGs land in `test-artifacts/stage-screens/S01-before/`, not `test-results/…` (Additions to the contract, item 1). Step 5 above and gate G7 already carry this path; they are otherwise verbatim copies of roadmap §6/§7, whose text still says `test-results/…` until the roadmap owner applies the proposed amendment.
 - Step 6: record the baseline count; before S01 the suite has only the top-level `tests/*.spec.ts` files.
 
 - [ ] **Step 7 (S01): Check for a hotfix that already removed the real example numbers.** Run (PowerShell):
@@ -857,7 +858,7 @@ Expected: exit 0.
 Run: `git add tests/fixtures/tracking-fixtures.ts tests/support/prod-mode.ts tests/tools/stage-screens.spec.ts tests/unit/tracking-fixtures.spec.ts .gitignore .vercelignore; git commit -m "test: add shared tracking fixtures, production flag and stage-screens tool"`
 Expected: one commit with 6 files.
 
-The production build from Task 0 Step 5 is still current (Task 1 changed tests only). Background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`; wait until `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` prints `200`.
+The production build from Task 0 Step 5 is still current (Task 1 changed tests only) — unless Task 0 Step 7 merged `origin/main`; in that case run `npm run build` first (expected: exit 0). Background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`; wait until `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` prints `200`.
 Run: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='before'; $env:PW_STAGE='S01'; npx playwright test tests/tools/stage-screens.spec.ts`
 Expected: `35 passed`; `(Get-ChildItem test-artifacts/stage-screens/S01-before -Filter *.png).Count` prints `35`. Open `home-375.png`: the two example buttons and the old help line are covered by mask boxes.
 Stop the server: `Get-NetTCPConnection -LocalPort 43210 | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }`; clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
@@ -2924,7 +2925,7 @@ Run: `git add app/robots.ts app/sitemap.ts app/not-found.tsx tests/e2e/seo-route
 ### Task 11: CI runs E2E against the production build
 
 **Files:**
-- Modify: `.github/workflows/ci.yml` (replace the last step, lines 44–45 `E2E smoke`, with three steps)
+- Modify: `.github/workflows/ci.yml` (replace the last step, lines 42–43 `E2E smoke`, with three steps; the file has 43 lines)
 - Test: `tests/unit/ci-workflow.spec.ts`
 
 **Interfaces:**
@@ -2981,7 +2982,7 @@ Expected: `2 failed` — `expect(received).toBeGreaterThan(expected)` with `Rece
 
 - [ ] **Step 3: Replace the E2E step**
 
-In `.github/workflows/ci.yml`, replace the last step (lines 44–45):
+In `.github/workflows/ci.yml`, replace the last step (lines 42–43, directly after the `Build` step on lines 39–40):
 
 ```yaml
       - name: E2E smoke
@@ -3109,14 +3110,17 @@ Expected: `distinct runs to replace: N -> test-artifacts/history-rewrite/replace
 Give the operator these PowerShell commands and the warnings below; wait for the operator to report the result.
 
 ```powershell
+# 0. Start in the worktree root (the folder that holds package.json) and keep the replacement file's full path
+$replacements = Join-Path (Get-Location).Path 'test-artifacts\history-rewrite\replacements.txt'
+Test-Path -LiteralPath $replacements   # must print True
 # 1. Tool (a local Python tool; install only if you accept it)
 pip install git-filter-repo
-# 2. Fresh mirror next to the worktree, rewritten with the replacement file
+# 2. Fresh mirror under %TEMP%, rewritten with the replacement file
 git clone --mirror https://github.com/Ddomongs/tracking-tipoasis.git "$env:TEMP\tracking-tipoasis-rewrite.git"
 Set-Location "$env:TEMP\tracking-tipoasis-rewrite.git"
-git filter-repo --replace-text "<worktree>\test-artifacts\history-rewrite\replacements.txt"
+git filter-repo --replace-text $replacements
 # 3. Verify: prints 0
-$patterns = Get-Content "<worktree>\test-artifacts\history-rewrite\replacements.txt" | ForEach-Object { $_.Split('=')[0] } | Where-Object { $_ }
+$patterns = Get-Content -LiteralPath $replacements | ForEach-Object { $_.Split('=')[0] } | Where-Object { $_ }
 (git log --all -p | Select-String -SimpleMatch -Pattern $patterns | Measure-Object).Count
 # 4. Publish (rewrites main: Vercel redeploys the same code)
 git remote add origin https://github.com/Ddomongs/tracking-tipoasis.git
@@ -3140,7 +3144,7 @@ Write into the stage summary: approval 11 status, N (count only), the operator's
 - [ ] **G4. Build.** `npm run build` → exit 0. Route table: `ƒ /[trackingNumber]` always; `/` is `ƒ` in S01 (it still reads `searchParams`), `○ /` from S02 on, and `○ /` with `Revalidate 5m` from S06 on.
 - [ ] **G5. Dev-mode E2E.** `$env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null; npm run test:e2e` → "N passed", 0 failed (skips allowed only for tests guarded by `PW_MODE`, `PW_SHOTS`, `PW_VISUAL`, or an approval-gated `test.skip` naming the approval).
 - [ ] **G6. Production-mode E2E.** Re-run `npm run build` if `next start` reports a missing or stale build. Background PowerShell: `$env:INTERNAL_ACCESS_PASSWORD='playwright-internal-access'; npx next start --port 43210 --hostname 127.0.0.1`; wait for `(Invoke-WebRequest http://127.0.0.1:43210/ -UseBasicParsing).StatusCode` = `200`; then `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; npx playwright test` → 0 failed, including `tests/budgets/*`.
-- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S01'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-results/stage-screens/S01-after/` at 320, 375, 768, 1024, 1440. Compare with `S01-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
+- [ ] **G7. After-screens.** Server still running: `$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; $env:PW_MODE='production'; $env:PW_SHOTS='after'; $env:PW_STAGE='S01'; npx playwright test tests/tools/stage-screens.spec.ts` → PNGs in `test-artifacts/stage-screens/S01-after/` at 320, 375, 768, 1024, 1440. Compare with `S01-before/`; send both sets to the operator with SendUserFile. Stop the server (G1 command) and clear the flags: `$env:PW_SHOTS=$null; $env:PW_STAGE=$null; $env:PLAYWRIGHT_SKIP_WEB_SERVER=$null; $env:PW_MODE=$null`.
 - [ ] **G8. Budgets.** Paste the measured numbers of every budget this plan lists (from the G6 output) into the stage summary. Any budget over its fail line fails the gate.
 - [ ] **G9. Code review.** Invoke the `code-review` skill on `git diff claude/tipoasis-tracking-renewal-ae0e3a...HEAD`. Fix every CRITICAL and HIGH finding; if code changed, re-run G2–G6.
 - [ ] **G10. Verification.** Invoke `superpowers:verification-before-completion`; paste each command and its result line into the stage summary.
@@ -3151,10 +3155,10 @@ Write into the stage summary: approval 11 status, N (count only), the operator's
 - G4: the S01 route table is `ƒ /` (it still reads `searchParams`; S02 makes it static), `ƒ /[trackingNumber]`, `○ /privacy`, `○ /internal/cs-helper`, `○ /robots.txt`, `○ /sitemap.xml`, `○ /_not-found`, `○ /icon.svg`, `ƒ /api/track` (plus `ƒ Proxy (Middleware)`). A scratch build of this plan's code produced exactly this table.
 - G5 (dev mode) expected totals: 101 passed, 41 skipped (35 stage-screens, 5 budgets, 1 production-only cache test). Per file: tracking 16, privacy 2, customs-estimate 6, delivery-carriers 14, internal-cs-helper 5, internal-access 4, track-api 6, unit tracking-fixtures 8, site 2, real-number-guard 9, mismatch-storage 8, security-headers 7, ci-workflow 2, e2e internal-isolation 3, security-headers 6, seo-routes 3.
 - G6 (production) expected totals: 107 passed, 35 skipped (stage-screens only).
-- G7: the PNGs are in `test-artifacts/stage-screens/S01-after/` (Additions to the contract, item 1): 35 files. Send `home-375.png` and `home-1440.png` from both folders first — the before-shots show mask boxes where the example buttons were; the after-shots show the format hint and the hero without a fade.
+- G7: the PNGs are in `test-artifacts/stage-screens/S01-after/` (Additions to the contract, item 1; G7 above already uses that path): 35 files; `(Get-ChildItem test-artifacts/stage-screens/S01-after -Filter *.png).Count` prints `35`. Send `home-375.png` and `home-1440.png` from both folders first — the before-shots show mask boxes where the example buttons were; the after-shots show the format hint and the hero without a fade.
 - G8: paste the two `[font-preload]` lines (expected `0 files` each), the first-paint result (3 passed), the guard result ("no file contains a tracking-number-like digit run outside the allowlist" passed, 0 findings) and the header results (security-headers E2E 7/7 in production).
 - G11: `git diff --stat claude/tipoasis-tracking-renewal-ae0e3a...HEAD` lists only the paths in this plan's File Structure table (plus a fixed `docs/superpowers/plans/…` file if Task 4 Step 9.5 applied). `test-artifacts/` must not appear.
-- Stage summary must also contain: the Task 0 Step 7 hotfix decision; approval 11's status and Task 12's outcome; "Additions to the contract" items 1–5 for the roadmap owner; the open issue below.
+- Stage summary must also contain: the Task 0 Step 7 hotfix decision; approval 11's status and Task 12's outcome; "Additions to the contract" items 1–6 for the roadmap owner; the open issues below.
 
 ---
 
@@ -3187,4 +3191,7 @@ Write into the stage summary: approval 11 status, N (count only), the operator's
 
 **5. Dry run of this plan's code (planning session, scratch copy outside the repo).** Every code block above was extracted into a copy of `e079461`, the structural edits of Tasks 3–7 and 9–11 were applied, and: `tsc --noEmit` exit 0; all unit specs pass except the repository scan, which lists exactly the 70 findings of Task 4 Step 2 (none in `docs/superpowers/`); the Task 4 helper reports 12/2/6/12/7 and 1/3/4 and is idempotent; the pure specs with fixture numbers pass (track-api 6, customs-estimate 6, delivery-carriers 14); against `next start` (webpack build, because Turbopack refuses a junctioned `node_modules`) budgets 5/5, E2E internal-isolation 3/3, security-headers 7/7 (including `no-store` on `/internal`), seo-routes 3/3, the existing tracking/privacy/internal specs 24/24 under the enforced CSP, and stage-screens 35/35 with the example buttons masked. The font-preload and first-paint helpers, run on Phase 1's captured production HTML, find 281 preloads and the inline `opacity:0`, so their red steps are real. The Task 8 E2E tests were not dry-run.
 
-**Open issue (outside S01's scope).** `/ads.txt` is answered today by the `[trackingNumber]` page (HTML), and after S06's three-way split a dotted path becomes a real 404. AdSense expects `ads.txt` with the line `google.com, pub-<publisher digits>, DIRECT, f08c47fec0942fa0`. Proposal for the operator: add `public/ads.txt` (confirm the line in the AdSense account first); it is not in the contract's File Map, so no stage does it without that decision.
+**Open issues (outside S01's scope; copy them into the stage summary).**
+1. `/ads.txt` is answered today by the `[trackingNumber]` page (HTML), and after S06's three-way split a dotted path becomes a real 404. Ad crawlers normally read `ads.txt` on the root domain (`tipoasis.com/ads.txt`) and look at a subdomain file only when the root file points to it, so whether `tracking.tipoasis.com/ads.txt` is needed at all is an account question. Proposal for the operator: check the AdSense "Sites" page and the root domain's `ads.txt`; only if AdSense asks for the subdomain file, add `public/ads.txt` with the line AdSense shows (`google.com, pub-` + the publisher digits + `, DIRECT, f08c47fec0942fa0`). It is not in the contract's File Map, so no stage does it without that decision.
+2. The enforced CSP's `frame-ancestors 'self'` (Task 9) stops any other site from showing these pages inside an `<iframe>`. Nothing in the repository embeds them, but if the operator's store pages, blog or a partner tool frame `tracking.tipoasis.com`, that view goes blank after R0. Ask the operator before the R0 release; if such an embed exists, drop only `frame-ancestors 'self'` from `ENFORCED_CSP` (and from the expected string and directive list in `tests/unit/security-headers.spec.ts`) — the other three enforced directives stay.
+3. The Report-Only CSP allows `'unsafe-inline'` in `script-src`. Once S08 adds the pre-paint hash through `extraScriptHashes`, CSP3 browsers ignore `'unsafe-inline'` in that directive and will report Next.js's own inline scripts as (report-only) violations. Nothing is blocked; S08 and S11 should expect that console and report noise (approval 16 decides the strict policy).
