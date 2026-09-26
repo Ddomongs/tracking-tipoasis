@@ -17,7 +17,6 @@ type TrackingFormProps = {
   readonly surface?: "dark" | "light";
 };
 
-const SAMPLE_NUMBERS = ["509493884901", "509493884853"] as const;
 const TRACKING_HELP_ID = "tracking-format-help";
 const TRACKING_INPUT_CUE_ID = "tracking-input-cue";
 
@@ -190,25 +189,8 @@ export const TrackingForm = ({
           </div>
         </div>
       </form>
-      <div className="flex flex-wrap gap-2">
-        {SAMPLE_NUMBERS.map((sample) => (
-          <button
-            key={sample}
-            type="button"
-            onClick={() => setValue(sample)}
-            className={cn(
-              "min-h-11 rounded-xl border px-3 py-2 text-xs font-medium transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70",
-              isLight
-                ? "border-slate-300 bg-slate-100 text-slate-700 hover:border-cyan-500 hover:bg-cyan-50 hover:text-slate-950"
-                : "border-slate-600/80 bg-slate-900/40 text-slate-200 hover:border-cyan-300/50 hover:text-cyan-100"
-            )}
-          >
-            예시 {sample}
-          </button>
-        ))}
-      </div>
-      <p id={TRACKING_HELP_ID} className={cn("text-xs", isLight ? "text-slate-600" : "text-slate-400")}>
-        숫자 운송장 또는 HBL 형식을 지원합니다. 예) 509493884901, ABCD1234567890
+      <p id={TRACKING_HELP_ID} className={cn("break-keep text-xs leading-5", isLight ? "text-slate-600" : "text-slate-400")}>
+        숫자 10~14자리 (예: 0000 0000 0000) · 영문 3~4자로 시작하는 HBL (예: ABCD 0000 0000) · 공백·하이픈은 자동으로 빼요
       </p>
       <p className="text-xs leading-5 text-slate-500">
         참고: UNI-PASS 통관조회는 HBL/화물관리번호에서만 동작하며, 국내 운송장은 택배사 배송조회 기준으로 표시됩니다.

@@ -227,6 +227,22 @@ test("home uses customer language without brand, robot, or AI copy", async ({ pa
   await expect(trackingInput).toHaveAttribute("data-input-shake", "idle");
 });
 
+const FORMAT_HINT =
+  "숫자 10~14자리 (예: 0000 0000 0000) · 영문 3~4자로 시작하는 HBL (예: ABCD 0000 0000) · 공백·하이픈은 자동으로 빼요";
+
+test("the lookup form shows the format hint instead of example numbers", async ({ page }) => {
+  await page.goto("/");
+
+  // Count first: if the old buttons are still there, the failure message shows a count, never a number.
+  await expect(page.getByRole("button", { name: /^예시/ })).toHaveCount(0);
+  const hint = page.locator("#tracking-format-help");
+  await expect(hint).toBeVisible();
+  await expect(hint).toHaveText(FORMAT_HINT);
+  const input = page.getByRole("textbox", { name: "조회번호 (HBL 또는 운송장)", exact: true });
+  const describedBy = (await input.getAttribute("aria-describedby")) ?? "";
+  expect(describedBy.split(" ")).toContain("tracking-format-help");
+});
+
 test("user can choose a representative domestic carrier before tracking", async ({ page }) => {
   await page.route("**/api/track", async (route) => {
     const body = TrackRequestSchema.parse(route.request().postDataJSON());
