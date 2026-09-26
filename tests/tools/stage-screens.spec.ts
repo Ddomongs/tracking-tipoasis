@@ -1,0 +1,73 @@
+import { test, type Locator, type Page } from "@playwright/test";
+import { FAKE, FIXTURE_NOW, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+
+/**
+ * Before/after screenshots for each stage (roadmap §6 Step 5, §7 G7).
+ * Runs only with PW_SHOTS=before|after and PW_STAGE=S01…S11 against a running `next start`.
+ * Output: test-artifacts/stage-screens/<PW_STAGE>-<PW_SHOTS>/<scenario>-<width>.png — outside test-results/,
+ * because Playwright empties its output directory at the start of every run.
+ * Later stages append entries to SCENARIOS only.
+ */
+const SHOTS = process.env.PW_SHOTS;
+const STAGE = process.env.PW_STAGE ?? "SXX";
+const SHOTS_ENABLED = SHOTS === "before" || SHOTS === "after";
+const OUTPUT_DIR = `test-artifacts/stage-screens/${STAGE}-${SHOTS ?? "off"}`;
+const WIDTHS = [320, 375, 768, 1024, 1440] as const;
+const VIEWPORT_HEIGHT = 900;
+
+interface StageScenario {
+  readonly name: string;
+  readonly path: string;
+  readonly prepare?: (page: Page) => Promise<void>;
+}
+
+const SCENARIOS: readonly StageScenario[] = [
+  { name: "home", path: "/" },
+  { name: "deeplink-pending", path: `/${FAKE.domestic}`, prepare: (page) => mockTrack(page, trackData("pending")) },
+  { name: "deeplink-customsWaiting", path: `/${FAKE.hbl}`, prepare: (page) => mockTrack(page, trackData("customsWaiting")) },
+  { name: "deeplink-inTransit", path: `/${FAKE.hbl}`, prepare: (page) => mockTrack(page, trackData("inTransit")) },
+  { name: "deeplink-delivered", path: `/${FAKE.hbl}`, prepare: (page) => mockTrack(page, trackData("delivered")) },
+  { name: "deeplink-notFound", path: `/${FAKE.domestic}`, prepare: (page) => mockTrack(page, "notFound404") },
+  { name: "privacy", path: "/privacy" }
+];
+
+/** The pre-S01 example buttons and help line showed real shipments; mask them so no real number reaches a screenshot. */
+function legacyExampleMasks(page: Page): Locator[] {
+  return [page.getByRole("button", { name: /^예시 / }), page.getByText(/예\) \d/)];
+}
+
+async function blockThirdParty(page: Page): Promise<void> {
+  await page.route(/^https?:\/\/(?!127\.0\.0\.1[:/]|localhost[:/])/, (route) => route.abort());
+}
+
+async function settle(page: Page): Promise<void> {
+  await page.waitForLoadState("networkidle");
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
+}
+
+test.describe("stage screens", () => {
+  test.skip(!SHOTS_ENABLED, "stage screens run only with PW_SHOTS=before|after");
+  test.describe.configure({ mode: "parallel" });
+
+  for (const scenario of SCENARIOS) {
+    for (const width of WIDTHS) {
+      test(`${scenario.name} @ ${width}`, async ({ page }) => {
+        await page.setViewportSize({ width, height: VIEWPORT_HEIGHT });
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        await page.clock.setFixedTime(FIXTURE_NOW);
+        await blockThirdParty(page);
+        if (scenario.prepare) await scenario.prepare(page);
+        await page.goto(scenario.path);
+        await settle(page);
+        await page.screenshot({
+          path: `${OUTPUT_DIR}/${scenario.name}-${width}.png`,
+          fullPage: true,
+          animations: "disabled",
+          mask: legacyExampleMasks(page)
+        });
+      });
+    }
+  }
+});

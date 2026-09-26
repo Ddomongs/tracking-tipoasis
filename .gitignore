@@ -57,3 +57,6 @@ production-*.png
 
 # local screenshots
 /*.png
+
+# stage before/after screenshots and one-off local tools (tests/tools/stage-screens.spec.ts)
+/test-artifacts
