@@ -54,10 +54,11 @@ Live API verification after deployment:
 
 ```text
 POST https://tracking-tipoasis.vercel.app/api/track
-509494650981 -> HTTP 200, currentStatus=반출신고, customsEvents=10
-303595969624 -> HTTP 200, currentStatus=통관목록접수, customsEvents=7
-509493884901 -> HTTP 200, currentStatus=반출신고, customsEvents=11
+000012345678 -> HTTP 200, currentStatus=반출신고, customsEvents=10
+000000000001 -> HTTP 200, currentStatus=통관목록접수, customsEvents=7
+0000123456 -> HTTP 200, currentStatus=반출신고, customsEvents=11
 ```
+The numbers above are fake placeholders; the original check used real shipments, which must not be written into this repository (spec §4).
 
 ## InsForge Frontend Fallback: Deploy From This Machine
 

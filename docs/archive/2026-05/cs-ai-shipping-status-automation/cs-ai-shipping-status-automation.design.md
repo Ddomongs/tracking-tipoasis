@@ -194,7 +194,7 @@ Request:
 
 ```json
 {
-  "trackingNumber": "520671340641"
+  "trackingNumber": "000012345678"
 }
 ```
 
@@ -204,11 +204,11 @@ Response:
 {
   "success": true,
   "data": {
-    "trackingNumber": "520671340641",
+    "trackingNumber": "000012345678",
     "currentStatus": "배송중",
     "delivery": {
       "carrier": "CJ대한통운",
-      "invoiceNumber": "520671340641",
+      "invoiceNumber": "000012345678",
       "events": []
     }
   }

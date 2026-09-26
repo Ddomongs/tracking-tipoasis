@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { FAKE } from "./fixtures/tracking-fixtures";
 
 test("privacy policy is reachable from the footer and explains the no-storage rule", async ({ page }) => {
   await page.goto("/");
@@ -17,7 +18,7 @@ test("a stale shipment shows a verification prompt instead of a delivery estimat
       body: JSON.stringify({
         success: true,
         data: {
-          trackingNumber: "509493884901",
+          trackingNumber: FAKE.domestic,
           type: "DOMESTIC",
           currentStatus: "통관완료",
           currentStatusCode: 4,
@@ -26,7 +27,7 @@ test("a stale shipment shows a verification prompt instead of a delivery estimat
           customs: {
             events: [{ status: "통관완료", statusCode: 4, datetime: "2026-02-13T12:00:00+09:00" }]
           },
-          delivery: { carrier: "국내택배 자동 조회", carrierCode: "AUTO", invoiceNumber: "509493884901", events: [] },
+          delivery: { carrier: "국내택배 자동 조회", carrierCode: "AUTO", invoiceNumber: FAKE.domestic, events: [] },
           timeline: [],
           lastUpdated: "2026-02-13T12:00:00+09:00"
         }
@@ -34,7 +35,7 @@ test("a stale shipment shows a verification prompt instead of a delivery estimat
     });
   });
 
-  await page.goto("/509493884901");
+  await page.goto(`/${FAKE.domestic}`);
 
   const summary = page.locator('[data-tracking-result-summary="true"]');
   await expect(summary.getByText("배송 이력 확인 필요")).toBeVisible();

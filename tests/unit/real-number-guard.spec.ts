@@ -1,3 +1,5 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 import {
   DIGIT_RUN_PATTERN,
@@ -78,5 +80,71 @@ test.describe("number patterns (contract §11.4)", () => {
     expect(decodeRepeatedly(`%E0%A4%A ${encodeURIComponent(FAKE_GROUPED.domestic)}`)).toBe(
       `%E0%A4%A ${FAKE_GROUPED.domestic}`
     );
+  });
+});
+
+// ---- Repository scan (spec §14 item 5, roadmap §11.4 scope) ----
+const REPO_ROOT = path.resolve(__dirname, "..", "..");
+const SCAN_DIRS = ["app", "components", "lib", "config", "tests", "docs", "design-system", "insforge"] as const;
+const TEXT_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".css", ".html", ".md", ".json"]);
+const SKIPPED_DIRS = new Set(["node_modules", ".next", "test-results", "playwright-report", "test-artifacts"]);
+const SKIPPED_FILES = new Set(["package-lock.json"]);
+/** S08 adds the manual ad slot id from config/site.config.ts (roadmap §10.4). */
+const EXTRA_ALLOWED: readonly string[] = [];
+
+const toRepoPath = (file: string): string => path.relative(REPO_ROOT, file).split(path.sep).join("/");
+
+function listTextFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : listTextFiles(full);
+    const isText = entry.isFile() && TEXT_EXTENSIONS.has(path.extname(entry.name)) && !SKIPPED_FILES.has(entry.name);
+    return isText ? [full] : [];
+  });
+}
+
+function guardTargets(): string[] {
+  const scanned = SCAN_DIRS.map((dir) => path.join(REPO_ROOT, dir))
+    .filter((dir) => existsSync(dir))
+    .flatMap(listTextFiles);
+  const rootMarkdown = readdirSync(REPO_ROOT, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+    .map((entry) => path.join(REPO_ROOT, entry.name));
+  return [...scanned, ...rootMarkdown];
+}
+
+/** 'file:line:column (N digits)' for every disallowed run — never the digits themselves (CI logs are public). */
+function findingsIn(file: string): string[] {
+  const text = readFileSync(file, "utf8");
+  const disallowed = new Set(findDisallowedDigitRuns(text, EXTRA_ALLOWED));
+  if (disallowed.size === 0) return [];
+  return Array.from(text.matchAll(new RegExp(DIGIT_RUN_PATTERN.source, "g")))
+    .filter((match) => disallowed.has(match[0]))
+    .map((match) => {
+      const before = text.slice(0, match.index ?? 0).split("\n");
+      const column = (before.at(-1)?.length ?? 0) + 1;
+      return `${toRepoPath(file)}:${before.length}:${column} (${match[0].replace(/[ -]/g, "").length} digits)`;
+    });
+}
+
+test.describe("repository scan (spec §14 item 5)", () => {
+  test("the scan covers code, tests, docs and design files", () => {
+    const targets = guardTargets().map(toRepoPath);
+    for (const expected of [
+      "app/layout.tsx",
+      "lib/site.ts",
+      "tests/unit/real-number-guard.spec.ts",
+      "docs/superpowers/specs/2026-09-26-tracking-renewal-ia-design.md",
+      "design-system/README.md",
+      "README.md"
+    ]) {
+      expect(targets, expected).toContain(expected);
+    }
+    expect(targets.some((file) => file.includes("node_modules/"))).toBe(false);
+  });
+
+  test("no file contains a tracking-number-like digit run outside the allowlist", () => {
+    const findings = guardTargets().flatMap(findingsIn);
+    expect(findings, "Replace each run with a value from tests/fixtures/tracking-fixtures.ts (roadmap §11.4)").toEqual([]);
   });
 });

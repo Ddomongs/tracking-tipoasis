@@ -4,6 +4,7 @@ import { getDeliveryCarrier } from "@/lib/delivery-carriers";
 import { TrackRequestSchema } from "@/lib/schemas";
 import { parseCarrierTrackingHtml } from "@/lib/services/carrier-html";
 import { fetchDeliveryTracking } from "@/lib/services/delivery";
+import { FAKE } from "./fixtures/tracking-fixtures";
 
 const emptyCarrierHtml = "<html><body><p>조회 결과가 없습니다.</p></body></html>";
 
@@ -42,21 +43,21 @@ const withMockedFetch = async (
 };
 
 test("tracking requests default to automatic carrier lookup", () => {
-  expect(TrackRequestSchema.parse({ trackingNumber: "509493884901" })).toEqual({
-    trackingNumber: "509493884901",
+  expect(TrackRequestSchema.parse({ trackingNumber: FAKE.domestic })).toEqual({
+    trackingNumber: FAKE.domestic,
     carrierCode: "AUTO"
   });
 });
 
 test("cache keys keep carrier selections isolated", () => {
-  expect(buildTrackCacheKey("DOMESTIC", "123456789012", "CJ")).not.toBe(
-    buildTrackCacheKey("DOMESTIC", "123456789012", "HANJIN")
+  expect(buildTrackCacheKey("DOMESTIC", FAKE.domestic, "CJ")).not.toBe(
+    buildTrackCacheKey("DOMESTIC", FAKE.domestic, "HANJIN")
   );
 });
 
 test("representative carriers expose secure official tracking links", () => {
   for (const code of ["CJ", "EPOST", "HANJIN", "LOTTE", "LOGEN"] as const) {
-    expect(getDeliveryCarrier(code).trackingUrl("123456789012")).toMatch(/^https:\/\//);
+    expect(getDeliveryCarrier(code).trackingUrl(FAKE.domestic)).toMatch(/^https:\/\//);
   }
 });
 
@@ -129,7 +130,7 @@ test("automatic lookup selects the only carrier with matching events", async () 
         ? new Response(cjResponse(), { status: 200 })
         : new Response(emptyCarrierHtml, { status: 200 }),
     async () => {
-      const result = await fetchDeliveryTracking("509493884901", "AUTO");
+      const result = await fetchDeliveryTracking(FAKE.domestic, "AUTO");
 
       expect(result).toMatchObject({ carrier: "CJ대한통운", carrierCode: "CJ" });
       expect(result.events).toHaveLength(1);
@@ -146,7 +147,7 @@ test("automatic lookup asks for a carrier when multiple carriers match", async (
       return new Response(emptyCarrierHtml, { status: 200 });
     },
     async () => {
-      const result = await fetchDeliveryTracking("509493884902", "AUTO");
+      const result = await fetchDeliveryTracking(FAKE.domestic, "AUTO");
 
       expect(result).toMatchObject({ carrierCode: "AUTO", ambiguous: true, events: [] });
     }
@@ -160,7 +161,7 @@ test("automatic lookup reports a temporary delay when one candidate is unavailab
         ? new Response("temporary outage", { status: 503 })
         : new Response(emptyCarrierHtml, { status: 200 }),
     async () => {
-      const result = await fetchDeliveryTracking("509493884903", "AUTO");
+      const result = await fetchDeliveryTracking(FAKE.domestic, "AUTO");
 
       expect(result).toMatchObject({ carrierCode: "AUTO", lookupUnavailable: true, events: [] });
     }
@@ -175,7 +176,7 @@ test("automatic lookup does not guess from a partial provider result", async () 
       return new Response(emptyCarrierHtml, { status: 200 });
     },
     async () => {
-      const result = await fetchDeliveryTracking("509493884905", "AUTO");
+      const result = await fetchDeliveryTracking(FAKE.domestic, "AUTO");
 
       expect(result).toMatchObject({ carrierCode: "AUTO", lookupUnavailable: true, events: [] });
     }
@@ -186,7 +187,7 @@ test("automatic lookup keeps a normal pending state when every candidate has no 
   await withMockedFetch(
     () => new Response(emptyCarrierHtml, { status: 200 }),
     async () => {
-      const result = await fetchDeliveryTracking("509493884904", "AUTO");
+      const result = await fetchDeliveryTracking(FAKE.domestic, "AUTO");
 
       expect(result).toMatchObject({ carrierCode: "AUTO", events: [] });
       expect(result.lookupUnavailable).toBeUndefined();
@@ -199,7 +200,7 @@ test("official redirects are unavailable rather than a normal no-record response
   await withMockedFetch(
     () => new Response(null, { status: 302, headers: { location: "https://example.com/login" } }),
     async () => {
-      await expect(fetchDeliveryTracking("459384817827", "HANJIN")).rejects.toThrow(
+      await expect(fetchDeliveryTracking(FAKE.domestic, "HANJIN")).rejects.toThrow(
         "한진택배 delivery tracking service unavailable"
       );
     }
@@ -213,7 +214,7 @@ test("valid tracking rows win over dormant maintenance copy elsewhere in the pag
         status: 200
       }),
     async () => {
-      const result = await fetchDeliveryTracking("459384817828", "HANJIN");
+      const result = await fetchDeliveryTracking(FAKE.domestic, "HANJIN");
 
       expect(result).toMatchObject({ carrierCode: "HANJIN" });
       expect(result.events[0]).toMatchObject({ status: "배송출발", statusCode: 6 });

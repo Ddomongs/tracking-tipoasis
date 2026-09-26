@@ -257,7 +257,7 @@ const cache = new NodeCache({
 });
 
 // 캐시 키: "track:{type}:{carrierCode}:{number}"
-// 예: "track:DOMESTIC:HANJIN:509493884901"
+// 예: "track:DOMESTIC:HANJIN:000012345678"
 ```
 
 | 설정 | 값 | 이유 |
@@ -485,7 +485,7 @@ graph LR
 **Request:**
 ```json
 {
-  "trackingNumber": "ABCD1234567890"
+  "trackingNumber": "ABCD00000000"
 }
 ```
 
@@ -507,7 +507,7 @@ export const TrackRequestSchema = z.object({
 {
   "success": true,
   "data": {
-    "trackingNumber": "ABCD1234567890",
+    "trackingNumber": "ABCD00000000",
     "type": "HBL",
     "currentStatus": "통관 완료",
     "currentStatusCode": 4,
@@ -525,7 +525,7 @@ export const TrackRequestSchema = z.object({
     "delivery": {
       "carrier": "CJ대한통운",
       "carrierCode": "04",
-      "invoiceNumber": "1234567890",
+      "invoiceNumber": "0000123456",
       "events": [
         {
           "status": "배송 인계",

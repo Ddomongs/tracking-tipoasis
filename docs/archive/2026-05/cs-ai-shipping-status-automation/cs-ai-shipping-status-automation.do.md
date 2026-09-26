@@ -175,12 +175,12 @@ Output must include:
 Reply examples:
 
 ```text
-현재 CJ대한통운 운송장번호 520671340641는 배송중 단계로 확인됩니다.
+현재 CJ대한통운 운송장번호 000012345678는 배송중 단계로 확인됩니다.
 최근 처리: 배송중 (2026. 05. 31. 08:30, 인천허브)
 ```
 
 ```text
-현재 CJ대한통운 운송장번호 520671340641는 아직 배송 이력이 확인되지 않습니다.
+현재 CJ대한통운 운송장번호 000012345678는 아직 배송 이력이 확인되지 않습니다.
 상품이 국내 도착 전이거나 택배사 전산 반영 전일 수 있어 확인되는 즉시 안내드리겠습니다.
 ```
 
@@ -268,11 +268,11 @@ Future fields:
 
 Mock `/api/track` response:
 
-- `trackingNumber`: `520671340641`
+- `trackingNumber`: `000012345678`
 - `currentStatus`: `배송중`
 - `currentStatusCode`: `6`
 - `delivery.carrier`: `CJ대한통운`
-- `delivery.invoiceNumber`: `520671340641`
+- `delivery.invoiceNumber`: `000012345678`
 - one latest delivery event
 
 Assertions:
@@ -296,7 +296,7 @@ Assertions:
 Actions:
 
 - switch to `통관부호 불일치` tab.
-- enter phone `010-1234-5678`.
+- enter phone `010-0000-1234`.
 - choose default template.
 - save.
 

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { normalizeTrackingData } from "@/lib/services/normalizer";
+import { FAKE } from "./fixtures/tracking-fixtures";
 
 const waitingEvent = {
   status: "통관목록접수",
@@ -15,7 +16,7 @@ const emptyDelivery = {
 
 test("a stale customs estimate is recalculated from today while customs is still waiting", () => {
   const data = normalizeTrackingData({
-    trackingNumber: "305912548213",
+    trackingNumber: FAKE.domestic,
     type: "DOMESTIC",
     customsEvents: [waitingEvent],
     deliveryLookup: emptyDelivery,
@@ -31,7 +32,7 @@ test("a stale customs estimate is recalculated from today while customs is still
 
 test("a future customs estimate keeps the original calculation", () => {
   const data = normalizeTrackingData({
-    trackingNumber: "305912548213",
+    trackingNumber: FAKE.domestic,
     type: "DOMESTIC",
     customsEvents: [waitingEvent],
     deliveryLookup: emptyDelivery,
@@ -44,7 +45,7 @@ test("a future customs estimate keeps the original calculation", () => {
 
 test("actual customs completion is never replaced by an adjusted estimate", () => {
   const data = normalizeTrackingData({
-    trackingNumber: "305912495223",
+    trackingNumber: FAKE.domestic,
     type: "DOMESTIC",
     customsEvents: [
       waitingEvent,
@@ -65,7 +66,7 @@ test("actual customs completion is never replaced by an adjusted estimate", () =
 
 test("a shipment with no activity for weeks stops showing a delivery estimate", () => {
   const data = normalizeTrackingData({
-    trackingNumber: "509493884901",
+    trackingNumber: FAKE.domestic,
     type: "DOMESTIC",
     customsEvents: [
       { status: "통관목록접수", statusCode: 2, datetime: "2026-02-13T09:00:00+09:00" },
@@ -83,7 +84,7 @@ test("a shipment with no activity for weeks stops showing a delivery estimate", 
 
 test("a shipment still waiting for customs after weeks is marked stale instead of recalculated", () => {
   const data = normalizeTrackingData({
-    trackingNumber: "305912548213",
+    trackingNumber: FAKE.domestic,
     type: "DOMESTIC",
     customsEvents: [waitingEvent],
     deliveryLookup: emptyDelivery,
@@ -98,7 +99,7 @@ test("a shipment still waiting for customs after weeks is marked stale instead o
 
 test("a recent shipment is not marked stale", () => {
   const data = normalizeTrackingData({
-    trackingNumber: "305912548213",
+    trackingNumber: FAKE.domestic,
     type: "DOMESTIC",
     customsEvents: [waitingEvent],
     deliveryLookup: emptyDelivery,

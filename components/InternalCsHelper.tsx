@@ -211,7 +211,7 @@ export const InternalCsHelper = () => {
                     inputMode="numeric"
                     value={invoiceNumber}
                     onChange={(event) => setInvoiceNumber(event.target.value)}
-                    placeholder="예: 520671340641"
+                    placeholder="예: 0000 1234 5678"
                     className="font-mono"
                   />
                   <Button type="submit" disabled={loading} className="shrink-0 gap-2">

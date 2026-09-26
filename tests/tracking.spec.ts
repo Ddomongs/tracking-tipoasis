@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 import { TrackRequestSchema } from "@/lib/schemas";
 import { normalizeTrackingData } from "@/lib/services/normalizer";
 import type { StatusCode, TrackResponseData } from "@/lib/types";
+import { FAKE } from "./fixtures/tracking-fixtures";
 
 type MockTrackingState = {
   readonly status: string;
@@ -27,7 +28,7 @@ const createTrackData = (state: MockTrackingState): TrackResponseData => {
   estimatedCustomsClearanceDate.setDate(estimatedCustomsClearanceDate.getDate() - 1);
 
   return {
-    trackingNumber: "520671340641",
+    trackingNumber: FAKE.domestic,
     type: "DOMESTIC",
     currentStatus: state.status,
     currentStatusCode: state.code,
@@ -38,7 +39,7 @@ const createTrackData = (state: MockTrackingState): TrackResponseData => {
     delivery: {
       carrier: "CJ대한통운",
       carrierCode: "CJ",
-      invoiceNumber: "520671340641",
+      invoiceNumber: FAKE.domestic,
       events: []
     },
     timeline: trackingTimeline.map((step) => ({
@@ -51,7 +52,7 @@ const createTrackData = (state: MockTrackingState): TrackResponseData => {
 
 test("normalizer calculates a clear customs completion estimate while customs is waiting", () => {
   const data = normalizeTrackingData({
-    trackingNumber: "305912495223",
+    trackingNumber: FAKE.domestic,
     type: "DOMESTIC",
     customsEvents: [
       {
@@ -74,7 +75,7 @@ test("normalizer calculates a clear customs completion estimate while customs is
 
 test("tracking result leads with delivery date and keeps customs estimate secondary", async ({ page }) => {
   const data = normalizeTrackingData({
-    trackingNumber: "305912495223",
+    trackingNumber: FAKE.domestic,
     type: "DOMESTIC",
     customsEvents: [
       {
@@ -96,7 +97,7 @@ test("tracking result leads with delivery date and keeps customs estimate second
   });
   await page.clock.setFixedTime(new Date("2026-07-13T12:00:00+09:00"));
   await page.goto("/");
-  await page.getByLabel("조회번호 (HBL 또는 운송장)", { exact: true }).fill("305912495223");
+  await page.getByLabel("조회번호 (HBL 또는 운송장)", { exact: true }).fill(FAKE.domestic);
   await page.getByRole("button", { name: "조회하기" }).click();
 
   const summary = page.locator('[data-tracking-result-summary="true"]');
@@ -114,7 +115,7 @@ test("tracking result leads with delivery date and keeps customs estimate second
 
 test("an overdue customs estimate is recalculated and remains readable on mobile", async ({ page }) => {
   const data = normalizeTrackingData({
-    trackingNumber: "305912548213",
+    trackingNumber: FAKE.domestic,
     type: "DOMESTIC",
     customsEvents: [
       {
@@ -138,7 +139,7 @@ test("an overdue customs estimate is recalculated and remains readable on mobile
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page.getByRole("dialog", { name: "상담·스토어 바로가기" }).getByRole("button", { name: "상담과 스토어 팝업 닫기" }).click();
-  await page.getByLabel("조회번호 (HBL 또는 운송장)", { exact: true }).fill("305912548213");
+  await page.getByLabel("조회번호 (HBL 또는 운송장)", { exact: true }).fill(FAKE.domestic);
   await page.getByRole("button", { name: "조회하기" }).click();
 
   const summary = page.locator('[data-tracking-result-summary="true"]');
@@ -159,7 +160,7 @@ test("pickup status names the carrier pickup and prioritizes the delivery estima
     delivery: {
       carrier: "CJ대한통운",
       carrierCode: "CJ",
-      invoiceNumber: "520671340641",
+      invoiceNumber: FAKE.domestic,
       events: [
         {
           status: "집화처리",
@@ -199,7 +200,7 @@ const mockTrackSuccess = async (page: Page, state: MockTrackingState): Promise<v
 
 const submitTracking = async (page: Page): Promise<void> => {
   await page.goto("/");
-  await page.getByLabel("조회번호 (HBL 또는 운송장)", { exact: true }).fill("520671340641");
+  await page.getByLabel("조회번호 (HBL 또는 운송장)", { exact: true }).fill(FAKE.domestic);
   await page.getByRole("button", { name: "조회하기" }).click();
 };
 
@@ -223,7 +224,7 @@ test("home uses customer language without brand, robot, or AI copy", async ({ pa
   await expect(page.locator('[data-motion-cue="tracking-input-pointer"]')).toBeVisible();
   await expect(page.getByRole("button", { name: "조회하기" })).toBeVisible();
   await expect(page.locator('[data-motion-cue="tracking-submit"]')).toBeVisible();
-  await trackingInput.fill("509493884901");
+  await trackingInput.fill(FAKE.domestic);
   await expect(trackingInput).toHaveAttribute("data-input-shake", "idle");
 });
 
@@ -246,7 +247,7 @@ test("the lookup form shows the format hint instead of example numbers", async (
 test("user can choose a representative domestic carrier before tracking", async ({ page }) => {
   await page.route("**/api/track", async (route) => {
     const body = TrackRequestSchema.parse(route.request().postDataJSON());
-    expect(body).toEqual({ trackingNumber: "459384817824", carrierCode: "HANJIN" });
+    expect(body).toEqual({ trackingNumber: FAKE.domestic, carrierCode: "HANJIN" });
 
     const data = createTrackData({ status: "배송중", code: 6, isPending: false });
     await route.fulfill({
@@ -262,7 +263,7 @@ test("user can choose a representative domestic carrier before tracking", async 
             carrierCode: body.carrierCode,
             invoiceNumber: body.trackingNumber,
             trackingUrl:
-              "https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mCode=MN038&schLang=KR&wblnumText2=459384817824"
+              `https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mCode=MN038&schLang=KR&wblnumText2=${FAKE.domestic}`
           }
         }
       })
@@ -282,7 +283,7 @@ test("user can choose a representative domestic carrier before tracking", async 
   ]);
 
   await carrier.selectOption("HANJIN");
-  await page.getByLabel("조회번호 (HBL 또는 운송장)", { exact: true }).fill("459384817824");
+  await page.getByLabel("조회번호 (HBL 또는 운송장)", { exact: true }).fill(FAKE.domestic);
   await page.getByRole("button", { name: "조회하기" }).click();
 
   await expect(page.getByRole("region", { name: "배송 조회 결과" }).getByText("한진택배", { exact: true }).first()).toBeVisible();

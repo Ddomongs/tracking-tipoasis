@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { POST } from "@/app/api/track/route";
 import { ApiTrackResponseSchema } from "@/lib/schemas";
+import { FAKE } from "./fixtures/tracking-fixtures";
 
 test("a carrier outage keeps the selected carrier and official fallback link", async () => {
   const originalFetch = globalThis.fetch;
@@ -13,7 +14,7 @@ test("a carrier outage keeps the selected carrier and official fallback link", a
       new Request("http://localhost/api/track", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ trackingNumber: "459384817824", carrierCode: "HANJIN" })
+        body: JSON.stringify({ trackingNumber: FAKE.domestic, carrierCode: "HANJIN" })
       })
     );
     const payload = ApiTrackResponseSchema.parse(await response.json());
@@ -24,7 +25,7 @@ test("a carrier outage keeps the selected carrier and official fallback link", a
     expect(payload.data.delivery).toMatchObject({
       carrier: "한진택배",
       carrierCode: "HANJIN",
-      invoiceNumber: "459384817824",
+      invoiceNumber: FAKE.domestic,
       lookupUnavailable: true,
       events: []
     });
@@ -45,7 +46,7 @@ test("an official carrier HTTP outage returns a retryable neutral result", async
       new Request("http://localhost/api/track", {
         method: "POST",
         headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.21" },
-        body: JSON.stringify({ trackingNumber: "459384817825", carrierCode: "HANJIN" })
+        body: JSON.stringify({ trackingNumber: FAKE.domesticAlt, carrierCode: "HANJIN" })
       })
     );
     const payload = ApiTrackResponseSchema.parse(await response.json());
@@ -78,7 +79,7 @@ test("temporary carrier failures are not cached as tracking results", async () =
       new Request("http://localhost/api/track", {
         method: "POST",
         headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.22" },
-        body: JSON.stringify({ trackingNumber: "459384817826", carrierCode: "HANJIN" })
+        body: JSON.stringify({ trackingNumber: FAKE.domestic14, carrierCode: "HANJIN" })
       })
     );
 
@@ -108,7 +109,7 @@ test("non-JSON tracking requests are rejected before lookup", async () => {
     new Request("http://localhost/api/track", {
       method: "POST",
       headers: { "content-type": "text/plain", "x-forwarded-for": "198.51.100.24" },
-      body: "509493884901"
+      body: FAKE.domestic
     })
   );
 
