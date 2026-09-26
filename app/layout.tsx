@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { IBM_Plex_Sans_KR } from "next/font/google";
 import "./globals.css";
 
@@ -35,12 +34,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body className={`${bodyFont.variable} google-anno-skip antialiased`}>
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7351210358018620"
-          crossOrigin="anonymous"
-          strategy="lazyOnload"
-        />
         <div className="relative z-10">{children}</div>
       </body>
     </html>
