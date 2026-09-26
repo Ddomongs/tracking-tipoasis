@@ -85,8 +85,8 @@ test.describe("number patterns (contract §11.4)", () => {
 
 // ---- Repository scan (spec §14 item 5, roadmap §11.4 scope) ----
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
-const SCAN_DIRS = ["app", "components", "lib", "config", "tests", "docs", "design-system", "insforge"] as const;
-const TEXT_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".css", ".html", ".md", ".json"]);
+const SCAN_DIRS = ["app", "components", "lib", "config", "tests", "docs", "design-system", "insforge", "public", ".github"] as const;
+const TEXT_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".css", ".html", ".md", ".json", ".yml", ".yaml", ".txt"]);
 const SKIPPED_DIRS = new Set(["node_modules", ".next", "test-results", "playwright-report", "test-artifacts"]);
 const SKIPPED_FILES = new Set(["package-lock.json"]);
 /** S08 adds the manual ad slot id from config/site.config.ts (roadmap §10.4). */
@@ -107,10 +107,11 @@ function guardTargets(): string[] {
   const scanned = SCAN_DIRS.map((dir) => path.join(REPO_ROOT, dir))
     .filter((dir) => existsSync(dir))
     .flatMap(listTextFiles);
-  const rootMarkdown = readdirSync(REPO_ROOT, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+  // Root files too (proxy.ts, next.config.ts, playwright.config.ts, vercel.json, *.md): a number there ships as well.
+  const rootFiles = readdirSync(REPO_ROOT, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && TEXT_EXTENSIONS.has(path.extname(entry.name)) && !SKIPPED_FILES.has(entry.name))
     .map((entry) => path.join(REPO_ROOT, entry.name));
-  return [...scanned, ...rootMarkdown];
+  return [...scanned, ...rootFiles];
 }
 
 /** 'file:line:column (N digits)' for every disallowed run — never the digits themselves (CI logs are public). */
@@ -136,7 +137,11 @@ test.describe("repository scan (spec §14 item 5)", () => {
       "tests/unit/real-number-guard.spec.ts",
       "docs/superpowers/specs/2026-09-26-tracking-renewal-ia-design.md",
       "design-system/README.md",
-      "README.md"
+      "README.md",
+      "proxy.ts",
+      "playwright.config.ts",
+      "vercel.json",
+      ".github/workflows/ci.yml"
     ]) {
       expect(targets, expected).toContain(expected);
     }

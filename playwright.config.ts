@@ -20,7 +20,23 @@ export default defineConfig({
     trace: "on-first-retry",
     // Customers are in Korea; CI runners are UTC, so pin the browser clock zone.
     timezoneId: "Asia/Seoul",
-    locale: "ko-KR"
+    locale: "ko-KR",
+    launchOptions: {
+      // Tests must never create ad traffic: ad and analytics hosts do not resolve in the test browser.
+      // page.route() still sees these requests, so specs that record ad requests keep working.
+      args: [
+        "--host-resolver-rules=" +
+          [
+            "*.googlesyndication.com",
+            "*.doubleclick.net",
+            "*.adtrafficquality.google",
+            "*.google-analytics.com",
+            "*.googletagmanager.com"
+          ]
+            .map((host) => `MAP ${host} ~NOTFOUND`)
+            .join(", ")
+      ]
+    }
   },
   projects: [
     {
