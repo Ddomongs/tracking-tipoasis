@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { STYLE_COLOR_TOKENS, contrastRatio } from "@/lib/style/tokens";
 import { groupTrackingNumber } from "@/lib/tracking/number-format";
@@ -856,4 +857,23 @@ test.describe("CopyButton", () => {
     await expect(demo.locator("textarea[data-copy-fallback]")).toHaveValue((await demo.getAttribute("data-copy-text")) ?? "");
     await expect(demo).toHaveAttribute("data-copy-outcome", "fallback");
   });
+});
+
+test.describe("axe (approval 13)", () => {
+  for (const [width, height] of [
+    [375, 812],
+    [1280, 900]
+  ] as const) {
+    test(`no WCAG 2.2 AA violations in the gallery at ${width}px`, async ({ page }) => {
+      await openKit(page, width, height);
+      const results = await new AxeBuilder({ page })
+        .include("main[data-ui-kit]")
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+        .analyze();
+      const violations = results.violations.map(
+        (violation) => `${violation.id}: ${violation.nodes.map((node) => node.target.join(" ")).join(", ")}`
+      );
+      expect(violations).toEqual([]);
+    });
+  }
 });
