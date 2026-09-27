@@ -1,8 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { disclosures, siteConfig } from "@/config/site.config";
+import { disclosures, lookup, notices, siteConfig } from "@/config/site.config";
 import { deriveTrackingView } from "@/lib/tracking/derive-view";
+import { deriveLoadingView } from "@/lib/tracking/loading-view";
 import { groupTrackingNumber } from "@/lib/tracking/number-format";
-import type { ActionView, FailureCause, LookupOutcome, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
+import type { ActionView, FailureCause, LoadingViewModel, LookupOutcome, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
+import type { DeliveryCarrierCode } from "@/lib/types";
 import { INTERNAL_TEST_CREDENTIALS } from "../internal-auth";
 import {
   OCTOBER_NOW, ambiguousData, carrierCutData, customsWaitingData, deliveredData, failure, inTransitData, lookupUnavailableData,
@@ -102,6 +104,22 @@ function inquiryHrefs(view: TrackingViewModel): readonly string[] {
   return viewActions(view)
     .filter((item) => !RECOVERY_KINDS.includes(item.kind) && item.href !== null)
     .map((item) => item.href ?? "");
+}
+
+function loadingAt(elapsedMs: number, carrier: DeliveryCarrierCode = "AUTO", reducedMotion = false): LoadingViewModel {
+  return deriveLoadingView(
+    { request: { number: FAKE.hbl, carrier, entry: "deepLink" }, elapsedMs, reducedMotion, now: FIXTURE_NOW },
+    { lookup, notices }
+  );
+}
+
+async function showLoading(page: Page, loading: LoadingViewModel): Promise<void> {
+  await page.evaluate((nextLoading) => {
+    const kit = window.__ttResultKit;
+    if (kit === undefined) throw new Error("result kit is not ready");
+    kit.show({ kind: "loading", loading: nextLoading });
+  }, loading);
+  await expect(page.locator(`[data-loading-stage="${loading.stage}"]`)).toBeVisible();
 }
 
 test.describe("status card", () => {
@@ -705,5 +723,76 @@ test.describe("failure card", () => {
     await expect(page.locator("[data-result-view] h2")).toHaveText(view.title);
     const hrefs = await page.locator('[data-cta-state="error"] a[href]').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
     expect(hrefs).toEqual([TALK_URL]);
+  });
+});
+
+test.describe("loading card", () => {
+  test("short wait: '조회하고 있어요', aria-busy, static skeletons, no cancel yet", async ({ page }) => {
+    const model = loadingAt(1_000);
+    expect(model.stage).toBe("short");
+    await openKit(page);
+    await showLoading(page, model);
+    const card = page.locator("[data-loading-stage]");
+    await expect(card).toHaveAttribute("data-guide-key", "loading");
+    await expect(card).toHaveAttribute("aria-busy", "true");
+    await expect(card).toHaveAttribute("data-ad-exclude", "true");
+    await expect(card.getByRole("heading", { level: 2 })).toHaveText(model.title);
+    await expect(card.getByText(model.body, { exact: true })).toBeVisible();
+    for (const part of ["journey", "eta", "next-action"]) {
+      await expect(card.locator(`[data-loading-skeleton="${part}"]`), part).toHaveAttribute("aria-hidden", "true");
+    }
+    await expect(card.getByRole("button")).toHaveCount(0);
+  });
+
+  test("3 s: the long-wait sentence and [조회 취소], which reports cancel", async ({ page }) => {
+    const model = loadingAt(3_500);
+    expect(model.stage).toBe("long");
+    await openKit(page);
+    await showLoading(page, model);
+    const card = page.locator("[data-loading-stage]");
+    await expect(card.locator("[data-loading-extra]")).toHaveText(model.extra ?? "");
+    await card.getByRole("button", { name: model.cancel?.label ?? "" }).click();
+    expect(await kitActions(page)).toEqual([{ kind: "cancel" }]);
+  });
+
+  test("8 s with a chosen carrier: the elapsed time and the carrier's official link; the spinner has stopped", async ({ page }) => {
+    const model = loadingAt(9_000, "CJ");
+    expect(model.stage).toBe("veryLong");
+    await openKit(page);
+    await showLoading(page, model);
+    const card = page.locator("[data-loading-stage]");
+    await expect(card.locator("[data-loading-extra]")).toHaveText(model.extra ?? "");
+    await expect(card.locator("[data-loading-elapsed]")).toHaveText(model.elapsedText ?? "");
+    const official = card.getByRole("link", { name: `${model.carrierOfficial?.label ?? ""} 새 창으로 열기` });
+    await expect(official).toHaveAttribute("href", model.carrierOfficial?.href ?? "");
+    await expect(card.locator("[data-spinner]")).toHaveCount(0);
+  });
+
+  test("the spinner turns a finite number of times, and not at all with reduced motion", async ({ page }) => {
+    await openKit(page);
+    await showLoading(page, loadingAt(1_000));
+    const timing = await page.locator("[data-spinner]").evaluate((element) =>
+      element.getAnimations().map((animation) => {
+        const effect = animation.effect?.getTiming();
+        return { iterations: effect?.iterations ?? 0, duration: Number(effect?.duration ?? 0) };
+      })
+    );
+    expect(timing).toEqual([{ iterations: 5, duration: 1_000 }]);
+
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await showLoading(page, loadingAt(1_000, "AUTO", true));
+    await expect(page.locator("[data-spinner]")).toHaveCount(0);
+    await showLoading(page, { ...loadingAt(1_000), spinnerActive: true });
+    expect(await page.locator("[data-spinner]").evaluate((element) => element.getAnimations().length)).toBe(0);
+  });
+
+  test("an outage notice shows as the in-card '안내' line", async ({ page }) => {
+    const model: LoadingViewModel = {
+      ...loadingAt(1_000),
+      outageNotice: { id: "kit-outage", kind: "outage", title: "통관 조회 점검", body: "UNI-PASS 점검(22:00~24:00) 중에는 통관 정보가 늦게 보일 수 있어요" }
+    };
+    await openKit(page);
+    await showLoading(page, model);
+    await expect(page.locator('[data-loading-stage] [data-notice-kind="outage"]')).toContainText(model.outageNotice?.body ?? "");
   });
 });

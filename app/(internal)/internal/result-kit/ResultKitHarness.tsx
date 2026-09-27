@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { LoadingCard } from "@/components/result/LoadingCard";
 import { ResultView } from "@/components/result/ResultView";
-import type { FailureCause, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
+import type { FailureCause, LoadingViewModel, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
 
-export type ResultKitScene = {
-  readonly kind: "result";
-  readonly view: TrackingViewModel;
-  readonly frame?: "responsive" | "mobile";
-  readonly readOnly?: boolean;
-  readonly failureCause?: FailureCause;
-  readonly withRecommendation?: boolean;
-};
+export type ResultKitScene =
+  | {
+      readonly kind: "result";
+      readonly view: TrackingViewModel;
+      readonly frame?: "responsive" | "mobile";
+      readonly readOnly?: boolean;
+      readonly failureCause?: FailureCause;
+      readonly withRecommendation?: boolean;
+    }
+  | { readonly kind: "loading"; readonly loading: LoadingViewModel };
 
 export interface ResultKitApi {
   readonly show: (scene: ResultKitScene) => void;
@@ -38,9 +41,33 @@ function KitRecommendation({ context }: { readonly context: string }): React.JSX
   );
 }
 
+function KitScene({
+  scene,
+  record,
+  headingRef
+}: {
+  readonly scene: ResultKitScene;
+  readonly record: (action: ResultAction) => void;
+  readonly headingRef: React.RefObject<HTMLHeadingElement | null>;
+}): React.JSX.Element {
+  if (scene.kind === "loading") return <LoadingCard loading={scene.loading} onCancel={() => record({ kind: "cancel" })} />;
+  const context = scene.view.revenue.recommendationContext;
+  return (
+    <ResultView
+      view={scene.view}
+      onAction={record}
+      headingRef={headingRef}
+      readOnly={scene.readOnly}
+      frame={scene.frame}
+      failureCause={scene.failureCause}
+      recommendationSlot={scene.withRecommendation === true && context !== null ? <KitRecommendation context={context} /> : undefined}
+    />
+  );
+}
+
 /**
- * Tests call window.__ttResultKit.show(scene) with a view model derived in Node and read the reported ResultActions
- * with actions(). Each show() remounts the scene (fresh component state) and clears the action log.
+ * Tests call window.__ttResultKit.show(scene) with a view (or loading) model derived in Node and read the reported
+ * ResultActions with actions(). Each show() remounts the scene (fresh component state) and clears the action log.
  */
 export function ResultKitHarness(): React.JSX.Element {
   const [shown, setShown] = useState<ShownScene | null>(null);
@@ -66,25 +93,10 @@ export function ResultKitHarness(): React.JSX.Element {
     actionsRef.current = [...actionsRef.current, action];
   };
 
-  const scene = shown === null ? null : shown.scene;
-  const context = scene === null ? null : scene.view.revenue.recommendationContext;
   return (
     <main ref={rootRef} className="min-h-screen bg-tt-ground py-4 text-tt-ink">
       <h1 className="sr-only">결과 화면 점검</h1>
-      {scene === null || shown === null ? null : (
-        <ResultView
-          key={shown.serial}
-          view={scene.view}
-          onAction={record}
-          headingRef={headingRef}
-          readOnly={scene.readOnly}
-          frame={scene.frame}
-          failureCause={scene.failureCause}
-          recommendationSlot={
-            scene.withRecommendation === true && context !== null ? <KitRecommendation context={context} /> : undefined
-          }
-        />
-      )}
+      {shown === null ? null : <KitScene key={shown.serial} scene={shown.scene} record={record} headingRef={headingRef} />}
     </main>
   );
 }
