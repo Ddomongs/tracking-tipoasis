@@ -20,7 +20,7 @@ import {
   staleData,
   success
 } from "../fixtures/derive-scenarios";
-import { FIXTURE_NOW } from "../fixtures/tracking-fixtures";
+import { FIXTURE_NOW, GAP3_06_VARIANTS, trackData } from "../fixtures/tracking-fixtures";
 
 const BOTH_PENDING = { approval2: false, approval3: false } as const;
 const BOTH_APPROVED = { approval2: true, approval3: true } as const;
@@ -32,8 +32,8 @@ const captionOf = (eta: EtaView): string | null =>
   eta.kind === "date" || eta.kind === "today" || eta.kind === "holidayAffected" ? eta.caption : null;
 
 // The two ledger rows mirror roadmap §4; Task 10 (approval 2) and Task 9 (approval 3) flip them one at a time.
-test("ledger: approval 2 is pending (roadmap §4)", () => {
-  expect(STATUS_SLOT_APPROVALS.approval2).toBe(BOTH_PENDING.approval2);
+test("ledger: approval 2 is approved (roadmap §4)", () => {
+  expect(STATUS_SLOT_APPROVALS.approval2).not.toBe(BOTH_PENDING.approval2);
 });
 
 test("ledger: approval 3 is approved (roadmap §4)", () => {
@@ -182,4 +182,15 @@ test("approval 3 granted: the page's error views are deriveTrackingView's own, r
       expect(deriveStatusView(outcome, FIXTURE_NOW), `${cause} × ${consecutiveFailures}`).toEqual(base(outcome));
     }
   }
+});
+
+test("approval 2 granted: the page's result views are deriveTrackingView's own, with the configured copy", () => {
+  for (const state of GAP3_06_VARIANTS) {
+    const outcome = success(trackData(state));
+    expect(deriveStatusView(outcome, FIXTURE_NOW), state).toEqual(base(outcome));
+  }
+  const pickedUp = success(pickedUpData());
+  expect(deriveStatusView(pickedUp, PICKUP_NOW)).toEqual(base(pickedUp, PICKUP_NOW));
+  const inTransit = success(inTransitData());
+  expect(deriveStatusView(inTransit, OCTOBER_NOW)).toEqual(base(inTransit, OCTOBER_NOW));
 });

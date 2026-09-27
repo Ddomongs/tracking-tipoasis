@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { deriveStatusView } from "@/components/status-slot/status-view";
+import { LEGACY_RESULT_COPY, deriveStatusView } from "@/components/status-slot/status-view";
 import { resultCopy, siteConfig } from "@/config/site.config";
+import { deriveTrackingView } from "@/lib/tracking/derive-view";
 import type { LookupEntry, TrackingViewModel } from "@/lib/tracking/types";
 import type { TrackResponseData } from "@/lib/types";
 import { FAKE, FIXTURE_NOW, mockTrack, trackData } from "../fixtures/tracking-fixtures";
@@ -188,4 +189,20 @@ test("the details below the slot are one result region; the legacy summary is go
   await expect(region.getByRole("heading", { name: "국내 배송 진행 상황" })).toBeVisible();
   await expect(page.locator('[data-tracking-result-summary="true"]')).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 2, name: expectedResult(trackData("inTransit")).title })).toHaveCount(1);
+});
+
+test("approval 2: results show the configured wording, with no pre-renewal overlay", async ({ page }) => {
+  const data = trackData("customsWaiting");
+  const configured = deriveTrackingView(
+    { kind: "success", request: { number: data.trackingNumber, carrier: "AUTO", entry: "manual" }, data },
+    FIXTURE_NOW,
+    siteConfig
+  );
+  expect(configured.title).not.toBe(LEGACY_RESULT_COPY.customsWaitingTitle);
+  await showResult(page, data, FIXTURE_NOW);
+  const slot = statusSlot(page);
+  await expect(slot.locator("[data-guide-key]").getByRole("heading", { level: 2 })).toHaveText(configured.title);
+  await expect(slot.getByText(configured.nextAction.sentence, { exact: true })).toBeVisible();
+  await expect(slot.getByText(LEGACY_RESULT_COPY.sentences.customsWaiting, { exact: true })).toHaveCount(0);
+  await expect(liveRegion(page)).toHaveText(configured.liveMessage);
 });
