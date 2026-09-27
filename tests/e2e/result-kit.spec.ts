@@ -1,13 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 import { disclosures, siteConfig } from "@/config/site.config";
 import { deriveTrackingView } from "@/lib/tracking/derive-view";
+import { groupTrackingNumber } from "@/lib/tracking/number-format";
 import type { FailureCause, LookupOutcome, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
 import { INTERNAL_TEST_CREDENTIALS } from "../internal-auth";
 import {
   OCTOBER_NOW, ambiguousData, carrierCutData, customsWaitingData, deliveredData, inTransitData, lookupUnavailableData, pendingData,
   staleData, success
 } from "../fixtures/derive-scenarios";
-import { FIXTURE_NOW } from "../fixtures/tracking-fixtures";
+import { FAKE, FIXTURE_NOW } from "../fixtures/tracking-fixtures";
 
 /**
  * Component contracts of the result area through the internal harness (/internal/result-kit).
@@ -465,5 +466,103 @@ test.describe("last event, history, help and the recommendation slot", () => {
     await showView(page, viewFor(success(staleData())), { withRecommendation: true });
     await expect(page.locator('[data-cta-state="stale"]')).toBeVisible();
     await expect(page.locator(slot)).toHaveCount(0);
+  });
+});
+
+test.describe("layout and modes", () => {
+  test("desktop 1440: a 560 px main column with a 320 px side column to its right; 전체 보기 opens the history", async ({ page }) => {
+    const view = viewFor(success(inTransitData()), OCTOBER_NOW);
+    await openKit(page, 1440, 900);
+    await showView(page, view);
+    const main = await page.locator("[data-result-main]").boundingBox();
+    const side = await page.locator("[data-side-column]").boundingBox();
+    expect(Math.round(main?.width ?? 0)).toBe(560);
+    expect(Math.round(side?.width ?? 0)).toBe(320);
+    expect(side?.x ?? 0).toBeGreaterThan((main?.x ?? 0) + (main?.width ?? 0));
+    const recent = page.locator("[data-history-recent]");
+    await expect(recent.locator("li")).toHaveCount(view.history.recent.length);
+    await recent.getByRole("button", { name: "전체 보기" }).click();
+    await expect(page.locator("details[data-history]")).toHaveAttribute("open", "");
+    await expect(page.locator("details[data-history] summary")).toBeFocused();
+  });
+
+  test("below 1024 px the side column follows the main column and the recent list stays hidden", async ({ page }) => {
+    await openKit(page, 768, 1024);
+    await showView(page, viewFor(success(inTransitData()), OCTOBER_NOW));
+    const main = await page.locator("[data-result-main]").boundingBox();
+    const side = await page.locator("[data-side-column]").boundingBox();
+    expect(side?.y ?? 0).toBeGreaterThanOrEqual((main?.y ?? 0) + (main?.height ?? 0) - 1);
+    await expect(page.locator("[data-history-recent]")).toBeHidden();
+  });
+
+  test("the mobile frame keeps one 375 px column even at 1440 and renders no recent list", async ({ page }) => {
+    await openKit(page, 1440, 900);
+    await showView(page, viewFor(success(inTransitData()), OCTOBER_NOW), { frame: "mobile" });
+    const root = page.locator("[data-result-view]");
+    await expect(root).toHaveAttribute("data-frame", "mobile");
+    expect((await root.boundingBox())?.width ?? 0).toBeLessThanOrEqual(375);
+    await expect(page.locator("[data-history-recent]")).toHaveCount(0);
+    const main = await page.locator("[data-result-main]").boundingBox();
+    const side = await page.locator("[data-side-column]").boundingBox();
+    expect(side?.y ?? 0).toBeGreaterThanOrEqual((main?.y ?? 0) + (main?.height ?? 0) - 1);
+  });
+
+  test("read-only: links and buttons do nothing and report nothing, the details still open", async ({ page }) => {
+    await blockOtherHosts(page);
+    await openKit(page);
+    await showView(page, viewFor(success(deliveredData())), { readOnly: true });
+    await expect(page.locator("[data-result-view]")).toHaveAttribute("data-read-only", "true");
+    let popups = 0;
+    page.on("popup", () => {
+      popups += 1;
+    });
+    await page.getByRole("link", { name: "네이버 스토어 보기 새 창으로 열기" }).click();
+    await page.locator('[data-cta-state="delivered"]').getByRole("button", { name: "받지 못하셨나요?" }).click();
+    // A popup that slipped past the guard would open within this time.
+    await page.waitForTimeout(500);
+    expect(popups).toBe(0);
+    await expect(page.locator("details[data-delivered-help]")).not.toHaveAttribute("open");
+    expect(await kitActions(page)).toEqual([]);
+    await page.locator("details[data-history] summary").click();
+    await expect(page.locator("details[data-history]")).toHaveAttribute("open", "");
+  });
+
+  test("long places, terms and inquiry text wrap at 320 px", async ({ page }) => {
+    const base = viewFor(success(staleData()));
+    const longPlace = "경기도 광주시 도척면 도척윗로 물류센터 제2동 통관 대기 구역 하역장";
+    const longTerm = "통관목록심사완료및보세운송신고수리후반출대기";
+    const view: TrackingViewModel = {
+      ...base,
+      lastEvent: base.lastEvent === null ? null : { ...base.lastEvent, place: longPlace, original: longTerm },
+      history: {
+        ...base.history,
+        segments: base.history.segments.map((segment) => ({
+          ...segment,
+          events: segment.events.map((event) => ({ ...event, place: longPlace, original: longTerm }))
+        }))
+      },
+      inquiryCopy: base.inquiryCopy === null ? null : base.inquiryCopy.replace(base.number.grouped, groupTrackingNumber(FAKE.cargo))
+    };
+    await openKit(page, 320, 800);
+    await showView(page, view);
+    await page.locator("details[data-history] summary").click();
+    await expect(page.locator("[data-inquiry-preview]")).toHaveText(view.inquiryCopy ?? "");
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  test("320 px: no horizontal scroll in pending, delivered, ambiguous and overdue results", async ({ page }) => {
+    await openKit(page, 320, 800);
+    for (const view of [
+      viewFor(success(pendingData())),
+      viewFor(success(deliveredData())),
+      viewFor(success(ambiguousData())),
+      viewFor(success(customsWaitingData()), at("2026-09-29T09:00:00+09:00"))
+    ]) {
+      await showView(page, view);
+      await expect(page.locator(`[data-cta-state="${view.ctaState}"]`)).toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, view.guideKey).toBeLessThanOrEqual(0);
+    }
   });
 });

@@ -6,10 +6,10 @@ import type { FailureCause, HelpItemView, ResultAction, TrackingViewModel } from
 import { ActionControl } from "./ActionControl";
 import { CarrierChooser } from "./CarrierChooser";
 import { DeliveredHelp, UNDELIVERED_HELP_ITEM_ID } from "./DeliveredHelp";
-import { HelpItems } from "./HelpItems";
 import { HistoryDetails } from "./HistoryDetails";
 import { LastEventLine } from "./LastEventLine";
 import { NextActionBlock } from "./NextActionBlock";
+import { SideColumn } from "./SideColumn";
 import { StatusCard } from "./StatusCard";
 
 export interface ResultViewProps {
@@ -26,7 +26,19 @@ export interface ResultViewProps {
   readonly failureCause?: FailureCause;
 }
 
+/**
+ * One column below 1024 px; from 1024 px the 560 px result with the 320 px side column (spec §3 데스크톱). At least as tall
+ * as the viewport under the header and number bar (48 + 56 px = 6.5rem), so nothing below moves into view when the
+ * result replaces the loading card (CLS ≤ 0.05).
+ */
+const RESPONSIVE_LAYOUT =
+  "mx-auto flex min-h-[calc(100svh_-_6.5rem)] w-full flex-col gap-4 lg:grid lg:w-[calc(var(--tt-column)_+_var(--tt-side)_+_2rem)] lg:max-w-full lg:grid-cols-[minmax(0,var(--tt-column))_var(--tt-side)] lg:items-start lg:gap-8";
+/** The CS preview's phone frame: one 375 px column at any window width. */
+const MOBILE_FRAME_LAYOUT = "mx-auto flex w-full max-w-[375px] flex-col gap-4";
+
 type ExternalTarget = Extract<ResultAction, { kind: "openedExternal" }>["target"];
+
+const ignoreAction = (): void => undefined;
 
 /** Which outside place a result link opens (reported for analytics, S11). */
 function externalTarget(anchor: HTMLAnchorElement): ExternalTarget | null {
@@ -45,6 +57,15 @@ function reportExternal(event: React.MouseEvent<HTMLElement>, onAction: (action:
   if (!(anchor instanceof HTMLAnchorElement)) return;
   const kind = externalTarget(anchor);
   if (kind !== null) onAction({ kind: "openedExternal", target: kind });
+}
+
+/** Read-only (CS preview): swallow activation of links, buttons, radios and chip labels before any handler runs. */
+function blockActivation(event: React.MouseEvent<HTMLElement>): void {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (target.closest("a[href], button, input, label") === null) return;
+  event.preventDefault();
+  event.stopPropagation();
 }
 
 function AuxiliaryLine({
@@ -72,8 +93,16 @@ function AuxiliaryLine({
  * the marker for delivered (spec §7 "CTA 바로 아래") and after 처리 내역 otherwise — never between the fixed blocks.
  * The number bar above it belongs to the caller.
  */
-export function ResultView({ view, onAction, headingRef, recommendationSlot, readOnly = false, frame = "responsive" }: ResultViewProps): React.JSX.Element {
+export function ResultView({
+  view,
+  onAction,
+  headingRef,
+  recommendationSlot,
+  readOnly = false,
+  frame = "responsive"
+}: ResultViewProps): React.JSX.Element {
   const baseId = useId();
+  const act = readOnly ? ignoreAction : onAction;
   const historyId = `${baseId}-history`;
   const undeliveredId = `${baseId}-undelivered`;
   const undelivered: HelpItemView | null = view.help.find((item) => item.id === UNDELIVERED_HELP_ITEM_ID) ?? null;
@@ -88,21 +117,22 @@ export function ResultView({ view, onAction, headingRef, recommendationSlot, rea
       data-ad-exclude="true"
       data-frame={frame}
       data-read-only={readOnly ? "true" : undefined}
-      onClick={(event) => reportExternal(event, onAction)}
-      className="mx-auto flex w-full flex-col gap-4"
+      onClickCapture={readOnly ? blockActivation : undefined}
+      onClick={readOnly ? undefined : (event) => reportExternal(event, onAction)}
+      className={frame === "mobile" ? MOBILE_FRAME_LAYOUT : RESPONSIVE_LAYOUT}
     >
       <div data-result-main="true" className="flex min-w-0 flex-col gap-4">
         <StatusCard view={view} titleId={`${baseId}-title`} headingRef={headingRef}>
-          <AuxiliaryLine view={view} onAction={onAction} />
+          <AuxiliaryLine view={view} onAction={act} />
         </StatusCard>
         <NextActionBlock
           view={view}
           headingId={`${baseId}-next`}
-          onAction={onAction}
+          onAction={act}
           undeliveredHelpId={undelivered === null ? null : undeliveredId}
           carrierChooser={
             choices === null ? undefined : (
-              <CarrierChooser choices={choices} onChoose={(carrier) => onAction({ kind: "chooseCarrier", carrier })} />
+              <CarrierChooser choices={choices} onChoose={(carrier) => act({ kind: "chooseCarrier", carrier })} />
             )
           }
         />
@@ -112,8 +142,8 @@ export function ResultView({ view, onAction, headingRef, recommendationSlot, rea
         <HistoryDetails history={view.history} id={historyId} />
         {undelivered === null ? null : <DeliveredHelp item={undelivered} id={undeliveredId} />}
         {recommendationsLead ? null : recommendations}
-        <HelpItems items={otherHelp} />
       </div>
+      <SideColumn view={view} frame={frame} historyId={historyId} help={otherHelp} />
     </div>
   );
 }
