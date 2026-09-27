@@ -77,3 +77,12 @@ Rows added by S07. "Old" is the assertion that locked the rule before R3; "New" 
 | S07-14 | 승인 2 대기 중 결과 문구 유지 (roadmap §4 row 2 fallback) | unit/status-view › "approval 2 pending: …" (5 tests), "ledger: approval 2 is pending" | none — approval 2 is granted (S07 Task 0 Step 7), so the wording overlay no longer applies | retired (approval 2) |
 | S07-15 | S04 E2E expectations equal the view the page renders | status-slot / failure-causes / cta-consistency specs through `deriveStatusView` | the same specs through `deriveResultView` (`deriveTrackingView` + the ledger's approval-3 decision) | migrated |
 | S07-16 | 오류 → 문의 우선, 승인 3 문언: 오류 블록 첫 링크는 톡톡, 스토어 0; 상태 카드에는 원인별 복구 조작이 채움 주 버튼 (NOT_FOUND [번호 수정], 일시 지연·오프라인·응답 없음 [다시 조회]); SERVER_ERROR·계약 위반은 [문의 내용 복사하고 톡톡 열기] | tracking.spec › "error state prioritizes inquiry without store promotion" (row S07-5) | result-states › "approval 3 on the live page …" ×2 (approved branch), "every error response keeps 톡톡 first …" ×7, "server error: …"; result-kit › "failure card › …"; S04 failure-causes (`RESULT_APPROVALS.approval3`) | migrated (approval 3) |
+
+
+## S08 — supplementary areas and styles
+
+Rows added by S08. An old assertion is removed only after its new one passed (spec §14 test contract 1). Expected values that are not E2E-locked strings (roadmap §11.11) are computed in the tests with `deriveTrackingView` and `recommendationsForView`, so config copy changes never break a rule test.
+
+| # | Rule (spec) | Old assertion (file › test) | New assertion (file › test) | Status |
+|---|---|---|---|---|
+| S08-1 | 국내 도착 전 추천 노출 — the content part of S07-7 (§8 추천, §16 item 10 거절하면: '운영자 추천' 창, 가격·할인 없음) | tracking.spec › "pending state offers inquiry and purchase-channel choices" (dialog trigger and content; the file was deleted by S07 after S07-7) | recommendations › "pending: '운영자 추천' follows 처리 내역 …", "no product link is in the page until the dialog opens …", "where recommendations appear" ×8, "after every validity span has ended …" | migrated (Task 3) |

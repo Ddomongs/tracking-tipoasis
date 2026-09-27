@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { lookup as lookupConfig, notices, stateGuide } from "@/config/site.config";
+import { disclosures, featuredProducts, lookup as lookupConfig, notices, stateGuide } from "@/config/site.config";
 import { InputAssist } from "@/components/lookup/InputAssist";
 import { LookupForm } from "@/components/lookup/LookupForm";
 import { computeDisplay, stillActiveHomeNotice, viewModeOf, type InvalidInput, type LookupDisplay } from "@/components/lookup/lookup-display";
@@ -22,8 +22,8 @@ import { SCRUB_TIMEOUT_MS, scrubNumberFromUrl } from "@/lib/privacy/url-scrub";
 import { CARRIER_NAMES, requestCarrierView } from "@/lib/tracking/carriers";
 import { groupTrackingNumber } from "@/lib/tracking/number-format";
 import { detectConfusables, extractFromPastedText, normalizeInput, pasteCarrierNotice, precheckNumber } from "@/lib/tracking/number-input";
+import { RECOMMENDATION_PRESENTATION, recommendationsForView } from "@/lib/tracking/recommendations";
 import type {
-  LookupOutcome,
   LookupRequest,
   NoticeView,
   NumberView,
@@ -71,9 +71,9 @@ const SECTION_FORM_CLASS = "flex flex-col gap-4 pb-6";
  */
 const SECTION_RESULT_CLASS = "flex flex-col bg-tt-surface pb-6 lg:-mx-[calc((var(--tt-side)_+_2rem)/2)]";
 
-/** The R2 recommendation component, kept until S08 replaces it; loaded only when a result allows recommendations. */
-const LegacyRecommendedProducts = dynamic(
-  () => import("@/components/RecommendedProducts").then((module) => module.RecommendedProducts),
+/** The recommendation block (spec §8) loads only when a settled result shows it; it is never part of the first paint. */
+const RecommendationList = dynamic(
+  () => import("@/components/supplementary/RecommendationList").then((module) => module.RecommendationList),
   { ssr: false }
 );
 
@@ -163,14 +163,13 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
       ? settledView.view
       : null;
 
-  const renderRecommendations = (view: TrackingViewModel, outcome: LookupOutcome): React.ReactNode =>
-    outcome.kind === "success" &&
-    view.revenue.recommendations === "inline" &&
-    (view.revenue.recommendationContext === "pending" ||
-      view.revenue.recommendationContext === "inTransit" ||
-      view.revenue.recommendationContext === "delivered") ? (
-      <LegacyRecommendedProducts context={view.revenue.recommendationContext} />
-    ) : null;
+  // Spans and price dates are judged at the customer's clock snapshot (S06 session.ts), never with a clock read in render.
+  const renderRecommendations = (view: TrackingViewModel): React.ReactNode => {
+    const context = view.revenue.recommendationContext;
+    if (clientNowMs === null || context === null) return null;
+    const items = recommendationsForView(view.revenue, featuredProducts, new Date(clientNowMs), RECOMMENDATION_PRESENTATION);
+    return items.length === 0 ? null : <RecommendationList context={context} items={items} disclosure={disclosures.coupang} />;
+  };
 
   const beginLookup = useCallback(
     (request: LookupRequest) => {
