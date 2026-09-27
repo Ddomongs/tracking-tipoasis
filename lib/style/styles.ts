@@ -1,5 +1,5 @@
 /**
- * Screen styles the customer can pick (spec §13). S05 implements only the default,
+ * Screen styles the customer can pick (spec §13):
  * "signal" (B 색면 신호, the default), "manifest" (A 세관 서류) and "night" (C 야간 관제) — all three implemented since S08.
  */
 export const STYLE_IDS = ["signal", "manifest", "night"] as const;
