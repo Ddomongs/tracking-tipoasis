@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { channels, disclosures, durations, lookup } from "@/config/site.config";
 import { FAKE, mockTrack, trackData } from "../fixtures/tracking-fixtures";
@@ -301,4 +302,29 @@ test.describe("style tokens on the page (S06)", () => {
     );
     expect(infinite).toBe(0);
   });
+});
+
+const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
+
+test.describe("axe (S06, approval 13)", () => {
+  for (const viewport of [
+    { width: 375, height: 812 },
+    { width: 1280, height: 900 }
+  ]) {
+    test(`home, INVALID and a loading deep link have no WCAG 2.2 AA violations at ${viewport.width}px`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await mockTrack(page, trackData("inTransit", { trackingNumber: FAKE.domestic }), { delayMs: 20_000 });
+      const scan = async (label: string): Promise<void> => {
+        const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).exclude(".tt-legacy-dark").analyze();
+        expect(results.violations.map((violation) => `${violation.id} (${violation.nodes.length})`), label).toEqual([]);
+      };
+      await page.goto("/");
+      await scan("home");
+      await page.goto(`/${FAKE.deepLinkInvalid}`);
+      await scan("INVALID deep link");
+      await page.goto(`/${FAKE.domestic}`);
+      await expect(page.locator('[data-number-bar="true"]')).toBeVisible();
+      await scan("deep link while loading");
+    });
+  }
 });
