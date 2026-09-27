@@ -97,8 +97,9 @@ test.describe("shipped config", () => {
     expect([channels.naver.linkLabel, channels.coupang.linkLabel]).toEqual(["네이버 스토어 보기", "쿠팡 스토어 보기"]);
   });
 
-  test("the disclosure is the current wording until approval 9, then the approved wording", () => {
-    expect([DISCLOSURE_FALLBACK, DISCLOSURE_APPROVED]).toContain(disclosures.coupang);
+  test("approval 9: the definitive disclosure wording", () => {
+    expect(disclosures.coupang).toBe(DISCLOSURE_APPROVED);
+    expect(disclosures.coupang).not.toBe(DISCLOSURE_FALLBACK);
   });
 
   test("the pending recheck sentence is the current one until approval 4", () => {

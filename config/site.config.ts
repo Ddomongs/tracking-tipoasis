@@ -49,9 +49,9 @@ export const channels = {
   allowedHosts: ["talk.naver.com", "mkt.shopping.naver.com", "smartstore.naver.com", "link.coupang.com", "www.coupang.com"]
 } satisfies ChannelsConfig;
 
-/** 2) 제휴 고지 — 제휴 링크 묶음의 첫 줄에 자동으로 붙습니다. 확정형 문언은 승인 9(법무 확인) 뒤에 바꿉니다. */
+/** 2) 제휴 고지 — 제휴 링크 묶음의 첫 줄에 자동으로 붙습니다. 승인 9(법무 확인)로 확정한 문언입니다. */
 export const disclosures = {
-  coupang: "쿠팡 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다."
+  coupang: "쿠팡 링크는 쿠팡 파트너스 활동의 일환으로, 구매 시 운영자가 수수료를 받습니다."
 } satisfies DisclosuresConfig;
 
 /**
