@@ -187,5 +187,5 @@ test("the details below the slot are one result region; the legacy summary is go
   await expect(region).toHaveAttribute("data-ad-exclude", "true");
   await expect(region.getByRole("heading", { name: "국내 배송 진행 상황" })).toBeVisible();
   await expect(page.locator('[data-tracking-result-summary="true"]')).toHaveCount(0);
-  await expect(page.getByRole("heading", { level: 2, name: "국내 배송 중" })).toHaveCount(1);
+  await expect(page.getByRole("heading", { level: 2, name: expectedResult(trackData("inTransit")).title })).toHaveCount(1);
 });

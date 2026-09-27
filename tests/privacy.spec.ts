@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { FAKE } from "./fixtures/tracking-fixtures";
+import { deriveStatusView } from "@/components/status-slot/status-view";
+import { resultCopy } from "@/config/site.config";
+import type { TrackResponseData } from "@/lib/types";
+import { FAKE, FIXTURE_NOW, mockTrack } from "./fixtures/tracking-fixtures";
 import { AD_TIMING_POLICY } from "@/lib/ads/ad-gate";
 import type { AdTimingPolicy } from "@/lib/ads/ad-gate";
 
@@ -14,36 +17,37 @@ test("privacy policy is reachable from the footer and explains the no-storage ru
 });
 
 test("a stale shipment shows a verification prompt instead of a delivery estimate", async ({ page }) => {
-  await page.route("**/api/track", async (route) => {
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        success: true,
-        data: {
-          trackingNumber: FAKE.domestic,
-          type: "DOMESTIC",
-          currentStatus: "통관완료",
-          currentStatusCode: 4,
-          estimateStale: true,
-          estimatedCustomsClearanceDate: "2026-02-13T12:00:00+09:00",
-          customs: {
-            events: [{ status: "통관완료", statusCode: 4, datetime: "2026-02-13T12:00:00+09:00" }]
-          },
-          delivery: { carrier: "국내택배 자동 조회", carrierCode: "AUTO", invoiceNumber: FAKE.domestic, events: [] },
-          timeline: [],
-          lastUpdated: "2026-02-13T12:00:00+09:00"
-        }
-      })
-    });
-  });
+  const data: TrackResponseData = {
+    trackingNumber: FAKE.domestic,
+    type: "DOMESTIC",
+    currentStatus: "통관완료",
+    currentStatusCode: 4,
+    estimateStale: true,
+    estimatedCustomsClearanceDate: "2026-02-13T12:00:00+09:00",
+    customs: {
+      events: [{ status: "통관완료", statusCode: 4, datetime: "2026-02-13T12:00:00+09:00" }]
+    },
+    delivery: { carrier: "국내택배 자동 조회", carrierCode: "AUTO", invoiceNumber: FAKE.domestic, events: [] },
+    timeline: [],
+    lastUpdated: "2026-02-13T12:00:00+09:00"
+  };
+  const view = deriveStatusView(
+    { kind: "success", request: { number: FAKE.domestic, carrier: "AUTO", entry: "deepLink" }, data },
+    FIXTURE_NOW
+  );
+  if (view.eta.kind !== "withheld") throw new Error(`unexpected ETA kind ${view.eta.kind}`);
+  const chipState = (view.chip ?? "").split(" · ")[0] ?? "";
+  await page.clock.setFixedTime(FIXTURE_NOW);
+  await mockTrack(page, data);
 
   await page.goto(`/${FAKE.domestic}`);
 
   const summary = page.locator('[data-status-slot="settled"]');
-  await expect(summary.getByText("배송 이력 확인 필요")).toBeVisible();
-  await expect(summary.getByText("확인 필요", { exact: true })).toBeVisible();
-  await expect(summary.getByText("오늘 예상")).toHaveCount(0);
-  await expect(summary.getByText("마지막 처리 이후 오래 지났습니다", { exact: false })).toBeVisible();
+  await expect(summary.locator('[data-eta-kind="withheld"]').getByText(view.eta.text, { exact: true })).toBeVisible();
+  await expect(summary.getByText(chipState, { exact: true })).toBeVisible();
+  await expect(summary.getByText(resultCopy.etaTodayLabel)).toHaveCount(0);
+  await expect(summary.getByText(view.nextAction.sentence, { exact: true })).toBeVisible();
+  await expect(summary.locator('[data-action-weight="primary"]')).toHaveAttribute("data-action-kind", "copyAndTalk");
 });
 
 const AD_TIMING_DISCLOSURE: Readonly<Record<AdTimingPolicy, string>> = {

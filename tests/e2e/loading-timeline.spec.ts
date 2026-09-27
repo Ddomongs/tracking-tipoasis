@@ -146,7 +146,7 @@ test("[조회 취소] keeps the number, returns to the form and ignores the late
   await held.release(0, trackData("pending"));
   await page.waitForTimeout(SETTLE_MS);
   await expect(statusSlot(page)).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "통관 정보 등록 전" })).toHaveCount(0);
+  await expect(statusSlot(page).locator('[data-guide-key="pending"]')).toHaveCount(0);
 });
 
 test("a new submit aborts the previous request and ignores its late answer", async ({ page }) => {
@@ -161,11 +161,11 @@ test("a new submit aborts the previous request and ignores its late answer", asy
     { trackingNumber: FAKE.hbl, carrierCode: "AUTO" }
   ]);
   await held.release(1, trackData("inTransit"));
-  await expect(page.getByRole("heading", { name: "국내 배송 중" })).toBeVisible();
+  await expect(statusSlot(page).locator('[data-guide-key="inTransit"]')).toBeVisible();
   await held.release(0, trackData("pending"));
   await page.waitForTimeout(SETTLE_MS);
-  await expect(page.getByRole("heading", { name: "통관 정보 등록 전" })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "국내 배송 중" })).toBeVisible();
+  await expect(statusSlot(page).locator('[data-guide-key="pending"]')).toHaveCount(0);
+  await expect(statusSlot(page).locator('[data-guide-key="inTransit"]')).toBeVisible();
 });
 
 test("a slow but valid answer (29.19 s before the server fix) still shows its result", async ({ page }) => {
@@ -176,6 +176,6 @@ test("a slow but valid answer (29.19 s before the server fix) still shows its re
   await page.clock.runFor(SLOW_VALID_MS);
   await expect(statusSlot(page).locator("[data-loading-stage]")).toHaveAttribute("data-loading-stage", "veryLong");
   await held.release(0, trackData("pending"));
-  await expect(page.getByRole("heading", { name: "통관 정보 등록 전" })).toBeVisible();
+  await expect(statusSlot(page).locator('[data-guide-key="pending"]')).toBeVisible();
   await expect(page.locator('[data-cta-state="error"]')).toHaveCount(0);
 });

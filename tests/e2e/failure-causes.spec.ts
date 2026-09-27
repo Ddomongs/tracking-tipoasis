@@ -200,7 +200,7 @@ test("offline: one automatic re-lookup when the connection returns", async ({ pa
   reachable = true;
   await setNavigatorOnline(page, true);
   await dispatchOnline(page);
-  await expect(page.getByRole("heading", { name: "국내 배송 중" })).toBeVisible();
+  await expect(statusSlot(page).locator('[data-guide-key="inTransit"]')).toBeVisible();
   expect(bodies).toHaveLength(2);
 });
 
