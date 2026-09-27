@@ -9,7 +9,6 @@ import { FAKE, FIXTURE_NOW, mockTrack, trackData } from "../fixtures/tracking-fi
 import {
   APP_LIVE_REGIONS,
   CARRIER_LABEL,
-  INPUT_LABEL,
   blockThirdParty,
   holdTrack,
   liveRegion,
@@ -152,11 +151,13 @@ test("deep link: focus stays where the customer is once they interacted; the liv
   const data = trackData("inTransit");
   await page.goto(`/${data.trackingNumber}`);
   await held.waitForRequests(1);
-  const input = page.getByLabel(INPUT_LABEL, { exact: true });
-  await input.click();
+  // S06: a loading deep link shows the number bar, not the input; the customer tabs to the skip link (RULE-MAP S4).
+  const skipLink = page.getByRole("link", { name: "본문으로 건너뛰기" });
+  await page.keyboard.press("Tab");
+  await expect(skipLink).toBeFocused();
   await held.release(0, data);
   await expect(liveRegion(page)).toHaveText(expectedResult(data, FIXTURE_NOW, "deepLink").liveMessage);
-  await expect(input).toBeFocused();
+  await expect(skipLink).toBeFocused();
 });
 
 test("carrier chips look the same number up again with the chosen carrier", async ({ page }) => {
@@ -170,6 +171,8 @@ test("carrier chips look the same number up again with the chosen carrier", asyn
   await chips.getByRole("button", { name: "CJ대한통운" }).click();
   await expect.poll(() => bodies.length).toBe(2);
   expect(bodies[1]).toEqual({ trackingNumber: FAKE.domestic, carrierCode: "CJ" });
+  // S06: result modes show the number bar; [다른 번호 조회] brings the form back with the chosen carrier (RULE-MAP S5).
+  await page.getByRole("button", { name: "다른 번호 조회" }).click();
   await expect(page.getByRole("combobox", { name: CARRIER_LABEL })).toHaveValue("CJ");
 });
 

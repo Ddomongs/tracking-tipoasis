@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { STATUS_SLOT_APPROVALS, deriveStatusView } from "@/components/status-slot/status-view";
-import { INVALID_NUMBER_ERROR_ID } from "@/components/TrackingForm";
+import { INVALID_NUMBER_ERROR_ID } from "@/components/lookup/LookupForm";
 import { lookup, siteConfig } from "@/config/site.config";
 import type { ActionKind, FailureCause, TrackingViewModel } from "@/lib/tracking/types";
 import { FAILURE_RESPONSES, FAKE, FIXTURE_NOW, mockTrack, successBody, trackData } from "../fixtures/tracking-fixtures";
@@ -61,7 +61,8 @@ test.beforeEach(async ({ page }) => {
   await blockThirdParty(page);
 });
 
-for (const fixture of Object.keys(CAUSE_BY_FIXTURE) as FailureFixture[]) {
+// S06: a server INVALID answer is shown at the input, not in the slot; its test follows this loop (RULE-MAP S2).
+for (const fixture of (Object.keys(CAUSE_BY_FIXTURE) as FailureFixture[]).filter((key) => key !== "invalid400")) {
   test(`${fixture}: the cause's own notice, 톡톡 first in the block, no stores and no server wording`, async ({ page }) => {
     const cause = CAUSE_BY_FIXTURE[fixture];
     const view = expectedFailure(cause, FAKE.domestic);
@@ -95,6 +96,28 @@ for (const fixture of Object.keys(CAUSE_BY_FIXTURE) as FailureFixture[]) {
     if (message !== null) await expect(page.getByText(message)).toHaveCount(0);
   });
 }
+
+test("invalid400 (S06): a server INVALID answer reopens the form with the error at the input, 톡톡 first in the error block", async ({ page }) => {
+  const view = expectedFailure("invalidNumber", FAKE.domestic);
+  await page.clock.setFixedTime(FIXTURE_NOW);
+  await mockTrack(page, "invalid400");
+  await page.goto("/");
+  await lookUp(page, FAKE.domestic);
+  await expect(page.locator('[data-view-state="error"]')).toHaveCount(1);
+  const block = page.locator('[data-guide-key="invalidNumber"]');
+  await expect(block.getByRole("alert")).toHaveText(view.title);
+  await expect(block.getByRole("heading")).toHaveCount(0);
+  await expect(page.getByLabel(INPUT_LABEL, { exact: true })).toBeFocused();
+  const cta = page.locator('[data-cta-state="error"]');
+  await expect(cta.getByRole("heading", { level: 3 })).toHaveText(view.nextAction.heading ?? "");
+  await expect(cta.getByRole("link").first()).toHaveAttribute("href", siteConfig.channels.talk.url);
+  // The form's [조회하기] is the one filled button of the INVALID screen (Open issue 5).
+  await expect(page.locator('[data-slot="button"][data-variant="primary"]')).toHaveCount(1);
+  await expect(page.locator('a[rel~="sponsored"]')).toHaveCount(0);
+  await expect(page.locator("[data-affiliate-group], [data-recommended-products], [data-storefront-showcase]")).toHaveCount(0);
+  const message = serverMessageOf("invalid400");
+  if (message !== null) await expect(page.getByText(message)).toHaveCount(0);
+});
 
 test("an invalid number keeps focus in the input and describes the error there", async ({ page }) => {
   await page.clock.setFixedTime(FIXTURE_NOW);
@@ -275,7 +298,7 @@ const APPROVED_PRIMARY: Readonly<Record<FailureFixture, ActionKind>> = {
   contractViolation200: "copyAndTalk"
 };
 
-for (const fixture of Object.keys(APPROVED_PRIMARY) as FailureFixture[]) {
+for (const fixture of (Object.keys(APPROVED_PRIMARY) as FailureFixture[]).filter((key) => key !== "invalid400")) {
   test(`${fixture} (approval 3): the recovery action leads and 톡톡 stays the first link of the block`, async ({ page }) => {
     const cause = CAUSE_BY_FIXTURE[fixture];
     const kind = APPROVED_PRIMARY[fixture];

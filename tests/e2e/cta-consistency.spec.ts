@@ -94,7 +94,8 @@ for (const [fixture, cause] of ERROR_FIXTURES) {
     await mockTrack(page, fixture);
     await page.goto("/");
     await lookUp(page, FAKE.domestic);
-    await expect(statusSlot(page).locator('[data-cta-state="error"]')).toBeVisible();
+    // S06: a server INVALID answer shows its error block under the form, outside the slot (RULE-MAP S3).
+    await expect(page.locator('[data-cta-state="error"]')).toBeVisible();
     await expect(page.locator(PAGE_STORE_PLACEMENTS)).toHaveCount(0);
     await expect(page.locator('a[rel~="sponsored"], [data-recommended-products], [data-storefront-showcase], [data-contact-popup]')).toHaveCount(0);
   });

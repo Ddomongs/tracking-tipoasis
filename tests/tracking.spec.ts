@@ -228,46 +228,6 @@ const submitTracking = async (page: Page): Promise<void> => {
   await page.getByRole("button", { name: "조회하기" }).click();
 };
 
-test("home uses customer language without brand, robot, or AI copy", async ({ page }) => {
-  await page.goto("/");
-
-  await expect(page.getByText("구매 고객을 위한 배송조회")).toBeVisible();
-  await expect(page.getByRole("heading", { level: 1, name: "통관부터 국내 배송까지 한 번에 확인" })).toBeVisible();
-  const logisticsFlow = page.locator('[data-logistics-flow="true"]');
-  await expect(logisticsFlow).toBeVisible();
-  await expect(logisticsFlow.locator('[data-motion-visual="route"]')).toBeVisible();
-  await expect(page.getByRole("region", { name: "배송 조회 안심 안내" }).locator('[data-motion-visual="lookup"]')).toBeVisible();
-  await expect(page.getByText("실시간 AI 배송 추적 시스템")).toHaveCount(0);
-  await expect(page.locator('iframe[src*="spline.design"]')).toHaveCount(0);
-  await expect(page.locator("body")).toHaveClass(/google-anno-skip/);
-  await expect(page.getByLabel("조회번호 (HBL 또는 운송장)", { exact: true })).toBeVisible();
-  const trackingInput = page.getByRole("textbox", { name: "조회번호 (HBL 또는 운송장)", exact: true });
-  await expect(trackingInput).toBeVisible();
-  await expect(trackingInput).toHaveAttribute("data-input-shake", "active");
-  await expect(page.getByText("운송장 번호는 바로 아래 칸에 넣어 주세요!")).toBeVisible();
-  await expect(page.locator('[data-motion-cue="tracking-input-pointer"]')).toBeVisible();
-  await expect(page.getByRole("button", { name: "조회하기" })).toBeVisible();
-  await expect(page.locator('[data-motion-cue="tracking-submit"]')).toBeVisible();
-  await trackingInput.fill(FAKE.domestic);
-  await expect(trackingInput).toHaveAttribute("data-input-shake", "idle");
-});
-
-const FORMAT_HINT =
-  "숫자 10~14자리 (예: 0000 0000 0000) · 영문 3~4자로 시작하는 HBL (예: ABCD 0000 0000) · 공백·하이픈은 자동으로 빼요";
-
-test("the lookup form shows the format hint instead of example numbers", async ({ page }) => {
-  await page.goto("/");
-
-  // Count first: if the old buttons are still there, the failure message shows a count, never a number.
-  await expect(page.getByRole("button", { name: /^예시/ })).toHaveCount(0);
-  const hint = page.locator("#tracking-format-help");
-  await expect(hint).toBeVisible();
-  await expect(hint).toHaveText(FORMAT_HINT);
-  const input = page.getByRole("textbox", { name: "조회번호 (HBL 또는 운송장)", exact: true });
-  const describedBy = (await input.getAttribute("aria-describedby")) ?? "";
-  expect(describedBy.split(" ")).toContain("tracking-format-help");
-});
-
 test("user can choose a representative domestic carrier before tracking", async ({ page }) => {
   await page.route("**/api/track", async (route) => {
     const body = TrackRequestSchema.parse(route.request().postDataJSON());
@@ -319,39 +279,6 @@ test("user can choose a representative domestic carrier before tracking", async 
   expect(skipLinkState.active).toBe(false);
   expect(skipLinkState.top).toBeLessThan(0);
 });
-
-test("semantic motion is finite and honors reduced-motion", async ({ page }) => {
-  await page.goto("/");
-
-  const routeIcon = page.locator('[data-logistics-flow="true"] [data-motion-visual="route"] .motion-visual-icon');
-  const routeMotion = await routeIcon.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { name: style.animationName, iterations: style.animationIterationCount };
-  });
-  expect(routeMotion.name).toContain("visual-route");
-  expect(routeMotion.iterations).toBe("2");
-
-  const storeIcon = page.locator('[data-motion-visual="store"] .motion-visual-icon').first();
-  await expect(storeIcon).toBeVisible();
-  await expect(storeIcon).toHaveCSS("animation-name", "none");
-
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect(routeIcon).toHaveCSS("animation-name", "none");
-  await expect(page.locator(".motion-logistics-packet")).toHaveCSS("animation-name", "none");
-});
-
-for (const viewport of [
-  { name: "tablet", width: 768, height: 1024 },
-  { name: "desktop", width: 1280, height: 900 }
-] as const) {
-  test(`${viewport.name} layout keeps motion inside the viewport`, async ({ page }) => {
-    await page.setViewportSize(viewport);
-    await page.goto("/");
-    await expect(page.locator('[data-logistics-flow="true"]')).toBeVisible();
-    const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
-    expect(hasHorizontalOverflow).toBe(false);
-  });
-}
 
 test("mobile first view exposes consultation and store shortcuts", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

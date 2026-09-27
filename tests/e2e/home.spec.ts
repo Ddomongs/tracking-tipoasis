@@ -47,3 +47,111 @@ test.describe("site header (S06)", () => {
     }
   });
 });
+
+const INPUT_LABEL = "조회번호 (HBL 또는 운송장)";
+const HOME_H1 = "통관부터 국내 배송까지 한 번에 확인";
+const RESULT_READY = { name: "다시 볼 링크 복사" } as const;
+
+test.describe("home first view (S06)", () => {
+  test("one h1 and the lookup form come first; the hero decorations are gone", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(HOME_H1);
+    await expect(page.locator('[data-view-state="idle"]')).toHaveCount(1);
+    const form = page.locator('[data-lookup-form="true"]');
+    await expect(form.getByRole("textbox", { name: INPUT_LABEL, exact: true })).toBeVisible();
+    await expect(form.getByRole("combobox", { name: "국내 택배사" })).toBeVisible();
+    await expect(form.getByRole("button", { name: "조회하기" })).toBeVisible();
+    for (const hook of ["data-logistics-flow", "data-input-shake", "data-motion-cue", "data-tracking-result-summary"]) {
+      await expect(page.locator(`[${hook}]`), hook).toHaveCount(0);
+    }
+    await expect(page.getByRole("region", { name: "배송 조회 안심 안내" })).toHaveCount(0);
+    await expect(page.getByText("구매 고객을 위한 배송조회")).toHaveCount(0);
+  });
+
+  test("home copy speaks customer language: no AI, robot or brand slogans", async ({ page }) => {
+    await page.goto("/");
+    const text = await page.locator("body").innerText();
+    expect(text).not.toMatch(/\bAI\b|인공지능|로봇|챗봇/);
+    await expect(page.getByText("실시간 AI 배송 추적 시스템")).toHaveCount(0);
+    await expect(page.locator("body")).toHaveClass(/google-anno-skip/);
+  });
+
+  test("the lookup area keeps its ad-exclusion hook and exactly one filled button", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator('#tracking[data-ad-exclude="true"]')).toHaveCount(1);
+    const filled = page.locator('[data-slot="button"][data-variant="primary"]');
+    await expect(filled).toHaveCount(1);
+    await expect(filled).toHaveText("조회하기");
+  });
+
+  test("no horizontal scroll at 320, 768 and 1280 px", async ({ page }) => {
+    for (const width of [320, 768, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${width}px`).toBe(true);
+    }
+  });
+
+  test("no infinite animation runs, and reduced motion stops every animation", async ({ page }) => {
+    await page.goto("/");
+    const infinite = await page.evaluate(
+      () => document.getAnimations().filter((animation) => animation.effect?.getTiming().iterations === Number.POSITIVE_INFINITY).length
+    );
+    expect(infinite).toBe(0);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.reload();
+    const moving = await page.evaluate(
+      () =>
+        document.getAnimations().filter((animation) => {
+          const duration = Number(animation.effect?.getComputedTiming().duration ?? 0);
+          return animation.playState === "running" && duration > 0;
+        }).length
+    );
+    expect(moving).toBe(0);
+  });
+
+  test("the skip link moves focus to the main content", async ({ page }) => {
+    await page.goto("/");
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#main-content")).toBeFocused();
+  });
+});
+
+test.describe("mode changes stay on '/' (S06)", () => {
+  test("[다른 번호 조회] resets to the form without a navigation or a new lookup", async ({ page }) => {
+    const bodies: unknown[] = [];
+    await mockTrack(page, trackData("inTransit", { trackingNumber: FAKE.hbl }), { onRequest: (body) => bodies.push(body) });
+    const documents: string[] = [];
+    page.on("load", () => documents.push(page.url()));
+    await page.goto("/");
+    const input = page.getByRole("textbox", { name: INPUT_LABEL, exact: true });
+    await input.fill(FAKE.hbl);
+    await input.press("Enter");
+    await expect(page.getByRole("button", RESULT_READY)).toBeVisible();
+    await page.getByRole("button", { name: "다른 번호 조회" }).click();
+    await expect(page.locator('[data-view-state="idle"]')).toHaveCount(1);
+    await expect(input).toHaveValue(FAKE.hbl);
+    await expect(input).toBeFocused();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(HOME_H1);
+    expect(new URL(page.url()).pathname).toBe("/");
+    expect(documents).toHaveLength(1);
+    expect(bodies).toHaveLength(1);
+  });
+
+  test("[번호 변경] during a slow lookup returns to the form and ignores the late answer", async ({ page }) => {
+    await mockTrack(page, trackData("inTransit", { trackingNumber: FAKE.domestic }), { delayMs: 2500 });
+    await page.goto("/");
+    const input = page.getByRole("textbox", { name: INPUT_LABEL, exact: true });
+    await input.fill(FAKE.domestic);
+    await input.press("Enter");
+    await expect(page.locator('[data-number-bar="true"]')).toBeVisible();
+    await page.getByRole("button", { name: "번호 변경" }).click();
+    await expect(input).toHaveValue(FAKE.domestic);
+    await expect(input).toBeFocused();
+    await page.waitForTimeout(3000);
+    await expect(page.getByRole("button", RESULT_READY)).toHaveCount(0);
+    await expect(page.locator('[data-view-state="idle"]')).toHaveCount(1);
+  });
+});

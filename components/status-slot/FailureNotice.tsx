@@ -1,6 +1,6 @@
 "use client";
 
-import { INVALID_NUMBER_ERROR_ID } from "@/components/TrackingForm";
+import { INVALID_NUMBER_ERROR_ID } from "@/components/lookup/LookupForm";
 import { ActionControl, AuxiliaryLine, ChipLine, NoticeLine, NumberLine, RECOVERY_KINDS, TONE_BORDER } from "@/components/status-slot/SlotParts";
 import type { ActionView, FailureCause, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
 
