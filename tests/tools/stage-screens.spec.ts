@@ -33,7 +33,9 @@ const SCENARIOS: readonly StageScenario[] = [
   { name: "deeplink-serverError", path: `/${FAKE.domestic}`, prepare: (page) => mockTrack(page, "serverError500") },
   { name: "deeplink-rateLimited", path: `/${FAKE.domestic}`, prepare: (page) => mockTrack(page, "rateLimited429") },
   { name: "deeplink-stale", path: `/${FAKE.hbl}`, prepare: (page) => mockTrack(page, trackData("stale")) },
-  { name: "deeplink-ambiguous", path: `/${FAKE.domestic}`, prepare: (page) => mockTrack(page, trackData("ambiguous")) }
+  { name: "deeplink-ambiguous", path: `/${FAKE.domestic}`, prepare: (page) => mockTrack(page, trackData("ambiguous")) },
+  // S06: INVALID deep link — server-rendered form with the error, no API call
+  { name: "deeplink-invalid", path: `/${FAKE.deepLinkInvalid}` }
 ];
 
 /** The pre-S01 example buttons and help line showed real shipments; mask them so no real number reaches a screenshot. */
