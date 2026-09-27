@@ -334,13 +334,6 @@ function HomePageContent({ initialTrackingNumber }: HomePageClientProps) {
         </section>
 
         <div className="mx-auto max-w-5xl">
-          {/* S04-BRIDGE:error — legacy error CTA block until Task 5 of the S04 plan. */}
-          {slotState.phase === "error" ? (
-            <section className="mb-8 space-y-3">
-              <CustomerCta variant="result" state="error" />
-            </section>
-          ) : null}
-
           {/* S04-BRIDGE:settled — legacy result section until Task 6 of the S04 plan. */}
           {settledData ? (
             <section className="space-y-4 pb-8" aria-labelledby="tracking-result-title" data-ad-exclude="true">

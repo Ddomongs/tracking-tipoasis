@@ -1,11 +1,13 @@
 "use client";
 
+import { CustomerCta, INLINE_HELP_IDS } from "@/components/CustomerCta";
+import { FailureNotice } from "@/components/status-slot/FailureNotice";
 import { LoadingTimeline } from "@/components/status-slot/LoadingTimeline";
 import type { LookupState } from "@/lib/tracking/lookup-state";
-import type { LoadingViewModel, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
+import type { HelpItemView, LoadingViewModel, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
 
 // Transitional (contract §11.9; deleted by S07). One slot directly under the lookup form: loading, then the error or the result, in the
-// same place (spec §2 원칙 1, §5). This task renders the loading card; Tasks 5 and 6 of the S04 plan add errors and results.
+// same place (spec §2 원칙 1, §5). Results arrive in Task 6 of the S04 plan.
 
 export interface StatusSlotProps {
   readonly state: LookupState;
@@ -15,13 +17,44 @@ export interface StatusSlotProps {
   readonly headingRef: React.RefObject<HTMLHeadingElement | null>;
 }
 
-export function StatusSlot({ state, loading, onAction }: StatusSlotProps): React.JSX.Element | null {
-  if (state.phase !== "loading") return null;
-  // 0–0.4 s: only the submit label changes (spec §5); from 0.4 s the loading card fills the slot.
-  if (loading === null || loading.stage === "instant") return null;
+function HelpList({ items }: { readonly items: readonly HelpItemView[] }): React.JSX.Element | null {
+  if (items.length === 0) return null;
   return (
-    <div data-status-slot="loading" className="mt-5">
-      <LoadingTimeline loading={loading} onCancel={() => onAction({ kind: "cancel" })} />
+    <div className="space-y-2">
+      {items.map((item) => (
+        <details key={item.id} open={item.defaultOpen} className="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800">
+          <summary className="cursor-pointer font-semibold">{item.summary}</summary>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {item.body.map((line) => (
+              <li key={line} className="break-keep">
+                {line}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ))}
+    </div>
+  );
+}
+
+export function StatusSlot({ state, loading, view, onAction, headingRef }: StatusSlotProps): React.JSX.Element | null {
+  if (state.phase === "idle") return null;
+  if (state.phase === "loading") {
+    // 0–0.4 s: only the submit label changes (spec §5); from 0.4 s the loading card fills the slot.
+    if (loading === null || loading.stage === "instant") return null;
+    return (
+      <div data-status-slot="loading" className="mt-5">
+        <LoadingTimeline loading={loading} onCancel={() => onAction({ kind: "cancel" })} />
+      </div>
+    );
+  }
+  if (view === null || state.phase === "settled") return null;
+  const help = view.help.filter((item) => !INLINE_HELP_IDS.has(item.id));
+  return (
+    <div data-status-slot="error" className="mt-5 space-y-4">
+      <FailureNotice key={state.settledAt} view={view} cause={state.outcome.cause} headingRef={headingRef} onAction={onAction} />
+      <CustomerCta key={`cta-${state.settledAt}`} variant="view" view={view} onAction={onAction} />
+      <HelpList items={help} />
     </div>
   );
 }
