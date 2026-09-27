@@ -228,4 +228,4 @@ framer-motion 대체(패키지 제거는 S06):
 - **수동 광고 자리**(`components/ads/ManualAdSlot.tsx`, `data-ad-slot="manual"`): 페이지당 1개, `<main>`의 마지막(푸터 묶음 바로 앞)입니다. 홈과 광고가 허용된 결과에서만 그리고, 높이를 미리 잡아 둡니다(휴대폰 280px, 768px 이상 250px, `config.ads`). 광고 단위 ID(`ads.manualSlotId`, 승인 15)가 없으면 그리지 않습니다. 조회 중과 문제 상태에는 없습니다.
 - **하단 여백**: `html { scroll-padding-bottom: var(--tt-anchor-reserve) }`. 값은 `ads.anchorReservePx`(64px)와 같습니다.
 - **푸터**(`components/shell/SiteFooter.tsx`): 안내 문장, '개인정보처리방침', 톡톡 한 곳(배치 `footer`). 톡톡은 화면당 최대 3곳입니다.
-- **광고 시점**: 지금 정책은 `lib/ads/ad-gate.ts`의 `AD_TIMING_POLICY`입니다. 조회 전에 뜬 하단 광고는 오류 화면에 남을 수 있어요. 승인 7(결과가 허용 상태로 확정되거나 쇼케이스까지 스크롤한 뒤에만 넣기)이 기록되면 이 예외 문장을 지웁니다.
+- **광고 시점**(승인 7, `AD_TIMING_POLICY = "afterAllowedResult"`): 홈은 첫 결과가 광고 허용 상태로 확정되거나 고객이 쇼케이스까지 스크롤한 뒤, 딥링크는 주소 정리와 허용 결과가 모두 확인된 뒤 한 번 넣습니다. 문제 상태 결과가 보이는 동안에는 넣지 않고, 같은 탭에서 나중에 허용 결과가 나오면 넣습니다. 홈 수익이 크게 줄면(spec §17 Q5) `"afterScrub"`로 되돌립니다.

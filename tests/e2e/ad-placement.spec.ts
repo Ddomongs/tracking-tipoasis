@@ -2,6 +2,9 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ads, channels, disclosures, lookup, resultCopy } from "@/config/site.config";
 import { FAKE, FIXTURE_NOW, mockTrack, trackData } from "../fixtures/tracking-fixtures";
 import { INTERNAL_TEST_CREDENTIALS } from "../internal-auth";
+import { AD_TIMING_POLICY } from "@/lib/ads/ad-gate";
+import { containsTrackingLikeValue } from "@/lib/privacy/number-patterns";
+import { waitForIdle, watchAdLoader, type AdLoaderWatch } from "../support/network-capture";
 
 async function blockThirdParty(page: Page): Promise<void> {
   await page.route(/^https?:\/\/(?!127\.0\.0\.1[:/]|localhost[:/])/, (route) => route.abort());
@@ -207,5 +210,76 @@ test.describe("manual ad slot in the gallery (S08)", () => {
       console.info(`[budget] manual slot fill at ${width}px: ${Math.round(before)} -> ${Math.round(after)} px (reserved ${reserved} px, shift 0 expected)`);
       expect(after).toBe(before);
     }
+  });
+});
+
+async function loaderCount(loader: AdLoaderWatch): Promise<number> {
+  const documentId = await loader.currentDocumentId();
+  return loader.insertions().filter((insertion) => insertion.documentId === documentId).length;
+}
+
+function expectCleanInsertions(loader: AdLoaderWatch): void {
+  for (const insertion of loader.insertions()) {
+    expect(insertion.pathname).toBe("/");
+    expect(containsTrackingLikeValue(insertion.href), "loader inserted while the URL carried a number").toBe(false);
+  }
+}
+
+test.describe("ad timing (S08, approval 7)", () => {
+  test.skip(AD_TIMING_POLICY !== "afterAllowedResult", "approval 7 not granted: S02's timing applies (Task 9 SKIPPED)");
+
+  test("home: no loader before a lookup or a scroll; one after scrolling down to the showcase", async ({ page }) => {
+    const loader = await watchAdLoader(page);
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/");
+    await waitForIdle(page);
+    expect(await loaderCount(loader)).toBe(0);
+    await page.locator("[data-store-showcase]").scrollIntoViewIfNeeded();
+    await page.evaluate(() => window.scrollBy(0, 1));
+    await expect.poll(() => loaderCount(loader), { timeout: 10_000 }).toBe(1);
+    expectCleanInsertions(loader);
+  });
+
+  test("home: a problem result inserts nothing; a later allowed result in the same tab inserts it once", async ({ page }) => {
+    const loader = await watchAdLoader(page);
+    await page.goto("/");
+    await mockTrack(page, "notFound404");
+    await lookUp(page, FAKE.domestic);
+    await expect(page.locator('[data-result-view="error"]')).toBeVisible();
+    await waitForIdle(page);
+    expect(await loaderCount(loader)).toBe(0);
+
+    await mockTrack(page, trackData("delivered", { trackingNumber: FAKE.domesticAlt }));
+    await page.getByRole("button", { name: LOOKUP_ANOTHER_LABEL }).click();
+    await lookUp(page, FAKE.domesticAlt);
+    await expect(page.locator('[data-result-view="settled"]')).toBeVisible();
+    await expect.poll(() => loaderCount(loader), { timeout: 10_000 }).toBe(1);
+    expectCleanInsertions(loader);
+  });
+
+  test("deep link: a problem result holds the loader; an allowed lookup afterwards in the same tab inserts it once", async ({ page }) => {
+    const loader = await watchAdLoader(page);
+    await mockTrack(page, "notFound404");
+    await page.goto(`/${FAKE.domestic}`);
+    await expect(page.locator('[data-result-view="error"]')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => location.pathname), { timeout: 10_000 }).toBe("/");
+    await waitForIdle(page);
+    expect(await loaderCount(loader)).toBe(0);
+
+    await mockTrack(page, trackData("delivered", { trackingNumber: FAKE.domesticAlt }));
+    await page.getByRole("button", { name: LOOKUP_ANOTHER_LABEL }).click();
+    await lookUp(page, FAKE.domesticAlt);
+    await expect(page.locator('[data-result-view="settled"]')).toBeVisible();
+    await expect.poll(() => loaderCount(loader), { timeout: 10_000 }).toBe(1);
+    expectCleanInsertions(loader);
+  });
+
+  test("deep link: an allowed result inserts the loader once, after the scrub", async ({ page }) => {
+    const loader = await watchAdLoader(page);
+    await mockTrack(page, trackData("delivered", { trackingNumber: FAKE.domestic }));
+    await page.goto(`/${FAKE.domestic}`);
+    await expect(page.locator('[data-result-view="settled"]')).toBeVisible();
+    await expect.poll(() => loaderCount(loader), { timeout: 10_000 }).toBe(1);
+    expectCleanInsertions(loader);
   });
 });

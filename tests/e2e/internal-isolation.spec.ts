@@ -66,8 +66,12 @@ test.describe("internal pages", () => {
 });
 
 test("public pages still load the AdSense loader (control)", async ({ page }) => {
-  // S02's AdLoader keeps one script with the same src on the home entry; see "Additions to the contract" item 5 for S08.
+  // S08 (approval 7): on '/' the loader waits for an allowed result or a scroll down to the store showcase.
+  // A phone-sized window makes sure the home is taller than the viewport, so the scroll below is a real one.
   await recordAdRequests(page);
+  await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
+  await page.locator("[data-store-showcase]").scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollBy(0, 1));
   await expect(page.locator(AD_SCRIPT)).toHaveCount(1);
 });

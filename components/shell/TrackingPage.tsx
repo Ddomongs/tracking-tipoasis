@@ -1,6 +1,7 @@
 import { LookupController } from "@/components/lookup/LookupController";
 import { TypicalDurations } from "@/components/lookup/TypicalDurations";
 import { StoreShowcase } from "@/components/supplementary/StoreShowcase";
+import { ShowcaseReachedSignal } from "@/components/ads/ShowcaseReachedSignal";
 import { lookup, notices } from "@/config/site.config";
 import { pickNotice, toNoticeView } from "@/lib/tracking/notices";
 import type { NoticeView, TrackingEntry } from "@/lib/tracking/types";
@@ -45,6 +46,7 @@ function IdleExtras(): React.JSX.Element {
       <div className="px-[var(--tt-gutter)] pb-6">
         <TypicalDurations />
       </div>
+      <ShowcaseReachedSignal />
       <StoreShowcase />
     </>
   );

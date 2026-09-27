@@ -74,25 +74,38 @@ test("neverOnNumberRoutes: only documents that started on '/' or /privacy", () =
   }
 });
 
-test("afterAllowedResult stays closed until S08 implements it", () => {
-  for (const entry of ENTRIES) {
-    for (const scrub of ["pending", "scrubbed", "notNeeded"] as const) {
-      const allowed = gate({ policy: "afterAllowedResult", entry, scrub, resultAdsAllowed: true, scrolledPastLookup: true });
-      expect(allowed, `${entry} ${scrub}`).toBe(false);
-    }
-  }
+test("afterAllowedResult (approval 7): home after an allowed result or a scroll, deep links after the scrub and an allowed result, never during a problem result", () => {
+  const base = {
+    pathname: "/",
+    scrub: "pending",
+    resultAdsAllowed: null,
+    scrolledPastLookup: false,
+    policy: "afterAllowedResult"
+  } as const;
+  expect(gate({ ...base, entry: "home" })).toBe(false);
+  expect(gate({ ...base, entry: "home", scrolledPastLookup: true })).toBe(true);
+  expect(gate({ ...base, entry: "home", resultAdsAllowed: true })).toBe(true);
+  expect(gate({ ...base, entry: "home", resultAdsAllowed: false, scrolledPastLookup: true })).toBe(false);
+  expect(gate({ ...base, entry: "deepLink", resultAdsAllowed: true })).toBe(false);
+  expect(gate({ ...base, entry: "deepLink", scrub: "scrubbed" })).toBe(false);
+  expect(gate({ ...base, entry: "deepLink", scrub: "scrubbed", scrolledPastLookup: true })).toBe(false);
+  expect(gate({ ...base, entry: "deepLink", scrub: "scrubbed", resultAdsAllowed: false })).toBe(false);
+  expect(gate({ ...base, entry: "deepLink", scrub: "scrubbed", resultAdsAllowed: true })).toBe(true);
+  expect(adGateState({ ...base, entry: "home" })).toBe("waiting");
+  expect(adGateState({ ...base, entry: "deepLink" })).toBe("waiting");
 });
 
-test("AD_TIMING_POLICY follows approval 6 in the roadmap ledger", () => {
+test("AD_TIMING_POLICY follows approvals 6 and 7 in the roadmap ledger", () => {
   const ledger = readFileSync(path.join(process.cwd(), "docs/superpowers/plans/2026-09-26-renewal-00-roadmap.md"), "utf8");
-  // The status cell starts with the status word, e.g. "approved 2026-09-27".
-  const status = /^\| 6 \| [^|]+\| (\w+)[^|]*\|/m.exec(ledger)?.[1];
-  expect(status, "approval 6 row not found in roadmap §4").toBeTruthy();
-  if (status === "approved") {
-    expect(["afterScrub", "afterAllowedResult"]).toContain(AD_TIMING_POLICY);
-  } else {
-    expect(AD_TIMING_POLICY).toBe("neverOnNumberRoutes");
-  }
+  // The status cell may carry a date after the word ("approved 2026-09-27").
+  const statusOf = (row: number): string | undefined => new RegExp(`^\\| ${row} \\| [^|]+\\| (\\w+)[^|]*\\|`, "m").exec(ledger)?.[1];
+  const six = statusOf(6);
+  const seven = statusOf(7);
+  expect(six, "approval 6 row not found in roadmap §4").toBeTruthy();
+  expect(seven, "approval 7 row not found in roadmap §4").toBeTruthy();
+  const expected: AdTimingPolicy =
+    six === "approved" && seven === "approved" ? "afterAllowedResult" : six === "approved" ? "afterScrub" : "neverOnNumberRoutes";
+  expect(AD_TIMING_POLICY).toBe(expected);
 });
 
 test("ad signals: per-document entry, change-only notifications, sticky failed scrub", () => {

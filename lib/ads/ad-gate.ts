@@ -7,13 +7,13 @@ import type { ViewMode } from "@/lib/tracking/types";
  * When the AdSense loader may be inserted (spec §3, §8, §16 items 6–7). Pure and fail-closed.
  * - "neverOnNumberRoutes": approval 6 fallback — a document that started on a number route never gets the loader.
  * - "afterScrub": approval 6 — a number-route document gets it once the URL scrub is confirmed.
- * - "afterAllowedResult": approval 7 — implemented by S08; closed until then.
+ * - "afterAllowedResult": approval 7 — home documents after an allowed result or a scroll to the showcase; deep-link
+ *   documents after a confirmed scrub and an allowed result; never while a problem result is on screen.
  */
 export type AdTimingPolicy = "afterScrub" | "afterAllowedResult" | "neverOnNumberRoutes";
 
-/** Approval 6 is recorded in roadmap §4: number-route documents load ads once the URL scrub is confirmed.
- *  S08 switches this to "afterAllowedResult" when approval 7 is recorded. */
-export const AD_TIMING_POLICY: AdTimingPolicy = "afterScrub";
+/** Approvals 6 and 7 are recorded in roadmap §4 (S08 Task 9). Revert switch for spec §17 Q5: "afterScrub". */
+export const AD_TIMING_POLICY: AdTimingPolicy = "afterAllowedResult";
 
 export interface AdGateInput {
   readonly pathname: string;
@@ -45,7 +45,10 @@ export function shouldInsertAdLoader(input: AdGateInput): boolean {
     case "afterScrub":
       return input.entry === "home" || input.scrub === "scrubbed";
     case "afterAllowedResult":
-      return false;
+      // A problem result holds the loader; a later allowed result in the same tab opens the gate once (spec §8).
+      if (input.resultAdsAllowed === false) return false;
+      if (input.entry === "deepLink") return input.scrub === "scrubbed" && input.resultAdsAllowed === true;
+      return input.resultAdsAllowed === true || input.scrolledPastLookup;
   }
 }
 
