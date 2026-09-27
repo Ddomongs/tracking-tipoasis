@@ -473,7 +473,12 @@ export const resultCopy = {
   carrierCutLine: "택배사 조회가 잠시 늦어요",
   rateLimitedReason: "조회가 몰려 {seconds}초 뒤 다시 조회할 수 있어요",
   customsCheckNote: "개인통관고유부호와 수취인 이름이 주문 정보와 같은지도 확인해 주세요",
-  chooseCarrierSentence: "택배사를 고르시면 같은 번호로 바로 다시 조회해요."
+  chooseCarrierSentence: "택배사를 고르시면 같은 번호로 바로 다시 조회해요.",
+  // [다시 볼 링크 복사]와 문의 내용 복사를 누른 뒤 버튼에 잠깐 보이는 문구, 복사가 막힌 앱에서 보이는 안내
+  returnLinkCopied: "링크를 복사했어요",
+  returnLinkShared: "링크를 공유했어요",
+  returnLinkFallback: "아래 링크를 길게 눌러 복사해 주세요.",
+  inquiryCopied: "문의 내용을 복사했어요"
 } satisfies ResultCopyConfig;
 
 /** 전체 설정(서버·내부 도구·결과 지연 청크용). 브라우저 코드는 위의 필요한 부분만 가져다 씁니다. */

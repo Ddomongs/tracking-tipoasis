@@ -185,6 +185,10 @@ export interface ResultCopyConfig {
   readonly rateLimitedReason: string;      // '조회가 몰려 {seconds}초 뒤 다시 조회할 수 있어요'
   readonly customsCheckNote: string;       // '개인통관고유부호와 수취인 이름이 주문 정보와 같은지도 확인해 주세요'
   readonly chooseCarrierSentence: string;  // lookupUnavailable without an official link
+  readonly returnLinkCopied: string;       // '링크를 복사했어요' (S07)
+  readonly returnLinkShared: string;       // '링크를 공유했어요' (S07)
+  readonly returnLinkFallback: string;     // '아래 링크를 길게 눌러 복사해 주세요.' (S07)
+  readonly inquiryCopied: string;          // '문의 내용을 복사했어요' (S07)
 }
 
 export interface SiteConfig {

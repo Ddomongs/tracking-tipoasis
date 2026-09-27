@@ -5,7 +5,8 @@ import { loadResultModule } from "@/components/result/load-result-module";
 // Loads the lazy entry into the Node test runner's CommonJS cache so the loader's dynamic import("./result-module") resolves
 // here (as tests/unit/fetch-track.spec.ts does for @/lib/schemas); Next.js code-splits the same import in the browser bundle.
 import "@/components/result/result-module";
-import { siteConfig } from "@/config/site.config";
+import { resultCopy, siteConfig } from "@/config/site.config";
+import { SiteConfigSchema, formatConfigIssues } from "@/lib/config/schema";
 import { deriveTrackingView } from "@/lib/tracking/derive-view";
 
 const ROOT = process.cwd();
@@ -105,4 +106,15 @@ test.describe("lazy result module", () => {
     );
     expect(offenders).toEqual([]);
   });
+});
+
+test("resultCopy carries the return-link and inquiry feedback strings, and the shipped config still parses", () => {
+  expect([resultCopy.returnLinkCopied, resultCopy.returnLinkShared, resultCopy.returnLinkFallback, resultCopy.inquiryCopied]).toEqual([
+    "링크를 복사했어요",
+    "링크를 공유했어요",
+    "아래 링크를 길게 눌러 복사해 주세요.",
+    "문의 내용을 복사했어요"
+  ]);
+  const parsed = SiteConfigSchema.safeParse(siteConfig);
+  expect(parsed.success ? "" : formatConfigIssues(parsed.error)).toBe("");
 });
