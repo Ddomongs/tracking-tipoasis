@@ -76,34 +76,38 @@ export function LoadingCard({ loading, onCancel }: LoadingCardProps): React.JSX.
           </div>
         </div>
         {loading.outageNotice === null ? null : <NoticeBanner notice={loading.outageNotice} variant="inline" />}
-        {loading.extra === null ? null : (
-          <p data-loading-extra="true" className="m-0 text-tt-sm font-bold [word-break:keep-all]">
-            {loading.extra}
-          </p>
-        )}
-        {loading.elapsedText === null ? null : (
-          <p data-loading-elapsed="true" className="m-0 text-tt-sm [font-variant-numeric:tabular-nums]">
-            {loading.elapsedText}
-          </p>
-        )}
         <div data-loading-skeleton="journey" aria-hidden="true" className="grid h-11 grid-cols-4 items-end gap-1">
           {SKELETON_STATIONS.map((station) => (
             <span key={station} className="h-2 border-2 border-solid border-current opacity-40" />
           ))}
         </div>
         <div data-loading-skeleton="eta" aria-hidden="true" className="h-16" />
-        {cancel === null && official === null ? null : (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            {cancel === null ? null : (
-              <Button variant={cancel.weight} onClick={onCancel}>
-                {cancel.label}
-              </Button>
-            )}
-            {official === null || official.href === null ? null : (
-              <ButtonLink href={official.href} variant={official.weight} external label={official.label} />
-            )}
-          </div>
-        )}
+        {/* What changes at 3 s and 8 s lives in one block below the skeletons whose height is reserved from the
+            start, so the skeletons never move when it fills in (S06 CLS budget, deep link while loading). */}
+        <div data-loading-progress="true" className="flex min-h-[9.5rem] flex-col gap-2">
+          {loading.extra === null ? null : (
+            <p data-loading-extra="true" className="m-0 text-tt-sm font-bold [word-break:keep-all]">
+              {loading.extra}
+            </p>
+          )}
+          {loading.elapsedText === null ? null : (
+            <p data-loading-elapsed="true" className="m-0 text-tt-sm [font-variant-numeric:tabular-nums]">
+              {loading.elapsedText}
+            </p>
+          )}
+          {cancel === null && official === null ? null : (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              {cancel === null ? null : (
+                <Button variant={cancel.weight} onClick={onCancel}>
+                  {cancel.label}
+                </Button>
+              )}
+              {official === null || official.href === null ? null : (
+                <ButtonLink href={official.href} variant={official.weight} external label={official.label} />
+              )}
+            </div>
+          )}
+        </div>
       </div>
       <div data-loading-skeleton="next-action" aria-hidden="true" className="min-h-[176px] bg-tt-surface" />
     </section>
