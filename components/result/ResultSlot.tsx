@@ -46,6 +46,20 @@ const QUIET_ENTRIES: ReadonlySet<LookupEntry> = new Set<LookupEntry>(["deepLink"
 /** What counts as the customer interacting (the same four events S06's LookupController used): taps, keys, wheel and touch scrolls. */
 const INTERACTION_EVENTS = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
 
+
+/**
+ * Loads the result module and derives the settled view. A chunk that cannot load and a derive that throws both end as
+ * `null` (the 톡톡 fallback), never as an endless placeholder (S07 review).
+ */
+export function settleView<M extends { deriveResultView: (outcome: LookupOutcome, now: Date) => TrackingViewModel }>(
+  load: () => Promise<M>,
+  outcome: LookupOutcome,
+  now: Date
+): Promise<{ readonly module: M; readonly view: TrackingViewModel } | null> {
+  return load()
+    .then((module) => ({ module, view: module.deriveResultView(outcome, now) }))
+    .catch(() => null);
+}
 function isSettled(state: LookupState): state is SettledState {
   return state.phase === "settled" || state.phase === "error";
 }
@@ -158,14 +172,11 @@ export function ResultSlot({
     if (!isSettled(state) || isInvalid(state)) return undefined;
     let active = true;
     const now = new Date();
-    loadResultModule().then(
-      (module) => {
-        if (active) setShown({ state, view: module.deriveResultView(state.outcome, now), module });
-      },
-      () => {
-        if (active) setFailed(state);
-      }
-    );
+    void settleView(loadResultModule, state.outcome, now).then((settled) => {
+      if (!active) return;
+      if (settled === null) setFailed(state);
+      else setShown({ state, view: settled.view, module: settled.module });
+    });
     return () => {
       active = false;
     };
