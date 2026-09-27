@@ -219,3 +219,13 @@ framer-motion 대체(패키지 제거는 S06):
 - 색이나 크기를 바꿀 때는 `app/styles/tokens.css`, `lib/style/tokens.ts`, 이 문서의 표, `design-system/_base.css`(tokens.css를 그대로 복사)를 한 커밋에서 함께 바꾸고 `tests/unit/tokens.spec.ts`를 돌립니다.
 - 대비 기준을 통과하지 못하는 값은 쓰지 않습니다. `/internal/ui-kit`의 색 토큰 절에서 실제 비율을 볼 수 있습니다.
 - 새 스타일은 토큰 세트와 네 슬롯 CSS만 더합니다. 부품의 DOM, 훅, 문구는 바꾸지 않습니다.
+
+
+## 13. 보조 영역과 광고 시점
+
+- **추천**(`components/supplementary/RecommendationList.tsx`, 규칙은 `lib/tracking/recommendations.ts`): 결과가 허용할 때만(`view.revenue.recommendations`가 `none`이 아닐 때) 결과 흐름 뒤에 둡니다. 배송 완료는 `data-primary-end` 바로 뒤, 그 밖에는 처리 내역 뒤입니다. 상품의 `contexts`에 그 상태가 있고 유효기간 안에 있을 때만 보이고, 0개면 묶음이 없습니다. 승인 10 전에는 '운영자 추천' 창으로만 열고 가격·할인·'이번 주'를 쓰지 않습니다. 승인 10 뒤에는 인라인 목록이고, 상품 상세 링크가 필수이며, '이번 주'는 유효기간 7일 이하, 가격은 확인일 7일 이내일 때만 씁니다.
+- **쇼케이스**(`components/supplementary/StoreShowcase.tsx`, `data-store-showcase`): 홈 조회 전 화면에서만, '보통 이렇게 걸려요' 아래에 둡니다. 확정형 고지가 첫 줄이고 네이버·쿠팡 두 링크가 보조 무게로 옵니다.
+- **수동 광고 자리**(`components/ads/ManualAdSlot.tsx`, `data-ad-slot="manual"`): 페이지당 1개, `<main>`의 마지막(푸터 묶음 바로 앞)입니다. 홈과 광고가 허용된 결과에서만 그리고, 높이를 미리 잡아 둡니다(휴대폰 280px, 768px 이상 250px, `config.ads`). 광고 단위 ID(`ads.manualSlotId`, 승인 15)가 없으면 그리지 않습니다. 조회 중과 문제 상태에는 없습니다.
+- **하단 여백**: `html { scroll-padding-bottom: var(--tt-anchor-reserve) }`. 값은 `ads.anchorReservePx`(64px)와 같습니다.
+- **푸터**(`components/shell/SiteFooter.tsx`): 안내 문장, '개인정보처리방침', 톡톡 한 곳(배치 `footer`). 톡톡은 화면당 최대 3곳입니다.
+- **광고 시점**: 지금 정책은 `lib/ads/ad-gate.ts`의 `AD_TIMING_POLICY`입니다. 조회 전에 뜬 하단 광고는 오류 화면에 남을 수 있어요. 승인 7(결과가 허용 상태로 확정되거나 쇼케이스까지 스크롤한 뒤에만 넣기)이 기록되면 이 예외 문장을 지웁니다.

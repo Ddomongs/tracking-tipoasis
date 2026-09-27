@@ -176,3 +176,10 @@ test.describe("adGateState and manualSlotMode (S08)", () => {
     expect(globals).toMatch(/html\s*\{[^}]*scroll-padding-bottom:\s*var\(--tt-anchor-reserve\)/);
   });
 });
+
+test("DESIGN.md states the ad-timing exception exactly while approval 7 is not implemented (S08)", () => {
+  const design = readFileSync(path.join(process.cwd(), "DESIGN.md"), "utf8");
+  const exception = "조회 전에 뜬 하단 광고는 오류 화면에 남을 수 있어요.";
+  expect(design.includes(exception)).toBe(AD_TIMING_POLICY !== "afterAllowedResult");
+  expect(design).toContain("## 13. 보조 영역과 광고 시점");
+});
