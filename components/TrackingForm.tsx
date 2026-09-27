@@ -9,11 +9,17 @@ import { ApiTrackResponseSchema } from "@/lib/schemas";
 import type { DeliveryCarrierCode, TrackResponseData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+export type TrackingFormSubmitSource = "manual" | "initial";
+
 type TrackingFormProps = {
   readonly onSuccess: (data: TrackResponseData) => void;
   readonly onError: (message: string) => void;
   readonly onLoading: (loading: boolean) => void;
+  /** Called when a lookup starts (after the empty check); the page stashes it for restore. */
+  readonly onSubmitted?: (number: string, carrier: DeliveryCarrierCode, source: TrackingFormSubmitSource) => void;
   readonly initialTrackingNumber?: string;
+  /** Carrier of a restored lookup; deep links start with "AUTO". */
+  readonly initialCarrier?: DeliveryCarrierCode;
   readonly surface?: "dark" | "light";
 };
 
@@ -24,32 +30,38 @@ export const TrackingForm = ({
   onSuccess,
   onError,
   onLoading,
+  onSubmitted,
   initialTrackingNumber,
+  initialCarrier,
   surface = "dark"
 }: TrackingFormProps) => {
   const [value, setValue] = useState(initialTrackingNumber?.trim() ?? "");
   const [syncedTrackingNumber, setSyncedTrackingNumber] = useState(initialTrackingNumber);
-  const [carrierCode, setCarrierCode] = useState<DeliveryCarrierCode>("AUTO");
+  const [carrierCode, setCarrierCode] = useState<DeliveryCarrierCode>(initialCarrier ?? "AUTO");
   const [submitting, setSubmitting] = useState(false);
   const initialSubmittedRef = useRef<string>("");
 
-  // A new tracking number from the URL replaces the input during render rather than in an effect.
+  // A new tracking number from the URL or a restored lookup replaces the input during render rather than in an effect.
   if (initialTrackingNumber !== syncedTrackingNumber) {
     setSyncedTrackingNumber(initialTrackingNumber);
     const normalized = initialTrackingNumber?.trim();
-    if (normalized) setValue(normalized);
+    if (normalized) {
+      setValue(normalized);
+      setCarrierCode(initialCarrier ?? "AUTO");
+    }
   }
 
   const isLight = surface === "light";
   const needsInputAttention = value.trim().length === 0 && !submitting;
 
   const submitTracking = useCallback(
-    async (trackingNumber: string, selectedCarrier: DeliveryCarrierCode) => {
+    async (trackingNumber: string, selectedCarrier: DeliveryCarrierCode, source: TrackingFormSubmitSource) => {
       if (!trackingNumber.trim()) {
         onError("조회번호를 입력해주세요");
         return;
       }
 
+      onSubmitted?.(trackingNumber.trim(), selectedCarrier, source);
       onLoading(true);
       setSubmitting(true);
       onError("");
@@ -76,7 +88,7 @@ export const TrackingForm = ({
         setSubmitting(false);
       }
     },
-    [onError, onLoading, onSuccess]
+    [onError, onLoading, onSubmitted, onSuccess]
   );
 
   useEffect(() => {
@@ -88,13 +100,13 @@ export const TrackingForm = ({
     if (initialSubmittedRef.current === normalized) return;
 
     initialSubmittedRef.current = normalized;
-    void submitTracking(normalized, "AUTO");
-  }, [initialTrackingNumber, submitTracking]);
+    void submitTracking(normalized, initialCarrier ?? "AUTO", "initial");
+  }, [initialCarrier, initialTrackingNumber, submitTracking]);
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     // The number never goes into the URL (spec §3, GAP1-10); restore uses sessionStorage instead.
-    await submitTracking(value, carrierCode);
+    await submitTracking(value, carrierCode, "manual");
   };
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AssuranceRail } from "@/components/AssuranceRail";
 import { CustomerCta } from "@/components/CustomerCta";
 import type { ResultCustomerCtaState } from "@/components/CustomerCta";
@@ -21,9 +21,10 @@ import { TrackingForm } from "@/components/TrackingForm";
 import { TrackingResultSummary } from "@/components/TrackingResultSummary";
 import { Card } from "@/components/ui/card";
 import { setAdSignals } from "@/lib/ads/ad-signals";
-import { saveRestoreEntry } from "@/lib/privacy/session-restore";
+import { currentNavigationKind, readRestoreEntry, saveRestoreEntry } from "@/lib/privacy/session-restore";
+import type { RestoreEntry } from "@/lib/privacy/session-restore";
 import { SCRUB_TIMEOUT_MS, scrubNumberFromUrl } from "@/lib/privacy/url-scrub";
-import type { TrackResponseData } from "@/lib/types";
+import type { DeliveryCarrierCode, TrackResponseData } from "@/lib/types";
 
 type HomePageClientProps = {
   initialTrackingNumber: string;
@@ -35,6 +36,24 @@ const getResultCustomerCtaState = (data: TrackResponseData): ResultCustomerCtaSt
   if (data.isPending) return "pending";
   if (data.currentStatusCode === 7) return "delivered";
   return "inTransit";
+};
+
+// Session restore (spec §3): only in reload/back_forward documents, read once per document, and dropped as
+// soon as any lookup starts in this document (so an in-app return to '/' does not replay it). The server
+// snapshot is null, so the static '/' HTML and the first client render stay identical.
+let restoreSnapshot: RestoreEntry | null | undefined;
+let restoreConsumed = false;
+const subscribeToNothing = (): (() => void) => () => undefined;
+const getRestoreSnapshot = (): RestoreEntry | null => {
+  if (restoreConsumed) return null;
+  if (restoreSnapshot === undefined) {
+    restoreSnapshot = readRestoreEntry({ now: Date.now(), navigation: currentNavigationKind() });
+  }
+  return restoreSnapshot;
+};
+const getServerRestoreSnapshot = (): RestoreEntry | null => null;
+const markRestoreConsumed = (): void => {
+  restoreConsumed = true;
 };
 
 export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) => {
@@ -55,6 +74,14 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
       if (status === "scrubbed" || status === "failed") setAdSignals({ scrub: status });
     });
   }, [initialTrackingNumber]);
+
+  const restoreEntry = useSyncExternalStore(subscribeToNothing, getRestoreSnapshot, getServerRestoreSnapshot);
+  const restoredRequest = initialTrackingNumber ? null : restoreEntry;
+
+  const handleSubmitted = useCallback((number: string, carrier: DeliveryCarrierCode) => {
+    markRestoreConsumed();
+    saveRestoreEntry({ number, carrier, savedAt: Date.now() });
+  }, []);
 
   const handleSuccess = useCallback((data: TrackResponseData) => {
     setResult(data);
@@ -147,7 +174,9 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
                     onSuccess={handleSuccess}
                     onError={handleError}
                     onLoading={setLoading}
-                    initialTrackingNumber={initialTrackingNumber}
+                    onSubmitted={handleSubmitted}
+                    initialTrackingNumber={initialTrackingNumber || restoredRequest?.number || ""}
+                    initialCarrier={restoredRequest?.carrier}
                     surface="light"
                   />
                 </div>
