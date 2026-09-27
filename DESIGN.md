@@ -18,11 +18,11 @@
 | id | 고객에게 보이는 이름 | 상태 | 성격 |
 |---|---|---|---|
 | `signal` | 기본 | R3 기본값(구현됨) | 결과 상단을 상태 톤 단색 면으로 채우고 도착일을 굵고 크게 세웁니다. 장식 0. |
-| `manifest` | 서류형 | R3b에서 추가 | 차가운 종이 바탕, 라벨-값 괘선, 상태 도장 한 개, 고정폭 기입값. |
-| `night` | 어두운 화면 | R3b에서 추가 | 채도를 뺀 어두운 바탕, 노선도형 여정, 평면 램프, 숫자 타일. |
+| `manifest` | 서류형 | R3b 구현(고객이 고름) | 차가운 종이 바탕, 라벨-값 괘선, 상태 도장 한 개, 고정폭 기입값. |
+| `night` | 어두운 화면 | R3b 구현(고객이 고름, 기기 어두운 모드의 첫 방문 기본) | 채도를 뺀 어두운 바탕, 노선도형 여정, 평면 램프, 숫자 타일. |
 
 - 스타일 = 토큰 세트(`html[data-style]` 범위의 CSS 변수) + 변형 슬롯 4개(8장). 부품 구조, DOM 순서, `data-*` 훅, 문구, 배치 규칙은 스타일과 무관합니다.
-- 지금은 `app/layout.tsx`가 `<html data-style="signal">`로 고정합니다. '화면 스타일' 고르기, 저장(`localStorage` `tt:style`), 첫 페인트 전 스크립트, 서류형·어두운 화면 토큰은 R3b에서 더합니다.
+- 서버는 늘 `<html data-style="signal">`로 그립니다. `<head>`의 첫 페인트 전 스크립트가 저장된 선택(`localStorage` `tt:style`) 또는 기기 어두운 모드(`data-follow-dark`)에 따라 첫 페인트 전에 바꿉니다(16장). 서류형·어두운 화면 토큰은 14·15장입니다.
 - `:root`에도 signal 값이 있어서 `data-style`이 없어도 기본 스타일로 보입니다.
 
 ## 3. 색 토큰 (signal)
@@ -229,3 +229,141 @@ framer-motion 대체(패키지 제거는 S06):
 - **하단 여백**: `html { scroll-padding-bottom: var(--tt-anchor-reserve) }`. 값은 `ads.anchorReservePx`(64px)와 같습니다.
 - **푸터**(`components/shell/SiteFooter.tsx`): 안내 문장, '개인정보처리방침', 톡톡 한 곳(배치 `footer`). 톡톡은 화면당 최대 3곳입니다.
 - **광고 시점**(승인 7, `AD_TIMING_POLICY = "afterAllowedResult"`): 홈은 첫 결과가 광고 허용 상태로 확정되거나 고객이 쇼케이스까지 스크롤한 뒤, 딥링크는 주소 정리와 허용 결과가 모두 확인된 뒤 한 번 넣습니다. 문제 상태 결과가 보이는 동안에는 넣지 않고, 같은 탭에서 나중에 허용 결과가 나오면 넣습니다. 홈 수익이 크게 줄면(spec §17 Q5) `"afterScrub"`로 되돌립니다.
+
+## 14. 색 토큰 (manifest)
+
+서류형(A 세관 서류): 차가운 종이 바탕, 괘선, 상태는 도장 하나, 기입값은 고정폭 숫자. 링크는 잉크 + 밑줄(도장 청색과 분리). 값의 원본은 `app/styles/style-manifest.css`와 `lib/style/tokens.ts`(`MANIFEST_COLORS`)입니다.
+
+| 토큰 | 값 | 쓰임 |
+|---|---|---|
+| `--tt-ground` | `#ECEFF3` | 페이지 바탕 |
+| `--tt-surface` | `#FAFBFC` | 서류 면 · 카드·입력칸 |
+| `--tt-raised` | `#FAFBFC` | 한 단계 위 층(서류 면과 같음) |
+| `--tt-ink` | `#14213A` | 본문·서식 틀 |
+| `--tt-muted` | `#4A566B` | 라벨·보조 문장 |
+| `--tt-rule` | `#C4CCD7` | 칸 나눔 괘선(글자에 쓰지 않음) |
+| `--tt-control` | `#6B7689` | 입력칸 테두리 |
+| `--tt-route` | `#7D8899` | 척추 점선·빈 칸 |
+| `--tt-primary` | `#1B4A9A` | 채움 주 버튼(세관 청색) |
+| `--tt-on-primary` | `#FFFFFF` | 주 버튼 글자 |
+| `--tt-accent` | `#1B4A9A` | 강조(세관 청색) |
+| `--tt-link` | `#14213A` | 링크(잉크 + 밑줄) |
+| `--tt-focus` | `#14213A` | 포커스 링 |
+| `--tt-tile` | `#FAFBFC` | 숫자 칸(서류 면) |
+| `--tt-board` | `#14213A` | 숫자 칸 글자 |
+| `--tt-tone-progress` | `#1B4A9A` | 정상 진행 채움 |
+| `--tt-tone-progress-on` | `#FFFFFF` | 정상 진행 채움 위 글자 |
+| `--tt-tone-progress-ink` | `#1B4A9A` | 정상 진행 글자·도장 선 |
+| `--tt-tone-waiting` | `#56627A` | 정보 대기 채움 |
+| `--tt-tone-waiting-on` | `#FFFFFF` | 정보 대기 채움 위 글자 |
+| `--tt-tone-waiting-ink` | `#56627A` | 정보 대기 글자·도장 선 |
+| `--tt-tone-attention` | `#9A5A00` | 확인 필요 채움 |
+| `--tt-tone-attention-on` | `#FFFFFF` | 확인 필요 채움 위 글자 |
+| `--tt-tone-attention-ink` | `#9A5A00` | 확인 필요 글자·도장 선 |
+| `--tt-tone-problem` | `#B3261E` | 문제 채움(빨강은 여기에만) |
+| `--tt-tone-problem-on` | `#FFFFFF` | 문제 채움 위 글자 |
+| `--tt-tone-problem-ink` | `#B3261E` | 문제 글자·도장 선 |
+| `--tt-tone-done` | `#185C36` | 완료 채움 |
+| `--tt-tone-done-on` | `#FFFFFF` | 완료 채움 위 글자 |
+| `--tt-tone-done-ink` | `#185C36` | 완료 글자·도장 선 |
+
+| 짝 | 대비 | 기준 |
+|---|---|---|
+| `--tt-ink` / `--tt-surface` | 15.49:1 | 4.5:1 |
+| `--tt-ink` / `--tt-ground` | 13.92:1 | 4.5:1 |
+| `--tt-muted` / `--tt-surface` | 7.15:1 | 4.5:1 |
+| `--tt-muted` / `--tt-ground` | 6.42:1 | 4.5:1 |
+| `--tt-link` / `--tt-surface` | 15.49:1 | 4.5:1 |
+| `--tt-link` / `--tt-ground` | 13.92:1 | 4.5:1 |
+| `--tt-on-primary` / `--tt-primary` | 8.42:1 | 4.5:1 |
+| `--tt-tone-progress-on` / `--tt-tone-progress` | 8.42:1 | 4.5:1 |
+| `--tt-tone-waiting-on` / `--tt-tone-waiting` | 6.13:1 | 4.5:1 |
+| `--tt-tone-attention-on` / `--tt-tone-attention` | 5.47:1 | 4.5:1 |
+| `--tt-tone-problem-on` / `--tt-tone-problem` | 6.54:1 | 4.5:1 |
+| `--tt-tone-done-on` / `--tt-tone-done` | 8.01:1 | 4.5:1 |
+| `--tt-tone-progress-ink` / `--tt-surface` | 8.13:1 | 4.5:1 |
+| `--tt-tone-waiting-ink` / `--tt-surface` | 5.92:1 | 4.5:1 |
+| `--tt-tone-attention-ink` / `--tt-surface` | 5.28:1 | 4.5:1 |
+| `--tt-tone-problem-ink` / `--tt-surface` | 6.31:1 | 4.5:1 |
+| `--tt-tone-done-ink` / `--tt-surface` | 7.73:1 | 4.5:1 |
+| `--tt-board` / `--tt-tile` | 15.49:1 | 4.5:1 |
+| `--tt-control` / `--tt-surface` | 4.43:1 | 3:1 |
+| `--tt-route` / `--tt-surface` | 3.46:1 | 3:1 |
+| `--tt-focus` / `--tt-surface` | 15.49:1 | 3:1 |
+| `--tt-focus` / `--tt-ground` | 13.92:1 | 3:1 |
+
+- 글꼴: 한글 제목은 설치된 명조(`AppleMyungjo`, `Nanum Myeongjo`, `Batang` …, 없으면 serif), 본문은 기본과 같은 시스템 고딕, 숫자는 IBM Plex Mono 600(`--font-plex-mono`, preload 없음). 웹 한글 제목 글꼴(Hahmlet)은 CSS 예산 때문에 쓰지 않습니다.
+- 변형 슬롯: `status-head` 종이 면 + 2° 기울어진 겹테두리 도장 칩, `eta` 밑줄 칸 위 고정폭 기입값, `journey` 지나온 길 실선·남은 길 점선, `button` 모서리 2px·테두리 1px.
+
+## 15. 색 토큰 (night)
+
+어두운 화면(C 야간 관제): 채도를 뺀 어두운 바탕, 층은 흐림 없이 밝기 단계로만, 상태는 평면 램프, 날짜는 숫자 타일. 링크는 잉크 + 밑줄(램프 파랑과 분리). 값의 원본은 `app/styles/style-night.css`와 `lib/style/tokens.ts`(`NIGHT_COLORS`)입니다.
+
+| 토큰 | 값 | 쓰임 |
+|---|---|---|
+| `--tt-ground` | `#0C1214` | 페이지 바탕 |
+| `--tt-surface` | `#131B1E` | 결과 면 |
+| `--tt-raised` | `#1A2428` | 상태 머리·한 단계 위 층 |
+| `--tt-ink` | `#E6ECE9` | 본문 글자 |
+| `--tt-muted` | `#9AA8AC` | 보조 글자 |
+| `--tt-rule` | `#27343A` | 가는 선(글자에 쓰지 않음) |
+| `--tt-control` | `#62757C` | 입력칸 테두리 |
+| `--tt-route` | `#6E8288` | 노선 점선·빈 역 |
+| `--tt-primary` | `#8FB3F0` | 채움 주 버튼(관제 파랑) |
+| `--tt-on-primary` | `#0C1214` | 주 버튼 글자 |
+| `--tt-accent` | `#8FB3F0` | 강조(관제 파랑) |
+| `--tt-link` | `#E6ECE9` | 링크(잉크 + 밑줄) |
+| `--tt-focus` | `#E6ECE9` | 포커스 링 |
+| `--tt-tile` | `#080C0E` | 숫자 타일 바탕 |
+| `--tt-board` | `#F1E8D4` | 숫자 타일 글자 |
+| `--tt-tone-progress` | `#8FB3F0` | 정상 진행 램프·채움 |
+| `--tt-tone-progress-on` | `#0C1214` | 정상 진행 채움 위 글자 |
+| `--tt-tone-progress-ink` | `#8FB3F0` | 정상 진행 글자 |
+| `--tt-tone-waiting` | `#A3AFB3` | 정보 대기 램프·채움 |
+| `--tt-tone-waiting-on` | `#0C1214` | 정보 대기 채움 위 글자 |
+| `--tt-tone-waiting-ink` | `#A3AFB3` | 정보 대기 글자 |
+| `--tt-tone-attention` | `#E8A847` | 확인 필요 램프·채움 |
+| `--tt-tone-attention-on` | `#0C1214` | 확인 필요 채움 위 글자 |
+| `--tt-tone-attention-ink` | `#E8A847` | 확인 필요 글자 |
+| `--tt-tone-problem` | `#EF7C71` | 문제 램프·채움(빨강 계열은 여기에만) |
+| `--tt-tone-problem-on` | `#0C1214` | 문제 채움 위 글자 |
+| `--tt-tone-problem-ink` | `#EF7C71` | 문제 글자 |
+| `--tt-tone-done` | `#74CB9B` | 완료 램프·채움 |
+| `--tt-tone-done-on` | `#0C1214` | 완료 채움 위 글자 |
+| `--tt-tone-done-ink` | `#74CB9B` | 완료 글자 |
+
+| 짝 | 대비 | 기준 |
+|---|---|---|
+| `--tt-ink` / `--tt-surface` | 14.58:1 | 4.5:1 |
+| `--tt-ink` / `--tt-ground` | 15.77:1 | 4.5:1 |
+| `--tt-muted` / `--tt-surface` | 7.12:1 | 4.5:1 |
+| `--tt-muted` / `--tt-ground` | 7.71:1 | 4.5:1 |
+| `--tt-link` / `--tt-surface` | 14.58:1 | 4.5:1 |
+| `--tt-link` / `--tt-ground` | 15.77:1 | 4.5:1 |
+| `--tt-on-primary` / `--tt-primary` | 8.88:1 | 4.5:1 |
+| `--tt-tone-progress-on` / `--tt-tone-progress` | 8.88:1 | 4.5:1 |
+| `--tt-tone-waiting-on` / `--tt-tone-waiting` | 8.40:1 | 4.5:1 |
+| `--tt-tone-attention-on` / `--tt-tone-attention` | 9.10:1 | 4.5:1 |
+| `--tt-tone-problem-on` / `--tt-tone-problem` | 7.01:1 | 4.5:1 |
+| `--tt-tone-done-on` / `--tt-tone-done` | 9.67:1 | 4.5:1 |
+| `--tt-tone-progress-ink` / `--tt-surface` | 8.21:1 | 4.5:1 |
+| `--tt-tone-waiting-ink` / `--tt-surface` | 7.76:1 | 4.5:1 |
+| `--tt-tone-attention-ink` / `--tt-surface` | 8.41:1 | 4.5:1 |
+| `--tt-tone-problem-ink` / `--tt-surface` | 6.48:1 | 4.5:1 |
+| `--tt-tone-done-ink` / `--tt-surface` | 8.94:1 | 4.5:1 |
+| `--tt-board` / `--tt-tile` | 16.12:1 | 4.5:1 |
+| `--tt-control` / `--tt-surface` | 3.62:1 | 3:1 |
+| `--tt-route` / `--tt-surface` | 4.33:1 | 3:1 |
+| `--tt-focus` / `--tt-surface` | 14.58:1 | 3:1 |
+| `--tt-focus` / `--tt-ground` | 15.77:1 | 3:1 |
+
+- 글꼴: 한글은 시스템 고딕, 숫자는 JetBrains Mono 500(`--font-jetbrains-mono`, preload 없음). `color-scheme: dark`로 스크롤 막대와 입력 부품도 어둡게 그립니다.
+- 변형 슬롯: `status-head` 한 단계 밝은 층 + 상태 톤 윗선, 칩 앞 둥근 램프(`::before`), `eta` 숫자마다 `--tt-tile` 칸 위 `--tt-board` 글자, `journey` 가는 선·점선·둥근 현재 역, `button` 모서리 4px·테두리 1px.
+
+## 16. 화면 스타일 고르기와 첫 페인트
+
+- **고르기**: 푸터 바로 위 `StylePicker`(`components/shell/StylePicker.tsx`, `data-style-picker`). fieldset + legend '화면 스타일', 라디오 3개(기본·서류형·어두운 화면, 각 44px). 바꾸면 `html[data-style]`만 바뀌고 live region이 '화면 스타일을 {label}으로 바꿨어요'를 한 번 읽습니다. 부품의 DOM·`data-*` 훅·문구·배치는 스타일과 무관하고, `tests/unit/prepaint.spec.ts`가 스타일을 읽는 파일을 레이아웃·스타일 모듈·고르기 부품으로 제한합니다.
+- **저장**: `localStorage` `tt:style` 한 값(`signal` | `manifest` | `night`). 개인정보가 아니고 서버로 보내지 않습니다. 저장소가 막히면 그 화면 안에서만 바뀝니다.
+- **첫 페인트 전**: `lib/style/prepaint.ts`의 `PREPAINT_SCRIPT`가 `<head>`에서 스타일을 정합니다(저장된 선택 → 기기 어두운 모드면서 `data-follow-dark="1"`이면 night → 아니면 signal). 글이 상수라서 해시 `PREPAINT_SCRIPT_SHA256`가 CSP Report-Only의 `script-src`에 들어갑니다(`next.config.ts`). 글을 바꾸면 해시를 새로 계산하고 `tests/unit/prepaint.spec.ts`를 돌립니다. `data-follow-dark`는 `config/site.config.ts`의 `style.followSystemDark`(기본 true)입니다.
+- **글꼴 예산**: 기본은 DM Mono 한 파일만 preload합니다. 서류형·어두운 화면의 숫자 글꼴은 preload하지 않고 그 스타일의 토큰에서만 쓰므로 그 스타일일 때만 내려받습니다(`tests/budgets/font-preload.spec.ts`).
+- **검사**: `tests/unit/tokens.spec.ts`(세 스타일의 값·대비·보완), `tests/e2e/ui-kit.spec.ts`(스타일별 11px 이하 0·글자 대비·포커스 링·320px), `tests/e2e/style-picker.spec.ts`(첫 페인트 규칙, 고르기, 막힌 저장소), `tests/visual/style-matrix.spec.ts`(핵심 8상태 × 375·1440 × 3스타일 = 48장, `PW_VISUAL=1`), `tests/e2e/style-a11y.spec.ts`(승인 13 뒤 axe).

@@ -1,0 +1,93 @@
+<!-- @dsCard group="Foundations" title="화면 스타일 세 가지" -->
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>화면 스타일 · 기본 · 서류형 · 어두운 화면</title>
+<link rel="stylesheet" href="../_base.css">
+<style>
+  .ds-styles { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .ds-style { display: flex; flex-direction: column; gap: 12px; padding: 16px; background: var(--tt-ground); color: var(--tt-ink); font-family: var(--tt-font-body); }
+  .ds-style h2 { margin: 0; font-size: var(--tt-text-lg); }
+  .ds-style h3 { margin: 0; font-family: var(--tt-font-display); font-size: var(--tt-text-lg); font-weight: var(--tt-weight-display); }
+  .ds-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ds-style [data-slot="button"] { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: var(--tt-radius-button); font-weight: 700; text-decoration: none; }
+  .ds-style [data-slot="button"][data-variant="primary"] { background: var(--tt-primary); color: var(--tt-on-primary); }
+  .ds-style [data-slot="button"][data-variant="secondary"] { border: var(--tt-border-button) solid var(--tt-ink); background: var(--tt-surface); color: var(--tt-ink); }
+  .ds-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<main class="ds-styles">
+<section data-style="signal" class="ds-style">
+  <h2>기본 (signal)</h2>
+  <div data-slot="status-head" data-tone="progress">
+    <span data-status-chip="true" data-tone="progress">통관 대기 · 2/4</span>
+    <h3>통관 순서를 기다리고 있어요</h3>
+    <div data-slot="journey">
+      <ol aria-label="배송 여정 4구간" data-spine-current="customs">
+        <li data-station="departed" data-station-state="done"><span data-spine-part="track"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">해외 출발</span></span></li>
+        <li data-station="customs" data-station-state="current" aria-current="step"><span data-spine-part="track"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">입항·통관</span></span></li>
+        <li data-station="domestic" data-station-state="todo"><span data-spine-part="track"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">국내 배송</span></span></li>
+        <li data-station="arrived" data-station-state="todo"><span data-spine-part="track"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">도착</span></span></li>
+      </ol>
+    </div>
+    <div data-slot="eta" data-eta-kind="date">
+      <p data-eta-label>도착 예상</p>
+      <p data-eta-value><span class="ds-sr">9월 30일 (수)</span><span data-eta-visual aria-hidden="true"><span data-eta-part="month"><span data-eta-digit="9">9</span>월</span> <span data-eta-part="day"><span data-eta-digit="3">3</span><span data-eta-digit="0">0</span>일</span> <span data-eta-part="weekday">(수)</span></span><span data-eta-dday>D-4</span></p>
+    </div>
+  </div>
+  <div class="ds-row">
+    <a data-slot="button" data-variant="primary" data-size="lg" href="#">조회하기</a>
+    <a data-slot="button" data-variant="secondary" data-size="md" href="#">다시 볼 링크 복사</a>
+  </div>
+</section>
+<section data-style="manifest" class="ds-style">
+  <h2>서류형 (manifest)</h2>
+  <div data-slot="status-head" data-tone="progress">
+    <span data-status-chip="true" data-tone="progress">통관 대기 · 2/4</span>
+    <h3>통관 순서를 기다리고 있어요</h3>
+    <div data-slot="journey">
+      <ol aria-label="배송 여정 4구간" data-spine-current="customs">
+        <li data-station="departed" data-station-state="done"><span data-spine-part="track"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">해외 출발</span></span></li>
+        <li data-station="customs" data-station-state="current" aria-current="step"><span data-spine-part="track"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">입항·통관</span></span></li>
+        <li data-station="domestic" data-station-state="todo"><span data-spine-part="track"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">국내 배송</span></span></li>
+        <li data-station="arrived" data-station-state="todo"><span data-spine-part="track"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">도착</span></span></li>
+      </ol>
+    </div>
+    <div data-slot="eta" data-eta-kind="date">
+      <p data-eta-label>도착 예상</p>
+      <p data-eta-value><span class="ds-sr">9월 30일 (수)</span><span data-eta-visual aria-hidden="true"><span data-eta-part="month"><span data-eta-digit="9">9</span>월</span> <span data-eta-part="day"><span data-eta-digit="3">3</span><span data-eta-digit="0">0</span>일</span> <span data-eta-part="weekday">(수)</span></span><span data-eta-dday>D-4</span></p>
+    </div>
+  </div>
+  <div class="ds-row">
+    <a data-slot="button" data-variant="primary" data-size="lg" href="#">조회하기</a>
+    <a data-slot="button" data-variant="secondary" data-size="md" href="#">다시 볼 링크 복사</a>
+  </div>
+</section>
+<section data-style="night" class="ds-style">
+  <h2>어두운 화면 (night)</h2>
+  <div data-slot="status-head" data-tone="progress">
+    <span data-status-chip="true" data-tone="progress">통관 대기 · 2/4</span>
+    <h3>통관 순서를 기다리고 있어요</h3>
+    <div data-slot="journey">
+      <ol aria-label="배송 여정 4구간" data-spine-current="customs">
+        <li data-station="departed" data-station-state="done"><span data-spine-part="track"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">해외 출발</span></span></li>
+        <li data-station="customs" data-station-state="current" aria-current="step"><span data-spine-part="track"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">입항·통관</span></span></li>
+        <li data-station="domestic" data-station-state="todo"><span data-spine-part="track"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">국내 배송</span></span></li>
+        <li data-station="arrived" data-station-state="todo"><span data-spine-part="track"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">도착</span></span></li>
+      </ol>
+    </div>
+    <div data-slot="eta" data-eta-kind="date">
+      <p data-eta-label>도착 예상</p>
+      <p data-eta-value><span class="ds-sr">9월 30일 (수)</span><span data-eta-visual aria-hidden="true"><span data-eta-part="month"><span data-eta-digit="9">9</span>월</span> <span data-eta-part="day"><span data-eta-digit="3">3</span><span data-eta-digit="0">0</span>일</span> <span data-eta-part="weekday">(수)</span></span><span data-eta-dday>D-4</span></p>
+    </div>
+  </div>
+  <div class="ds-row">
+    <a data-slot="button" data-variant="primary" data-size="lg" href="#">조회하기</a>
+    <a data-slot="button" data-variant="secondary" data-size="md" href="#">다시 볼 링크 복사</a>
+  </div>
+</section>
+</main>
+</body>
+</html>

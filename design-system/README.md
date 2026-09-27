@@ -15,6 +15,7 @@ Claude Design의 디자인 시스템 프로젝트로 보내기(대화형 Claude 
 - `foundations/colors.html` — signal 색 토큰 30개와 색면 위 글자 대비
 - `foundations/typography.html` — 글자 크기 6단계와 서체
 - `foundations/spacing.html` — 여백·크기 토큰과 375×812 첫 화면 예산
+- `foundations/styles.html` — 세 화면 스타일(기본·서류형·어두운 화면)의 상태 머리·도착 예상·여정·버튼을 나란히 봅니다.
 - `components/buttons.html` — 버튼 슬롯, 톡톡 링크, 복사 폴백, 색면 안 버튼
 - `components/status.html` — 상태 칩, 상태 색면 5톤, 도착 예상 표기
 - `components/journey-spine.html` — 4구간 척추의 상태별 모양

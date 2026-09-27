@@ -1,12 +1,13 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@600&family=JetBrains+Mono:wght@500&display=swap");
 /*
  * design-system 미리보기 공통 CSS
  * 1) --font-dm-mono: 앱에서는 next/font 가 넣는 변수입니다. 미리보기에서는 Google Fonts 의 DM Mono 를 씁니다.
- * 2) 그 아래 "tokens.css" 절은 app/styles/tokens.css 를 한 글자도 바꾸지 않고 그대로 붙인 것입니다.
+ * 2) 그 아래 "tokens.css"·"style-manifest.css"·"style-night.css" 절은 app/styles/ 의 세 파일을 한 글자도 바꾸지 않고 그대로 붙인 것입니다.
  *    토큰을 바꾸면 이 절을 다시 복사합니다(tests/unit/tokens.spec.ts 가 검사).
  * 3) 맨 아래 "미리보기 전용" 절은 앱이 Tailwind 클래스로 내는 배치를 흉내 냅니다. 색은 var(--tt-*)만 씁니다.
  */
-:root { --font-dm-mono: "DM Mono"; }
+:root { --font-dm-mono: "DM Mono"; --font-plex-mono: "IBM Plex Mono"; --font-jetbrains-mono: "JetBrains Mono"; }
 
 /* ===== tokens.css ===== */
 /*
@@ -357,6 +358,267 @@
   from { background-color: var(--tt-ground); }
 }
 
+/* ===== style-manifest.css ===== */
+/*
+ * 화면 스타일 토큰 — manifest(서류형, A 세관 서류)
+ * - 기준 문서: DESIGN.md 14장. 색 값은 lib/style/tokens.ts 의 MANIFEST_COLORS 와 같아야 하고 tests/unit/tokens.spec.ts 가 검사합니다.
+ * - 이 파일은 [data-style="manifest"] 범위에만 규칙을 겁니다. 부품의 DOM·data-* 훅·문구는 바꾸지 않습니다.
+ * - 한글 제목은 설치된 명조 글꼴을 쓰고(웹 폰트 없음), 숫자만 IBM Plex Mono(이 스타일을 고를 때만 내려받음)를 씁니다.
+ * - app/layout.tsx 가 tokens.css 다음에 이 파일을 불러서, 같은 우선순위에서 :root 기본값보다 이 값이 이깁니다.
+ */
+[data-style="manifest"] {
+  --tt-ground: #ECEFF3;
+  --tt-surface: #FAFBFC;
+  --tt-raised: #FAFBFC;
+  --tt-ink: #14213A;
+  --tt-muted: #4A566B;
+  --tt-rule: #C4CCD7;
+  --tt-control: #6B7689;
+  --tt-route: #7D8899;
+  --tt-primary: #1B4A9A;
+  --tt-on-primary: #FFFFFF;
+  --tt-accent: #1B4A9A;
+  --tt-link: #14213A;
+  --tt-focus: #14213A;
+  --tt-tile: #FAFBFC;
+  --tt-board: #14213A;
+  --tt-tone-progress: #1B4A9A;
+  --tt-tone-progress-on: #FFFFFF;
+  --tt-tone-progress-ink: #1B4A9A;
+  --tt-tone-waiting: #56627A;
+  --tt-tone-waiting-on: #FFFFFF;
+  --tt-tone-waiting-ink: #56627A;
+  --tt-tone-attention: #9A5A00;
+  --tt-tone-attention-on: #FFFFFF;
+  --tt-tone-attention-ink: #9A5A00;
+  --tt-tone-problem: #B3261E;
+  --tt-tone-problem-on: #FFFFFF;
+  --tt-tone-problem-ink: #B3261E;
+  --tt-tone-done: #185C36;
+  --tt-tone-done-on: #FFFFFF;
+  --tt-tone-done-ink: #185C36;
+
+  --tt-font-body: "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Noto Sans CJK KR", system-ui, -apple-system, sans-serif;
+  --tt-font-display: "AppleMyungjo", "Nanum Myeongjo", "NanumMyeongjo", "Batang", "바탕", "Noto Serif KR", "Noto Serif CJK KR", serif;
+  --tt-font-mono: var(--font-plex-mono, "IBM Plex Mono"), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --tt-weight-display: 700;
+  --tt-text-xs: 12px;
+  --tt-text-sm: 14px;
+  --tt-text-md: 16px;
+  --tt-text-lg: 20px;
+  --tt-text-xl: 24px;
+  --tt-text-eta: 36px;
+  --tt-leading-tight: 1.25;
+  --tt-leading-body: 1.5;
+  --tt-radius-button: 2px;
+  --tt-radius-card: 0px;
+  --tt-border-button: 1px;
+  --tt-focus-width: 3px;
+  --tt-focus-offset: 2px;
+  --tt-motion-fast: 150ms;
+  --tt-motion-base: 200ms;
+  --tt-motion-slow: 250ms;
+  --tt-ease: cubic-bezier(0.2, 0, 0, 1);
+  --tt-gutter: 20px;
+  --tt-header-h: 48px;
+  --tt-column: 560px;
+  --tt-side: 320px;
+  --tt-status-field-max: 300px;
+  --tt-anchor-reserve: 64px;
+}
+
+/* ---------- 변형 슬롯 status-head — manifest: 종이 위 도장 ----------
+ * 색면 대신 서류 면에 잉크 글자. 상태는 칩 하나가 2° 기울어진 겹테두리 도장으로 찍힙니다(색 + 아이콘 + 문구). */
+[data-style="manifest"] [data-slot="status-head"][data-tone] {
+  --field-bg: var(--tt-surface);
+  --field-fg: var(--tt-ink);
+  border-top: 1px solid var(--tt-ink);
+  border-bottom: 1px solid var(--tt-rule);
+}
+[data-style="manifest"] [data-status-chip] {
+  background-color: transparent;
+  color: var(--chip-stamp);
+  border: 3px double var(--chip-stamp);
+  font-family: var(--tt-font-display);
+  transform: rotate(-2deg);
+}
+[data-style="manifest"] [data-status-chip][data-tone="neutral"] { --chip-stamp: var(--tt-ink); }
+[data-style="manifest"] [data-status-chip][data-tone="progress"] { --chip-stamp: var(--tt-tone-progress-ink); }
+[data-style="manifest"] [data-status-chip][data-tone="waiting"] { --chip-stamp: var(--tt-tone-waiting-ink); }
+[data-style="manifest"] [data-status-chip][data-tone="attention"] { --chip-stamp: var(--tt-tone-attention-ink); }
+[data-style="manifest"] [data-status-chip][data-tone="problem"] { --chip-stamp: var(--tt-tone-problem-ink); }
+[data-style="manifest"] [data-status-chip][data-tone="done"] { --chip-stamp: var(--tt-tone-done-ink); }
+
+/* ---------- 변형 슬롯 eta — manifest: 기입값 ----------
+ * 라벨은 서식 글자, 날짜는 고정폭 숫자로 밑줄 칸 위에 적습니다. */
+[data-style="manifest"] [data-slot="eta"] [data-eta-label] {
+  letter-spacing: 0.08em;
+}
+[data-style="manifest"] [data-slot="eta"] [data-eta-visual] {
+  padding-bottom: 4px;
+  border-bottom: 1px solid currentColor;
+  font-family: var(--tt-font-mono);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+/* ---------- 변형 슬롯 journey — manifest: 운송장 경로 ----------
+ * 지나온 길은 가는 실선, 남은 길은 점선, 지금 구간과 문제 구간은 그대로 굵은 칸입니다. */
+[data-style="manifest"] [data-slot="journey"] [data-spine-part="bar"] {
+  height: 4px;
+}
+[data-style="manifest"] [data-slot="journey"] [data-station-state="todo"] [data-spine-part="bar"] {
+  height: 0;
+  border: 0;
+  border-top: 2px dashed var(--journey-todo);
+}
+[data-style="manifest"] [data-slot="journey"] [data-station-state="current"] [data-spine-part="bar"],
+[data-style="manifest"] [data-slot="journey"] li[data-issue] [data-spine-part="bar"] {
+  height: 20px;
+}
+
+@media (forced-colors: active) {
+  [data-style="manifest"] [data-status-chip] { border-color: CanvasText; }
+}
+/* ===== style-night.css ===== */
+/*
+ * 화면 스타일 토큰 — night(어두운 화면, C 야간 관제)
+ * - 기준 문서: DESIGN.md 15장. 색 값은 lib/style/tokens.ts 의 NIGHT_COLORS 와 같아야 하고 tests/unit/tokens.spec.ts 가 검사합니다.
+ * - 이 파일은 [data-style="night"] 범위에만 규칙을 겁니다. 부품의 DOM·data-* 훅·문구는 바꾸지 않습니다.
+ * - 한글은 시스템 고딕, 숫자만 JetBrains Mono(이 스타일을 고를 때만 내려받음)를 씁니다. 층은 흐림 없이 밝기 단계로만 나눕니다.
+ * - 기기 어두운 모드면 첫 방문에 이 스타일로 시작합니다(config style.followSystemDark, lib/style/prepaint.ts).
+ */
+[data-style="night"] {
+  color-scheme: dark;
+  --tt-ground: #0C1214;
+  --tt-surface: #131B1E;
+  --tt-raised: #1A2428;
+  --tt-ink: #E6ECE9;
+  --tt-muted: #9AA8AC;
+  --tt-rule: #27343A;
+  --tt-control: #62757C;
+  --tt-route: #6E8288;
+  --tt-primary: #8FB3F0;
+  --tt-on-primary: #0C1214;
+  --tt-accent: #8FB3F0;
+  --tt-link: #E6ECE9;
+  --tt-focus: #E6ECE9;
+  --tt-tile: #080C0E;
+  --tt-board: #F1E8D4;
+  --tt-tone-progress: #8FB3F0;
+  --tt-tone-progress-on: #0C1214;
+  --tt-tone-progress-ink: #8FB3F0;
+  --tt-tone-waiting: #A3AFB3;
+  --tt-tone-waiting-on: #0C1214;
+  --tt-tone-waiting-ink: #A3AFB3;
+  --tt-tone-attention: #E8A847;
+  --tt-tone-attention-on: #0C1214;
+  --tt-tone-attention-ink: #E8A847;
+  --tt-tone-problem: #EF7C71;
+  --tt-tone-problem-on: #0C1214;
+  --tt-tone-problem-ink: #EF7C71;
+  --tt-tone-done: #74CB9B;
+  --tt-tone-done-on: #0C1214;
+  --tt-tone-done-ink: #74CB9B;
+
+  --tt-font-body: "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Noto Sans CJK KR", system-ui, -apple-system, sans-serif;
+  --tt-font-display: "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Noto Sans CJK KR", system-ui, -apple-system, sans-serif;
+  --tt-font-mono: var(--font-jetbrains-mono, "JetBrains Mono"), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --tt-weight-display: 700;
+  --tt-text-xs: 12px;
+  --tt-text-sm: 14px;
+  --tt-text-md: 16px;
+  --tt-text-lg: 20px;
+  --tt-text-xl: 24px;
+  --tt-text-eta: 36px;
+  --tt-leading-tight: 1.25;
+  --tt-leading-body: 1.5;
+  --tt-radius-button: 4px;
+  --tt-radius-card: 0px;
+  --tt-border-button: 1px;
+  --tt-focus-width: 3px;
+  --tt-focus-offset: 2px;
+  --tt-motion-fast: 150ms;
+  --tt-motion-base: 200ms;
+  --tt-motion-slow: 250ms;
+  --tt-ease: cubic-bezier(0.2, 0, 0, 1);
+  --tt-gutter: 20px;
+  --tt-header-h: 48px;
+  --tt-column: 560px;
+  --tt-side: 320px;
+  --tt-status-field-max: 300px;
+  --tt-anchor-reserve: 64px;
+}
+
+/* ---------- 변형 슬롯 status-head — night: 램프 ----------
+ * 색면 대신 한 단계 밝은 층에 잉크 글자, 윗선과 칩의 램프만 상태 톤 색입니다. 글자는 늘 잉크입니다. */
+[data-style="night"] [data-slot="status-head"][data-tone] {
+  --field-bg: var(--tt-raised);
+  --field-fg: var(--tt-ink);
+  border-top: 2px solid var(--field-lamp);
+}
+[data-style="night"] [data-slot="status-head"][data-tone="neutral"] { --field-lamp: var(--tt-rule); }
+[data-style="night"] [data-slot="status-head"][data-tone="progress"] { --field-lamp: var(--tt-tone-progress); }
+[data-style="night"] [data-slot="status-head"][data-tone="waiting"] { --field-lamp: var(--tt-tone-waiting); }
+[data-style="night"] [data-slot="status-head"][data-tone="attention"] { --field-lamp: var(--tt-tone-attention); }
+[data-style="night"] [data-slot="status-head"][data-tone="problem"] { --field-lamp: var(--tt-tone-problem); }
+[data-style="night"] [data-slot="status-head"][data-tone="done"] { --field-lamp: var(--tt-tone-done); }
+[data-style="night"] [data-status-chip] {
+  background-color: transparent;
+  color: var(--tt-ink);
+  border: 1px solid var(--chip-lamp);
+}
+[data-style="night"] [data-status-chip]::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--chip-lamp);
+}
+[data-style="night"] [data-status-chip][data-tone="neutral"] { --chip-lamp: var(--tt-muted); }
+[data-style="night"] [data-status-chip][data-tone="progress"] { --chip-lamp: var(--tt-tone-progress); }
+[data-style="night"] [data-status-chip][data-tone="waiting"] { --chip-lamp: var(--tt-tone-waiting); }
+[data-style="night"] [data-status-chip][data-tone="attention"] { --chip-lamp: var(--tt-tone-attention); }
+[data-style="night"] [data-status-chip][data-tone="problem"] { --chip-lamp: var(--tt-tone-problem); }
+[data-style="night"] [data-status-chip][data-tone="done"] { --chip-lamp: var(--tt-tone-done); }
+
+/* ---------- 변형 슬롯 eta — night: 숫자 타일 ----------
+ * 날짜의 숫자 하나하나를 어두운 칸(tile) 위 밝은 글자(board)로 세웁니다. 넘김 없이 제자리에 둡니다. */
+[data-style="night"] [data-slot="eta"] [data-eta-visual] {
+  font-family: var(--tt-font-mono);
+  letter-spacing: 0;
+}
+[data-style="night"] [data-slot="eta"] [data-eta-digit] {
+  display: inline-block;
+  min-width: 0.9em;
+  margin: 0 1px;
+  padding: 2px 4px;
+  background-color: var(--tt-tile);
+  color: var(--tt-board);
+  text-align: center;
+}
+
+/* ---------- 변형 슬롯 journey — night: 노선도 ----------
+ * 지나온 길은 가는 선, 남은 길은 점선, 지금 역과 문제 역은 둥근 램프입니다. */
+[data-style="night"] [data-slot="journey"] [data-spine-part="bar"] {
+  height: 4px;
+}
+[data-style="night"] [data-slot="journey"] [data-station-state="todo"] [data-spine-part="bar"] {
+  height: 0;
+  border: 0;
+  border-top: 2px dashed var(--journey-todo);
+}
+[data-style="night"] [data-slot="journey"] [data-station-state="current"] [data-spine-part="bar"],
+[data-style="night"] [data-slot="journey"] li[data-issue] [data-spine-part="bar"] {
+  height: 20px;
+  border-radius: 999px;
+}
+
+@media (forced-colors: active) {
+  [data-style="night"] [data-status-chip]::before { background-color: CanvasText; }
+  [data-style="night"] [data-slot="eta"] [data-eta-digit] { border: 1px solid CanvasText; }
+}
 
 /* ===== 미리보기 전용 ===== */
 * { box-sizing: border-box; }

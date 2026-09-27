@@ -335,7 +335,7 @@ test.describe("DESIGN.md is the single source", () => {
 
   test("carries no legacy tokens or fonts", () => {
     const text = design();
-    const legacy = ["background-base", "accent-info", "accent-action", "surface-luminous", "IBM Plex", "Space Grotesk", "4.8s loop"];
+    const legacy = ["background-base", "accent-info", "accent-action", "surface-luminous", "IBM Plex Sans", "Space Grotesk", "4.8s loop"];
     expect(legacy.filter((word) => text.includes(word))).toEqual([]);
   });
 });
@@ -352,6 +352,7 @@ test.describe("design-system bundle", () => {
     "components/tracking-form.html",
     "foundations/colors.html",
     "foundations/spacing.html",
+    "foundations/styles.html",
     "foundations/typography.html"
   ] as const;
   const HTML_FILES = DS_FILES.filter((file) => file.endsWith(".html"));
@@ -386,7 +387,7 @@ test.describe("design-system bundle", () => {
     }
     for (const file of DS_FILES) {
       const text = readRepoFile(`design-system/${file}`);
-      for (const legacy of ["IBM Plex", "Space Grotesk", "linear-gradient", "radial-gradient", "backdrop-filter", "blur(", "box-shadow"]) {
+      for (const legacy of ["IBM Plex Sans", "Space Grotesk", "linear-gradient", "radial-gradient", "backdrop-filter", "blur(", "box-shadow"]) {
         if (text.includes(legacy)) problems.push(`${file}: ${legacy}`);
       }
     }
@@ -494,5 +495,62 @@ test.describe("manifest and night tokens (S08)", () => {
     expect(tokens).toBeGreaterThan(-1);
     expect(manifest).toBeGreaterThan(tokens);
     expect(night).toBeGreaterThan(manifest);
+  });
+});
+
+test.describe("DESIGN.md style sections (S08)", () => {
+  function section(heading: string, next: string): string {
+    const text = readRepoFile("DESIGN.md");
+    const start = text.indexOf(heading);
+    if (start < 0) return "";
+    const end = text.indexOf(next, start + heading.length);
+    return text.slice(start, end < 0 ? undefined : end);
+  }
+
+  for (const [id, heading, next] of [
+    ["manifest", "## 14. 색 토큰 (manifest)", "## 15."],
+    ["night", "## 15. 색 토큰 (night)", "## 16."]
+  ] as const) {
+    test(`${id}: every color token with its value and every contrast pair with its ratio`, () => {
+      const text = section(heading, next);
+      expect(text.length, heading).toBeGreaterThan(0);
+      const colors = styleColors(id);
+      const missing = COLOR_TOKENS.filter((token) => !new RegExp(`\\|\\s*\`${token}\`\\s*\\|\\s*\`${colors[token]}\`\\s*\\|`).test(text));
+      expect(missing).toEqual([]);
+      const wrong = CONTRAST_REQUIREMENTS.filter(({ fg, bg, min }) => {
+        const ratio = contrastRatio(colors[fg], colors[bg]).toFixed(2);
+        return !text.includes(`| \`${fg}\` / \`${bg}\` | ${ratio}:1 | ${min}:1 |`);
+      }).map(({ fg, bg }) => `${fg} / ${bg}`);
+      expect(wrong).toEqual([]);
+    });
+  }
+
+  test("the picker, the storage key, the pre-paint names and the matrix are documented", () => {
+    const text = section("## 16. 화면 스타일 고르기와 첫 페인트", "## 17.");
+    for (const name of ["StylePicker", "tt:style", "PREPAINT_SCRIPT_SHA256", "data-follow-dark", "style-matrix.spec.ts", "화면 스타일을 {label}으로 바꿨어요"]) {
+      expect(text, name).toContain(name);
+    }
+  });
+});
+
+test.describe("design-system style previews (S08)", () => {
+  const normalized = (file: string): string => readRepoFile(file).replace(/\r\n/g, "\n");
+
+  test("_base.css embeds both style files unchanged, after tokens.css", () => {
+    const base = normalized("design-system/_base.css");
+    const tokensAt = base.indexOf(normalized("app/styles/tokens.css").trim());
+    const manifestAt = base.indexOf(normalized("app/styles/style-manifest.css").trim());
+    const nightAt = base.indexOf(normalized("app/styles/style-night.css").trim());
+    expect(tokensAt).toBeGreaterThan(-1);
+    expect(manifestAt).toBeGreaterThan(tokensAt);
+    expect(nightAt).toBeGreaterThan(manifestAt);
+  });
+
+  test("foundations/styles.html shows the three styles with the slot hooks", () => {
+    const html = readRepoFile("design-system/foundations/styles.html");
+    for (const id of STYLE_IDS) expect(html).toContain(`<section data-style="${id}"`);
+    for (const hook of ['data-slot="status-head"', 'data-slot="eta"', 'data-slot="journey"', 'data-slot="button"']) {
+      expect((html.match(new RegExp(hook, "g")) ?? []).length, hook).toBeGreaterThanOrEqual(3);
+    }
   });
 });
