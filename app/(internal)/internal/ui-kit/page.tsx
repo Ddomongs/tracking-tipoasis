@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { Button } from "@/components/primitives/Button";
+import { NumberBar } from "@/components/primitives/NumberBar";
 import { EtaDisplay } from "@/components/primitives/EtaDisplay";
 import { JourneySpine } from "@/components/primitives/JourneySpine";
 import { ButtonLink } from "@/components/primitives/ButtonLink";
 import { StatusChip } from "@/components/primitives/StatusChip";
 import { DEFAULT_STYLE_ID, STYLE_LABELS } from "@/lib/style/styles";
 import { COLOR_TOKENS, CONTRAST_REQUIREMENTS, STYLE_COLOR_TOKENS, contrastRatio } from "@/lib/style/tokens";
-import type { EtaDate, EtaView, SpineView, Tone } from "@/lib/tracking/types";
+import type { EtaDate, EtaView, NumberView, SpineView, Tone } from "@/lib/tracking/types";
+import { groupTrackingNumber } from "@/lib/tracking/number-format";
 import { formatKstDate, weekdayLabel } from "@/lib/tracking/time";
 
 export const metadata: Metadata = {
@@ -127,6 +129,7 @@ export default function UiKitPage(): React.JSX.Element {
         <ToneSection />
         <JourneySection />
         <EtaSection />
+        <NumberBarSection />
       </div>
     </main>
   );
@@ -315,6 +318,59 @@ function EtaSection(): React.JSX.Element {
       <Field tone="progress" demo="field-eta-holiday">
         <EtaDisplay eta={HOLIDAY_ETA} />
       </Field>
+    </Section>
+  );
+}
+
+/** A 30-character HBL-shaped fake (letters + zeros), the longest input the lookup accepts. */
+const LONG_HBL = `TEST${"0".repeat(26)}`;
+
+function numberView(raw: string): NumberView {
+  return { raw, grouped: groupTrackingNumber(raw) };
+}
+
+function NumberBarSection(): React.JSX.Element {
+  return (
+    <Section id="number-bar" title="번호 바">
+      <p className="m-0 text-tt-sm text-tt-muted">
+        4자리씩 묶은 고정폭 숫자예요. 말줄임은 없고, 좁은 화면에서는 버튼이 다음 줄로 내려가요.
+      </p>
+      <div data-demo="number-bar-loading" className="-mx-4 sm:mx-0">
+        <NumberBar
+          number={numberView("000012345678")}
+          carrierLabel="택배사 자동 확인"
+          actions={<Button variant="secondary">번호 변경</Button>}
+        />
+      </div>
+      <div data-demo="number-bar-result" className="-mx-4 sm:mx-0">
+        <NumberBar
+          number={numberView("000012345678")}
+          carrierLabel="CJ대한통운"
+          actions={
+            <>
+              <Button variant="secondary">번호 수정</Button>
+              <Button variant="text">다시 조회</Button>
+            </>
+          }
+        />
+      </div>
+      <div data-demo="number-bar-hbl" className="-mx-4 sm:mx-0">
+        <NumberBar number={numberView("TEST00000001")} carrierLabel="택배사 배정 전" />
+      </div>
+      <div data-demo="number-bar-cargo" className="-mx-4 sm:mx-0">
+        <NumberBar
+          number={numberView("000012345678901234")}
+          carrierLabel="택배사"
+          actions={<Button variant="secondary">번호 수정</Button>}
+        />
+      </div>
+      <div data-demo="number-bar-hbl30" className="-mx-4 sm:mx-0">
+        <NumberBar
+          number={numberView(LONG_HBL)}
+          carrierLabel="택배사 자동 확인"
+          actions={<Button variant="secondary">번호 변경</Button>}
+        />
+      </div>
     </Section>
   );
 }

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { STYLE_COLOR_TOKENS, contrastRatio } from "@/lib/style/tokens";
+import { groupTrackingNumber } from "@/lib/tracking/number-format";
+import { FAKE, FAKE_GROUPED } from "../fixtures/tracking-fixtures";
 import { INTERNAL_TEST_CREDENTIALS } from "../internal-auth";
 
 // Basic-auth credentials are sent only when a route challenges (the /internal/* pages).
@@ -547,5 +549,72 @@ test.describe("EtaDisplay", () => {
     });
     expect(badge.border).toBe(badge.fieldFg);
     expect(badge.color).toBe(badge.fieldFg);
+  });
+});
+
+// Same value as LONG_HBL in the gallery: a 30-character HBL-shaped fake (letters + zeros only).
+const LONG_HBL = `TEST${"0".repeat(26)}`;
+
+test.describe("NumberBar", () => {
+  test("shows '조회번호 · carrier' and the number in 4-character monospace groups", async ({ page }) => {
+    await openKit(page);
+    const bar = page.locator('[data-demo="number-bar-result"] [data-number-bar]');
+    await expect(bar).toHaveAttribute("data-number-bar", "true");
+    await expect(bar).toContainText("조회번호 · CJ대한통운");
+    const value = bar.locator("[data-number-bar-value]");
+    await expect(value).toHaveText(FAKE_GROUPED.domestic);
+    expect(await value.locator(":scope > span").allTextContents()).toEqual(FAKE_GROUPED.domestic.split(" "));
+    const style = await value.evaluate((element) => ({
+      family: getComputedStyle(element).fontFamily,
+      numeric: getComputedStyle(element).fontVariantNumeric
+    }));
+    expect(style.family).toMatch(/DM[_ ]Mono/);
+    expect(style.numeric).toContain("tabular-nums");
+  });
+
+  test("an HBL keeps its letter prefix as one group and a bar without actions has no action row", async ({ page }) => {
+    await openKit(page);
+    const value = page.locator('[data-demo="number-bar-hbl"] [data-number-bar-value]');
+    await expect(value).toHaveText(FAKE_GROUPED.hbl);
+    expect(await value.locator(":scope > span").allTextContents()).toEqual(FAKE_GROUPED.hbl.split(" "));
+    await expect(page.locator('[data-demo="number-bar-hbl"] [data-number-bar-actions]')).toHaveCount(0);
+  });
+
+  test("actions share the number's row on wide screens and move below it at 320px", async ({ page }) => {
+    for (const [width, below] of [
+      [1280, false],
+      [320, true]
+    ] as const) {
+      await openKit(page, width, 800);
+      const boxes = await page.locator('[data-demo="number-bar-result"] [data-number-bar]').evaluate((bar) => ({
+        valueBottom: bar.querySelector("[data-number-bar-value]")?.getBoundingClientRect().bottom ?? 0,
+        actionsTop: bar.querySelector("[data-number-bar-actions]")?.getBoundingClientRect().top ?? 0
+      }));
+      if (below) expect(boxes.actionsTop, `${width}px`).toBeGreaterThanOrEqual(boxes.valueBottom);
+      else expect(boxes.actionsTop, `${width}px`).toBeLessThan(boxes.valueBottom);
+    }
+  });
+
+  test("long numbers wrap between groups at 320 px and are never truncated", async ({ page }) => {
+    await openKit(page, 320, 800);
+    for (const [demo, raw] of [
+      ["number-bar-cargo", FAKE.cargo],
+      ["number-bar-hbl30", LONG_HBL]
+    ] as const) {
+      const info = await page.locator(`[data-demo="${demo}"] [data-number-bar-value]`).evaluate((element) => ({
+        text: (element.textContent ?? "").replace(/\s+/g, " ").trim(),
+        groupLines: Array.from(element.querySelectorAll(":scope > span"), (span) => span.getClientRects().length),
+        overflow: element.scrollWidth - element.clientWidth,
+        textOverflow: getComputedStyle(element).textOverflow,
+        height: element.getBoundingClientRect().height,
+        lineHeight: Number.parseFloat(getComputedStyle(element).lineHeight)
+      }));
+      expect(info.text, demo).toBe(groupTrackingNumber(raw));
+      expect(info.groupLines.every((lines) => lines === 1), demo).toBe(true);
+      expect(info.overflow, demo).toBeLessThanOrEqual(0);
+      expect(info.textOverflow, demo).not.toBe("ellipsis");
+      if (demo === "number-bar-hbl30") expect(info.height, demo).toBeGreaterThan(info.lineHeight * 1.5);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   });
 });
