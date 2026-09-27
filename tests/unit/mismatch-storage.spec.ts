@@ -6,7 +6,7 @@ import {
   serializeMismatchPayload,
   type MismatchRecord
 } from "@/lib/cs/mismatch-storage";
-import { CUSTOMS_MISMATCH_TEMPLATES, type CustomsMismatchTemplateKey } from "@/lib/services/cs-reply-template";
+import { CUSTOMS_MISMATCH_TEMPLATES, type CustomsMismatchTemplateKey } from "@/lib/cs/mismatch-templates";
 import { FAKE, FIXTURE_NOW } from "../fixtures/tracking-fixtures";
 
 const DAY_MS = 86_400_000;

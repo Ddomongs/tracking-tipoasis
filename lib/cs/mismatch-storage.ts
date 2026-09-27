@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { CustomsMismatchTemplateKey } from "@/lib/services/cs-reply-template";
+import type { CustomsMismatchTemplateKey } from "@/lib/cs/mismatch-templates";
 
 /** Existing key: drafts saved before S01 are migrated instead of lost (roadmap §11.14). */
 export const MISMATCH_LEGACY_KEY = "tracking-tipoasis:customs-mismatch-records";

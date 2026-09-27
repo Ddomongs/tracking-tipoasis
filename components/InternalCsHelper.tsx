@@ -17,12 +17,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  CUSTOMS_MISMATCH_TEMPLATES,
-  buildCsDeliveryGuide,
-  type CsDeliveryGuide,
-  type CustomsMismatchTemplateKey
-} from "@/lib/services/cs-reply-template";
+import { siteConfig } from "@/config/site.config";
+import { buildCsReply, type CsReply } from "@/lib/cs/cs-reply";
+import { CUSTOMS_MISMATCH_TEMPLATES, type CustomsMismatchTemplateKey } from "@/lib/cs/mismatch-templates";
 import {
   MISMATCH_TTL_DAYS,
   clearAllStoredRecords,
@@ -34,12 +31,24 @@ import {
   writeStoredRecords,
   type MismatchRecord
 } from "@/lib/cs/mismatch-storage";
-import { ApiTrackResponseSchema } from "@/lib/schemas";
+import { classifyFailure } from "@/lib/tracking/classify-failure";
+import { deriveTrackingView } from "@/lib/tracking/derive-view";
+import { fetchTrack } from "@/lib/tracking/fetch-track";
+import type { LookupOutcome, LookupRequest, TrackingViewModel } from "@/lib/tracking/types";
 
 type ActiveTab = "delivery" | "mismatch";
 
 const CustomsMismatchTemplateKeySchema = z.enum(["default", "recipient", "hold"]);
 const STORAGE_REFUSED_MESSAGE = "이 브라우저에서는 목록을 저장할 수 없어요. 내용 복사 버튼으로 옮겨 주세요.";
+
+/** One lookup's CS answer: the view model the customer would see and the reply built from it (spec §10). */
+interface DeliveryGuide {
+  readonly view: TrackingViewModel;
+  readonly reply: CsReply;
+}
+
+/** The number shape the customer page sends (S09's desk takes S06's normalizeInput instead). */
+const toLookupNumber = (value: string): string => value.trim().replace(/[\s-]/g, "").toUpperCase();
 
 const copyText = async (text: string): Promise<boolean> => {
   if (!navigator.clipboard?.writeText) return false;
@@ -50,7 +59,7 @@ const copyText = async (text: string): Promise<boolean> => {
 export const InternalCsHelper = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>("delivery");
   const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [guide, setGuide] = useState<CsDeliveryGuide | null>(null);
+  const [guide, setGuide] = useState<DeliveryGuide | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
@@ -94,8 +103,8 @@ export const InternalCsHelper = () => {
   const handleDeliveryLookup = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const trimmed = invoiceNumber.trim();
-    if (!trimmed) {
+    const number = toLookupNumber(invoiceNumber);
+    if (!number) {
       setError("운송장번호를 입력해주세요.");
       return;
     }
@@ -104,25 +113,19 @@ export const InternalCsHelper = () => {
     setError("");
     setGuide(null);
 
-    try {
-      const response = await fetch("/api/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trackingNumber: trimmed })
-      });
-      const payload = ApiTrackResponseSchema.parse(await response.json());
-
-      if (!payload.success) {
-        setError(payload.error.message);
-        return;
-      }
-
-      setGuide(buildCsDeliveryGuide(payload.data));
-    } catch {
-      setError("배송 정보를 조회하지 못했습니다. 잠시 후 다시 시도해주세요.");
-    } finally {
-      setLoading(false);
-    }
+    // Same path as the customer page: fetchTrack → deriveTrackingView → buildCsReply. A failed lookup gets the CS error
+    // template, never the server's own message (spec §5, §10).
+    const request: LookupRequest = { number, carrier: "AUTO", entry: "manual" };
+    const result = await fetchTrack(request, { signal: new AbortController().signal, timeoutMs: siteConfig.lookup.timeoutMs });
+    setLoading(false);
+    if (result.kind === "aborted") return;
+    const now = new Date();
+    const outcome: LookupOutcome =
+      result.kind === "success"
+        ? { kind: "success", request, data: result.data }
+        : { kind: "failure", request, cause: classifyFailure(result.input), consecutiveFailures: 1 };
+    const view = deriveTrackingView(outcome, now, siteConfig);
+    setGuide({ view, reply: buildCsReply(view, { now, notices: siteConfig.notices }) });
   };
 
   const saveRecords = (next: readonly MismatchRecord[]): boolean => {
@@ -255,22 +258,22 @@ export const InternalCsHelper = () => {
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-xl border border-slate-700/70 bg-slate-900/70 px-4 py-3">
                     <p className="text-xs text-slate-400">택배사</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-100">{guide.carrierName}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-100">{guide.view.carrier.name ?? guide.view.carrier.barLabel}</p>
                   </div>
                   <div className="rounded-xl border border-slate-700/70 bg-slate-900/70 px-4 py-3">
                     <p className="text-xs text-slate-400">운송장</p>
-                    <p className="mt-1 break-all font-mono text-sm font-semibold text-slate-100">{guide.invoiceNumber}</p>
+                    <p className="mt-1 break-all font-mono text-sm font-semibold text-slate-100">{guide.view.number.raw}</p>
                   </div>
                   <div className="rounded-xl border border-slate-700/70 bg-slate-900/70 px-4 py-3">
                     <p className="text-xs text-slate-400">상태</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-100">{guide.currentStatus}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-100">{guide.view.title}</p>
                   </div>
                 </div>
 
                 <div>
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <h2 className="text-sm font-semibold text-slate-100">고객 안내문</h2>
-                    <Button type="button" variant="ghost" onClick={() => handleCopy("delivery", guide.reply)} className="h-9 gap-2">
+                    <Button type="button" variant="ghost" onClick={() => handleCopy("delivery", guide.reply.long)} className="h-9 gap-2">
                       {copiedKey === "delivery" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                       {copiedKey === "delivery" ? "복사됨" : "복사"}
                     </Button>
@@ -278,7 +281,7 @@ export const InternalCsHelper = () => {
                   <textarea
                     aria-label="고객 안내문"
                     readOnly
-                    value={guide.reply}
+                    value={guide.reply.long}
                     className="min-h-44 w-full resize-none rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm leading-7 text-emerald-50 outline-none"
                   />
                 </div>
