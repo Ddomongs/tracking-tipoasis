@@ -2,9 +2,11 @@ import { expect, test } from "@playwright/test";
 import {
   classifyDeepLink,
   detectConfusables,
+  extractFromPastedText,
   MAX_NUMBER_LENGTH,
   normalizeInput,
   parseCarrierParam,
+  pasteCarrierNotice,
   precheckNumber
 } from "@/lib/tracking/number-input";
 import { FAKE, FAKE_GROUPED } from "../fixtures/tracking-fixtures";
@@ -144,5 +146,61 @@ test.describe("parseCarrierParam", () => {
     expect(parseCarrierParam("NOPE")).toBe("AUTO");
     expect(parseCarrierParam([])).toBe("AUTO");
     expect(parseCarrierParam(undefined)).toBe("AUTO");
+  });
+});
+
+const WAYBILL_HYPHENS = FAKE_GROUPED.domestic.replaceAll(" ", "-");
+/** An order number shaped like Naver's 16-digit ones; fixture-safe (starts with 0000). */
+const ORDER_NUMBER = `0000${"0".repeat(11)}1`;
+
+test.describe("extractFromPastedText (roadmap Review Focus 1)", () => {
+  test("a notification with one number gives the number and the carrier it names", () => {
+    const text = [
+      "[CJ대한통운] 고객님의 상품이 발송되었습니다.",
+      `운송장번호 ${WAYBILL_HYPHENS}`,
+      `배송 문의 ${FAKE.phone} · 발송일 2026.09.26 14:05`
+    ].join("\n");
+    expect(extractFromPastedText(text)).toEqual({ number: FAKE.domestic, carrier: "CJ" });
+  });
+
+  test("an order number next to the waybill means two candidates and no pick", () => {
+    const text = `주문번호 ${ORDER_NUMBER}\n[CJ대한통운] 운송장번호 ${WAYBILL_HYPHENS}\n문의 ${FAKE.phone}`;
+    expect(extractFromPastedText(text)).toBeNull();
+  });
+
+  test("grouped digits and a spaced HBL are read as one number each", () => {
+    expect(extractFromPastedText(`한진택배 송장 ${FAKE_GROUPED.hbl} 입니다`)).toEqual({ number: FAKE.hbl, carrier: "HANJIN" });
+    expect(extractFromPastedText(`운송장 ${FAKE_GROUPED.domestic}`)).toEqual({ number: FAKE.domestic, carrier: null });
+    expect(extractFromPastedText(`CJ ${FAKE_GROUPED.domestic}`)).toEqual({ number: FAKE.domestic, carrier: null });
+  });
+
+  test("a mobile number, dates and times are never tracking numbers", () => {
+    expect(extractFromPastedText(`연락처 ${FAKE.phone} 2026-09-26 14:05 2026.09.26`)).toBeNull();
+    expect(extractFromPastedText(`연락처 ${FAKE.phone.replaceAll("-", " ")}`)).toBeNull();
+    expect(extractFromPastedText(`연락처 ${FAKE.phone.replaceAll("-", "")}`)).toBeNull();
+  });
+
+  test("the same number twice counts once; two carriers named means no carrier", () => {
+    expect(extractFromPastedText(`${FAKE.domestic} (${FAKE_GROUPED.domestic})`)).toEqual({ number: FAKE.domestic, carrier: null });
+    expect(extractFromPastedText(`CJ대한통운 또는 한진택배 ${WAYBILL_HYPHENS}`)).toEqual({ number: FAKE.domestic, carrier: null });
+  });
+
+  test("full-width digits and a lowercase HBL are normalized", () => {
+    expect(extractFromPastedText(`우체국택배 ${toFullWidth(WAYBILL_HYPHENS)}`)).toEqual({ number: FAKE.domestic, carrier: "EPOST" });
+    expect(extractFromPastedText(`로젠택배 hbl ${FAKE.hbl.toLowerCase()}`)).toEqual({ number: FAKE.hbl, carrier: "LOGEN" });
+  });
+
+  test("text without a number gives null", () => {
+    expect(extractFromPastedText("")).toBeNull();
+    expect(extractFromPastedText("배송 안내입니다. 롯데택배로 보냈어요.")).toBeNull();
+  });
+});
+
+test.describe("pasteCarrierNotice", () => {
+  test("uses 으로 after a final consonant and 로 otherwise", () => {
+    expect(pasteCarrierNotice("CJ대한통운")).toBe("택배사를 CJ대한통운으로 맞췄어요");
+    for (const name of ["우체국택배", "한진택배", "롯데택배", "로젠택배"]) {
+      expect(pasteCarrierNotice(name), name).toBe(`택배사를 ${name}로 맞췄어요`);
+    }
   });
 });

@@ -4,7 +4,7 @@
  */
 import { identifyTrackingNumber } from "@/lib/services/identifier";
 import { CONCRETE_CARRIER_CODES } from "@/lib/tracking/carriers";
-import type { InvalidReason } from "@/lib/tracking/types";
+import type { ConcreteCarrierCode, InvalidReason } from "@/lib/tracking/types";
 import type { DeliveryCarrierCode } from "@/lib/types";
 
 /** The API's limit for `trackingNumber` (lib/schemas.ts TrackRequestSchema). */
@@ -103,4 +103,101 @@ export function precheckNumber(value: string): PrecheckResult {
   }
   if (/[^A-Z0-9]/.test(normalized)) return fail("badFormat", "숫자와 영문만 넣을 수 있어요");
   return fail("badFormat", "영문은 번호 앞에 3~4자만 올 수 있어요");
+}
+
+export interface PasteExtraction {
+  readonly number: string;
+  readonly carrier: ConcreteCarrierCode | null;
+}
+
+/** Letter/digit runs, optionally joined by single hyphens ('0000-1234-5678', '010-0000-1234'). */
+const TOKEN = /[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*/g;
+const DIGIT_GROUP = /^\d{1,4}$/;
+const LETTER_PREFIX = /^[A-Za-z]{3,4}$/;
+/** '010-0000-1234', '02-000-0000' and the like, as written in notifications. */
+const PHONE_FORMAT = /^0\d{1,2}[ -]\d{3,4}[ -]\d{4}$/;
+/** Korean mobile numbers after normalization (10–11 digits, 010/011/016/017/018/019). */
+const MOBILE_NUMBER = /^01[016789]\d{7,8}$/;
+const CARRIER_MENTIONS: ReadonlyArray<readonly [ConcreteCarrierCode, RegExp]> = [
+  ["CJ", /CJ\s*대한통운|대한통운|CJ\s*택배/i],
+  ["EPOST", /우체국/],
+  ["HANJIN", /한진/],
+  ["LOTTE", /롯데/],
+  ["LOGEN", /로젠/]
+];
+
+interface Token {
+  readonly text: string;
+  readonly start: number;
+  readonly end: number;
+}
+
+/** Every token alone, plus runs of short groups written with single spaces ('0000 1234 5678', 'TEST 0000 0001'). */
+function candidateStrings(text: string): string[] {
+  const tokens: Token[] = Array.from(text.matchAll(TOKEN), (match) => ({
+    text: match[0],
+    start: match.index ?? 0,
+    end: (match.index ?? 0) + match[0].length
+  }));
+  const candidates = tokens.map((token) => token.text);
+  let group: Token[] = [];
+  const flush = (): void => {
+    if (group.length >= 2 && group.some((token) => DIGIT_GROUP.test(token.text))) {
+      candidates.push(group.map((token) => token.text).join(" "));
+    }
+    group = [];
+  };
+  for (const token of tokens) {
+    const previous = group[group.length - 1];
+    const adjacent = previous !== undefined && /^\s$/.test(text.slice(previous.end, token.start));
+    if (DIGIT_GROUP.test(token.text)) {
+      if (!adjacent) flush();
+      group.push(token);
+      continue;
+    }
+    flush();
+    if (LETTER_PREFIX.test(token.text)) group.push(token);
+  }
+  flush();
+  return candidates;
+}
+
+function carrierMentionedIn(text: string): ConcreteCarrierCode | null {
+  const mentioned = CARRIER_MENTIONS.filter(([, pattern]) => pattern.test(text)).map(([code]) => code);
+  return mentioned.length === 1 ? (mentioned[0] ?? null) : null;
+}
+
+/**
+ * A pasted notification (spec §4): the one tracking number in it and the carrier it names.
+ * Null unless exactly one distinct valid candidate exists — a second candidate (an order number, another waybill)
+ * means the customer must choose, so nothing is picked (roadmap Review Focus 1).
+ */
+export function extractFromPastedText(text: string): PasteExtraction | null {
+  const cleaned = text
+    .replace(FULL_WIDTH_ASCII, (character) => String.fromCharCode(character.charCodeAt(0) - FULL_WIDTH_OFFSET))
+    .replace(/[‐-―−]/g, "-");
+  const numbers = new Set<string>();
+  for (const raw of candidateStrings(cleaned)) {
+    if (PHONE_FORMAT.test(raw)) continue;
+    const number = normalizeInput(raw);
+    if (MOBILE_NUMBER.test(number)) continue;
+    if (isAcceptedNumber(number)) numbers.add(number);
+  }
+  if (numbers.size !== 1) return null;
+  const [number] = [...numbers];
+  if (number === undefined) return null;
+  return { number, carrier: carrierMentionedIn(cleaned) };
+}
+
+/** '으로' after a final consonant other than ㄹ, '로' otherwise (and after non-Hangul). */
+function directionalParticle(word: string): "으로" | "로" {
+  const code = word.charCodeAt(word.length - 1);
+  if (Number.isNaN(code) || code < 0xac00 || code > 0xd7a3) return "로";
+  const finalConsonant = (code - 0xac00) % 28;
+  return finalConsonant === 0 || finalConsonant === 8 ? "로" : "으로";
+}
+
+/** '택배사를 CJ대한통운으로 맞췄어요' (spec §4 paste notice). */
+export function pasteCarrierNotice(carrierName: string): string {
+  return `택배사를 ${carrierName}${directionalParticle(carrierName)} 맞췄어요`;
 }
