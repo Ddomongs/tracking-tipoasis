@@ -66,3 +66,73 @@
   --tt-status-field-max: 300px;
   --tt-anchor-reserve: 64px;
 }
+
+/* ---------- 변형 슬롯 status-head — night: 램프 ----------
+ * 색면 대신 한 단계 밝은 층에 잉크 글자, 윗선과 칩의 램프만 상태 톤 색입니다. 글자는 늘 잉크입니다. */
+[data-style="night"] [data-slot="status-head"][data-tone] {
+  --field-bg: var(--tt-raised);
+  --field-fg: var(--tt-ink);
+  border-top: 2px solid var(--field-lamp);
+}
+[data-style="night"] [data-slot="status-head"][data-tone="neutral"] { --field-lamp: var(--tt-rule); }
+[data-style="night"] [data-slot="status-head"][data-tone="progress"] { --field-lamp: var(--tt-tone-progress); }
+[data-style="night"] [data-slot="status-head"][data-tone="waiting"] { --field-lamp: var(--tt-tone-waiting); }
+[data-style="night"] [data-slot="status-head"][data-tone="attention"] { --field-lamp: var(--tt-tone-attention); }
+[data-style="night"] [data-slot="status-head"][data-tone="problem"] { --field-lamp: var(--tt-tone-problem); }
+[data-style="night"] [data-slot="status-head"][data-tone="done"] { --field-lamp: var(--tt-tone-done); }
+[data-style="night"] [data-status-chip] {
+  background-color: transparent;
+  color: var(--tt-ink);
+  border: 1px solid var(--chip-lamp);
+}
+[data-style="night"] [data-status-chip]::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--chip-lamp);
+}
+[data-style="night"] [data-status-chip][data-tone="neutral"] { --chip-lamp: var(--tt-muted); }
+[data-style="night"] [data-status-chip][data-tone="progress"] { --chip-lamp: var(--tt-tone-progress); }
+[data-style="night"] [data-status-chip][data-tone="waiting"] { --chip-lamp: var(--tt-tone-waiting); }
+[data-style="night"] [data-status-chip][data-tone="attention"] { --chip-lamp: var(--tt-tone-attention); }
+[data-style="night"] [data-status-chip][data-tone="problem"] { --chip-lamp: var(--tt-tone-problem); }
+[data-style="night"] [data-status-chip][data-tone="done"] { --chip-lamp: var(--tt-tone-done); }
+
+/* ---------- 변형 슬롯 eta — night: 숫자 타일 ----------
+ * 날짜의 숫자 하나하나를 어두운 칸(tile) 위 밝은 글자(board)로 세웁니다. 넘김 없이 제자리에 둡니다. */
+[data-style="night"] [data-slot="eta"] [data-eta-visual] {
+  font-family: var(--tt-font-mono);
+  letter-spacing: 0;
+}
+[data-style="night"] [data-slot="eta"] [data-eta-digit] {
+  display: inline-block;
+  min-width: 0.9em;
+  margin: 0 1px;
+  padding: 2px 4px;
+  background-color: var(--tt-tile);
+  color: var(--tt-board);
+  text-align: center;
+}
+
+/* ---------- 변형 슬롯 journey — night: 노선도 ----------
+ * 지나온 길은 가는 선, 남은 길은 점선, 지금 역과 문제 역은 둥근 램프입니다. */
+[data-style="night"] [data-slot="journey"] [data-spine-part="bar"] {
+  height: 4px;
+}
+[data-style="night"] [data-slot="journey"] [data-station-state="todo"] [data-spine-part="bar"] {
+  height: 0;
+  border: 0;
+  border-top: 2px dashed var(--journey-todo);
+}
+[data-style="night"] [data-slot="journey"] [data-station-state="current"] [data-spine-part="bar"],
+[data-style="night"] [data-slot="journey"] li[data-issue] [data-spine-part="bar"] {
+  height: 20px;
+  border-radius: 999px;
+}
+
+@media (forced-colors: active) {
+  [data-style="night"] [data-status-chip]::before { background-color: CanvasText; }
+  [data-style="night"] [data-slot="eta"] [data-eta-digit] { border: 1px solid CanvasText; }
+}

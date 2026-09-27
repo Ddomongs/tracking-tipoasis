@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getSiteConfig } from "@/lib/config/server";
-import { DM_Mono } from "next/font/google";
+import { DM_Mono, IBM_Plex_Mono, JetBrains_Mono } from "next/font/google";
 import { DEFAULT_STYLE_ID } from "@/lib/style/styles";
 import { style as styleConfig } from "@/config/site.config";
 import { PREPAINT_SCRIPT, PREPAINT_SCRIPT_ID } from "@/lib/style/prepaint";
@@ -17,6 +17,25 @@ const monoFont = DM_Mono({
   display: "swap",
   preload: true,
   variable: "--font-dm-mono",
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"]
+});
+
+// Digit fonts of the other two styles: never preloaded, and referenced only by their style's token block
+// (app/styles/style-manifest.css, style-night.css), so a browser downloads one only when that style is on screen.
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: "600",
+  display: "swap",
+  preload: false,
+  variable: "--font-plex-mono",
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"]
+});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: "500",
+  display: "swap",
+  preload: false,
+  variable: "--font-jetbrains-mono",
   fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"]
 });
 
@@ -49,7 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="ko"
       data-style={DEFAULT_STYLE_ID}
       data-follow-dark={styleConfig.followSystemDark ? "1" : "0"}
-      className={monoFont.variable}
+      className={`${monoFont.variable} ${plexMono.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
       <head>

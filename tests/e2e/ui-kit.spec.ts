@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { STYLE_COLOR_TOKENS, contrastRatio } from "@/lib/style/tokens";
+import type { StyleId } from "@/lib/style/styles";
 import { groupTrackingNumber } from "@/lib/tracking/number-format";
 import { FAKE, FAKE_GROUPED } from "../fixtures/tracking-fixtures";
 import { channels, disclosures } from "@/config/site.config";
@@ -23,7 +24,7 @@ test.describe("root layout wiring", () => {
       return Array.from(document.fonts, (font) => font.family);
     });
     expect(families.some((family) => /DM[_ ]Mono/.test(family))).toBe(true);
-    expect(families.filter((family) => /IBM[_ ]Plex|Space[_ ]Grotesk/.test(family))).toEqual([]);
+    expect(families.filter((family) => /IBM[_ ]Plex[_ ]Sans|Space[_ ]Grotesk/.test(family))).toEqual([]);
     const bodyFont = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
     expect(bodyFont).toMatch(/Apple SD Gothic Neo|Malgun Gothic/);
   });
@@ -897,4 +898,102 @@ test.describe("style token sets on the page (S08)", () => {
       });
     });
   }
+});
+
+async function applyStyle(page: Page, id: StyleId): Promise<void> {
+  await page.evaluate((style) => document.documentElement.setAttribute("data-style", style), id);
+  await settleAnimations(page);
+}
+
+function rgbToHex(value: string): string {
+  const parts = /rgba?\(([^)]+)\)/.exec(value)?.[1].split(/[\s,/]+/).filter(Boolean).map(Number) ?? [];
+  return `#${parts
+    .slice(0, 3)
+    .map((part) => Math.round(part).toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase()}`;
+}
+
+test.describe("every screen style (S08)", () => {
+  for (const id of ["manifest", "night"] as const) {
+    test(`${id}: no text at 11px or less, every text 4.5:1, no horizontal scroll at 320px`, async ({ page }) => {
+      await openKit(page, 375, 812);
+      await applyStyle(page, id);
+      const samples = await visibleTextSamples(page);
+      expect(samples.filter((sample) => sample.size <= 11).map((sample) => `${sample.size}px ${sample.text}`)).toEqual([]);
+      const failures = samples
+        .map((sample) => ({ ...sample, ratio: contrastRatio(sample.fg, sample.bg) }))
+        .filter((sample) => sample.ratio < 4.5)
+        .map((sample) => `${sample.text}: ${sample.fg} on ${sample.bg} = ${sample.ratio.toFixed(2)}`);
+      expect(failures).toEqual([]);
+      await page.setViewportSize({ width: 320, height: 800 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    });
+
+    test(`${id}: every focusable element shows a 3px focus ring at 3:1 or more`, async ({ page }) => {
+      await openKit(page);
+      await applyStyle(page, id);
+      const failures: string[] = [];
+      let inside = 0;
+      for (let press = 0; press < 250; press += 1) {
+        await page.keyboard.press("Tab");
+        const probe = await probeFocused(page);
+        if (!probe) {
+          if (inside > 0) break;
+          continue;
+        }
+        inside += 1;
+        const ratio = probe.ring ? contrastRatio(probe.ring, probe.background) : 0;
+        if (probe.style === "none" || probe.width < 3 || ratio < 3) {
+          failures.push(`${probe.name}: ${probe.style} ${probe.width}px ${probe.ring} on ${probe.background} = ${ratio.toFixed(2)}`);
+        }
+      }
+      expect(inside).toBeGreaterThanOrEqual(5);
+      expect(failures).toEqual([]);
+    });
+  }
+
+  test("manifest: the status chip is a stamp, the date an entry line in the digit font, the remaining route dashed", async ({ page }) => {
+    await openKit(page);
+    await applyStyle(page, "manifest");
+    const stamp = await page.locator('[data-demo="field-progress"] [data-status-chip]').evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, border: style.borderTopStyle, width: style.borderTopWidth, transform: style.transform, color: style.color };
+    });
+    expect(stamp.background).toBe("rgba(0, 0, 0, 0)");
+    expect(stamp.border).toBe("double");
+    expect(stamp.width).toBe("3px");
+    expect(stamp.transform).not.toBe("none");
+    expect(rgbToHex(stamp.color)).toBe(STYLE_COLOR_TOKENS.manifest?.["--tt-tone-progress-ink"]);
+    const entry = await page.locator('[data-demo="eta-date"] [data-eta-visual]').evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { line: style.borderBottomStyle, family: style.fontFamily };
+    });
+    expect(entry.line).toBe("solid");
+    expect(entry.family).toMatch(/IBM[_ ]Plex[_ ]Mono/);
+    const todo = await page.locator('[data-slot="journey"] [data-station-state="todo"] [data-spine-part="bar"]').first().evaluate((element) => getComputedStyle(element).borderTopStyle);
+    expect(todo).toBe("dashed");
+  });
+
+  test("night: chips carry a flat lamp, the date sits on digit tiles, the current station is round", async ({ page }) => {
+    await openKit(page);
+    await applyStyle(page, "night");
+    const night = STYLE_COLOR_TOKENS.night;
+    const lamp = await page.locator('[data-demo="chips"] [data-status-chip][data-tone="progress"]').evaluate((element) => {
+      const style = getComputedStyle(element, "::before");
+      return { content: style.content, background: style.backgroundColor, radius: style.borderTopLeftRadius };
+    });
+    expect(lamp.content).toBe('""');
+    expect(lamp.radius).toBe("50%");
+    expect(rgbToHex(lamp.background)).toBe(night?.["--tt-tone-progress"]);
+    const tile = await page.locator('[data-demo="eta-date"] [data-eta-digit]').first().evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, color: style.color, family: style.fontFamily };
+    });
+    expect(rgbToHex(tile.background)).toBe(night?.["--tt-tile"]);
+    expect(rgbToHex(tile.color)).toBe(night?.["--tt-board"]);
+    expect(tile.family).toMatch(/JetBrains[_ ]Mono/);
+    const current = await page.locator('[data-slot="journey"] [data-station-state="current"] [data-spine-part="bar"]').first().evaluate((element) => getComputedStyle(element).borderTopLeftRadius);
+    expect(current).toBe("999px");
+  });
 });

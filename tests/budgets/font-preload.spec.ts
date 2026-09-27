@@ -1,6 +1,7 @@
 import { expect, test, type Page, type Response } from "@playwright/test";
 import { IS_PRODUCTION_RUN } from "../support/prod-mode";
 import { FAKE, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+import { STYLE_STORAGE_KEY } from "@/lib/style/styles";
 
 /** Spec §12: at most 2 preloaded font files. Phase 1 (PERF-01) measured 281 on production. */
 const MAX_FONT_PRELOADS = 2;
@@ -90,7 +91,42 @@ test.describe("signal style fonts (S05)", () => {
       expect(fonts.preloadCount).toBe(1);
       expect(fonts.totalBytes).toBeLessThanOrEqual(FIRST_VIEW_FONT_BUDGET_BYTES);
       expect(fonts.families.some((family) => /DM[_ ]Mono/.test(family))).toBe(true);
-      expect(fonts.families.filter((family) => /IBM[_ ]Plex|Space[_ ]Grotesk/.test(family))).toEqual([]);
+      expect(fonts.families.filter((family) => /IBM[_ ]Plex[_ ]Sans|Space[_ ]Grotesk/.test(family))).toEqual([]);
+    });
+  }
+});
+
+// ---- S08: per-style digit fonts (spec §13 "서류형·어두운 화면의 서체는 그 스타일을 고른 경우에만 내려받습니다") ----
+const DIGIT_FONTS = [
+  { style: "signal", loads: /DM[_ ]Mono/, never: /IBM[_ ]Plex[_ ]Mono|JetBrains[_ ]Mono/ },
+  { style: "manifest", loads: /IBM[_ ]Plex[_ ]Mono/, never: /JetBrains[_ ]Mono/ },
+  { style: "night", loads: /JetBrains[_ ]Mono/, never: /IBM[_ ]Plex[_ ]Mono/ }
+] as const;
+
+test.describe("per-style digit fonts (S08)", () => {
+  test.skip(!IS_PRODUCTION_RUN, "budgets run against next start");
+
+  for (const { style, loads, never } of DIGIT_FONTS) {
+    test(`${style}: one preload, its digit font loads only in that style, first-view fonts within 100 KB`, async ({ page }) => {
+      await page.addInitScript(
+        ([key, value]) => {
+          try {
+            window.localStorage.setItem(key, value);
+          } catch {
+            // no storage: the style check below fails and names the reason
+          }
+        },
+        [STYLE_STORAGE_KEY, style] as const
+      );
+      await mockTrack(page, trackData("customsWaiting"));
+      const fonts = await collectFirstViewFonts(page, `/${FAKE.domestic}`);
+      await expect(page.locator("html")).toHaveAttribute("data-style", style);
+      const loaded = await page.evaluate(() => Array.from(document.fonts).filter((face) => face.status === "loaded").map((face) => face.family));
+      console.info(`[font-budget] ${style} deep link: ${fonts.totalBytes} B in the first view, ${fonts.preloadCount} preload(s), loaded ${loaded.join(", ")}`);
+      expect(fonts.preloadCount).toBe(1);
+      expect(fonts.totalBytes).toBeLessThanOrEqual(FIRST_VIEW_FONT_BUDGET_BYTES);
+      expect(loaded.some((family) => loads.test(family)), `${style} loads its digit font`).toBe(true);
+      expect(loaded.filter((family) => never.test(family))).toEqual([]);
     });
   }
 });
