@@ -191,6 +191,8 @@ test.describe("상담·스토어 바로가기 row (S06, approval 1)", () => {
     ]) {
       await page.setViewportSize(viewport);
       await page.goto("/");
+      // The server paints the notice by its own clock; the client drops it after mount (NO_NOTICE_TIME). Measure after that.
+      await expect(page.locator("aside[data-notice-variant=\"banner\"]")).toHaveCount(0);
       const box = await page.getByRole("region", SHORTCUT_REGION).boundingBox();
       const bottom = Math.round((box?.y ?? 0) + (box?.height ?? Number.POSITIVE_INFINITY));
       console.info(`[geometry] shortcut row bottom at ${viewport.width}x${viewport.height}: ${bottom} px (max 550 px)`);

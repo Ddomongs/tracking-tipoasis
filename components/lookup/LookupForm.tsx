@@ -1,6 +1,6 @@
 "use client";
 
-import type { RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import { lookup as lookupConfig } from "@/config/site.config";
 import { FormatHint } from "@/components/lookup/FormatHint";
 import { INPUT_ASSIST_ID } from "@/components/lookup/InputAssist";
@@ -62,6 +62,15 @@ export function LookupForm({
   assistVisible,
   onPaste
 }: LookupFormProps): React.JSX.Element {
+  const carrierRef = useRef<HTMLSelectElement | null>(null);
+  // A number typed or a carrier chosen while the scripts were still loading lives only in the DOM: adopt it, or the
+  // lookup would silently use the empty value / "자동으로 찾기". Afterwards DOM and state agree and this is a no-op.
+  useEffect(() => {
+    const typed = inputRef.current?.value;
+    if (typed !== undefined && typed !== value) onValueChange(typed);
+    const chosen = carrierRef.current?.value;
+    if (chosen !== undefined && chosen !== carrier) onCarrierChange(parseCarrierParam(chosen));
+  }, [carrier, inputRef, onCarrierChange, onValueChange, value]);
   const describedBy = [FORMAT_HINT_ID, assistVisible ? INPUT_ASSIST_ID : null, invalid ? ERROR_ID : null, invalid?.diagnosis ? DIAGNOSIS_ID : null]
     .filter((id): id is string => id !== null)
     .join(" ");
@@ -133,6 +142,7 @@ export function LookupForm({
         <div className="relative">
           <select
             id={CARRIER_ID}
+            ref={carrierRef}
             name="c"
             value={carrier}
             onChange={(event) => onCarrierChange(parseCarrierParam(event.target.value))}
