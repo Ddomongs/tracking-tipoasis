@@ -1,11 +1,17 @@
-<!-- @dsCard group="Foundations" name="Typography" subtitle="Display / H2 / Body / Body-sm / Caption" -->
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>Typography</title><link rel="stylesheet" href="../_base.css"></head>
-<body><p class="kicker">Foundations</p><h1 class="title" style="font-size:24px;margin-top:8px">타이포그래피</h1>
-<p class="copy" style="max-width:640px;margin-top:8px">본문은 IBM Plex Sans KR, 제목은 Space Grotesk. 고객 행동을 설명하는 본문과 링크는 14px 미만으로 만들지 않는다. 한글 문장에는 break-keep.</p>
-<div class="stack" style="margin-top:28px;max-width:760px">
-<div><div class="title" style="font-size:48px;line-height:1.12">통관부터 국내 배송까지 <span style="color:var(--info)">한 번에 확인</span></div><div class="label">Display · 30/48px · 600</div></div>
-<div><div class="title" style="font-size:20px;font-weight:700">내 배송은 어디쯤일까요?</div><div class="label">H2 · 18–20px · 600–700</div></div>
-<div><div style="font-size:16px;line-height:1.6">HBL 또는 운송장 번호 하나로 현재 통관 단계와 국내 배송 내역을 확인하세요.</div><div class="label">Body · 16px · 400–600</div></div>
-<div><div style="font-size:14px;line-height:1.5;color:var(--text-secondary)">택배사를 모르시면 자동으로 찾기를 선택하세요.</div><div class="label">Body/sm · 14px</div></div>
-<div><div style="font-size:12px;font-weight:600;color:var(--text-muted)">UNI-PASS 반영 시점에 따라 차이가 날 수 있습니다.</div><div class="label">Caption · 12px · 500–600</div></div>
-</div></body></html>
+<!-- @dsCard group="Foundations" name="Typography" subtitle="시스템 고딕 + DM Mono 숫자 · 12/14/16/20/24/40px" -->
+<!doctype html><html lang="ko" data-style="signal"><head><meta charset="utf-8"><title>Typography</title><link rel="stylesheet" href="../_base.css">
+<style>.sample{display:grid;gap:2px;padding:12px 0;border-bottom:1px solid var(--tt-rule)}</style></head>
+<body>
+<p class="kicker">Foundations · signal</p>
+<h1 class="title">글자</h1>
+<p class="copy">본문과 제목은 시스템 한글 고딕(0KB), 조회번호 숫자만 DM Mono 500 서브셋 1파일이에요. 11px 이하 글자는 없고, 행동 문구는 14px 이상이에요.</p>
+<div class="stack" style="max-width:760px;gap:0">
+  <div class="sample"><span class="caption">--tt-text-eta · 40px · 도착 예상 날짜(화면 최대 글자)</span><span style="font-family:var(--tt-font-display);font-size:var(--tt-text-eta);line-height:1.1;font-weight:var(--tt-weight-display);font-variant-numeric:tabular-nums">9월 30일 (수)</span></div>
+  <div class="sample"><span class="caption">--tt-text-xl · 24px · 홈 제목</span><span style="font-size:var(--tt-text-xl);line-height:32px;font-weight:var(--tt-weight-display)">통관부터 국내 배송까지 한 번에 확인</span></div>
+  <div class="sample"><span class="caption">--tt-text-lg · 20px · 상태 제목</span><span class="status-title">통관 순서를 기다리고 있어요</span></div>
+  <div class="sample"><span class="caption">--tt-font-mono · 20px · 조회번호</span><span data-number-bar-value="true"><span>0000</span> <span>1234</span> <span>5678</span></span></div>
+  <div class="sample"><span class="caption">--tt-text-md · 16px · 본문, 버튼</span><span>지금은 하실 일이 없어요. 통관이 끝나면 택배사로 넘어가요.</span></div>
+  <div class="sample"><span class="caption">--tt-text-sm · 14px · 이유 한 줄, 칩, 안내 줄</span><span class="reason">세관 접수가 끝났고 순서대로 심사가 진행돼요.</span></div>
+  <div class="sample"><span class="caption">--tt-text-xs · 12px · 척추 라벨, 고지</span><span style="font-size:var(--tt-text-xs);line-height:18px">해외 출발 · 입항·통관 · 국내 배송 · 도착</span></div>
+</div>
+</body></html>

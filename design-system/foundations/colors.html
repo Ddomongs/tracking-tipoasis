@@ -1,25 +1,49 @@
-<!-- @dsCard group="Foundations" name="Colors" subtitle="Background, surface, text, accent, channel" -->
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>Colors</title><link rel="stylesheet" href="../_base.css">
-<style>.sw{width:150px}.chip{height:56px;border-radius:12px;border:1px solid var(--border)}.name{font-size:13px;font-weight:600;margin-top:8px}</style></head>
-<body><p class="kicker">Foundations</p><h1 class="title" style="font-size:24px;margin-top:8px">색상</h1>
-<p class="copy" style="max-width:640px;margin-top:8px">청록은 정보, 에메랄드는 행동, 황색은 주의에만 쓴다. 스토어 고유색은 해당 외부 링크에서만 쓴다.</p>
-<div class="row" style="margin-top:24px">
-<div class="sw"><div class="chip" style="background:#050b17"></div><div class="name">background-base</div><div class="label">#050b17</div></div>
-<div class="sw"><div class="chip" style="background:#0a1324"></div><div class="name">background-mid</div><div class="label">#0a1324</div></div>
-<div class="sw"><div class="chip" style="background:#121f31"></div><div class="name">background-deep</div><div class="label">#121f31</div></div>
-<div class="sw"><div class="chip" style="background:rgba(15,23,42,.6)"></div><div class="name">surface-default</div><div class="label">slate-900 / 60%</div></div>
-<div class="sw"><div class="chip" style="background:#f8fafc"></div><div class="name">surface-luminous</div><div class="label">slate-50 (조회 패널)</div></div>
+<!-- @dsCard group="Foundations" name="Colors" subtitle="signal(기본) 색 토큰 30개와 색면 위 글자 대비" -->
+<!doctype html><html lang="ko" data-style="signal"><head><meta charset="utf-8"><title>Colors</title><link rel="stylesheet" href="../_base.css">
+<style>.swatches{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}.sw{display:grid;gap:4px}.chip{height:44px;border:1px solid var(--tt-rule)}.name{font-family:var(--tt-font-mono);font-size:var(--tt-text-xs);line-height:18px;word-break:break-all}.pair{padding:8px 12px;font-size:var(--tt-text-sm);line-height:20px;font-weight:700}</style></head>
+<body>
+<p class="kicker">Foundations · signal</p>
+<h1 class="title">색 토큰</h1>
+<p class="copy">값의 원본은 app/styles/tokens.css예요. 빨강은 '문제'에만, '확인 필요'는 앰버 면에 잉크 글자, 텍스트 링크는 잉크와 밑줄로 '정상 진행' 파랑과 나눠요.</p>
+<div class="stack swatches">
+  <div class="sw"><div class="chip" style="background:var(--tt-ground)"></div><span class="name">--tt-ground</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-surface)"></div><span class="name">--tt-surface</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-raised)"></div><span class="name">--tt-raised</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-ink)"></div><span class="name">--tt-ink</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-muted)"></div><span class="name">--tt-muted</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-rule)"></div><span class="name">--tt-rule</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-control)"></div><span class="name">--tt-control</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-route)"></div><span class="name">--tt-route</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-primary)"></div><span class="name">--tt-primary</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-on-primary)"></div><span class="name">--tt-on-primary</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-accent)"></div><span class="name">--tt-accent</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-link)"></div><span class="name">--tt-link</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-focus)"></div><span class="name">--tt-focus</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tile)"></div><span class="name">--tt-tile</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-board)"></div><span class="name">--tt-board</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-progress)"></div><span class="name">--tt-tone-progress</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-progress-on)"></div><span class="name">--tt-tone-progress-on</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-progress-ink)"></div><span class="name">--tt-tone-progress-ink</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-waiting)"></div><span class="name">--tt-tone-waiting</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-waiting-on)"></div><span class="name">--tt-tone-waiting-on</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-waiting-ink)"></div><span class="name">--tt-tone-waiting-ink</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-attention)"></div><span class="name">--tt-tone-attention</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-attention-on)"></div><span class="name">--tt-tone-attention-on</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-attention-ink)"></div><span class="name">--tt-tone-attention-ink</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-problem)"></div><span class="name">--tt-tone-problem</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-problem-on)"></div><span class="name">--tt-tone-problem-on</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-problem-ink)"></div><span class="name">--tt-tone-problem-ink</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-done)"></div><span class="name">--tt-tone-done</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-done-on)"></div><span class="name">--tt-tone-done-on</span></div>
+  <div class="sw"><div class="chip" style="background:var(--tt-tone-done-ink)"></div><span class="name">--tt-tone-done-ink</span></div>
 </div>
-<div class="row" style="margin-top:16px">
-<div class="sw"><div class="chip" style="background:#67e8f9"></div><div class="name">accent-info</div><div class="label">cyan-300 · 조회/진행</div></div>
-<div class="sw"><div class="chip" style="background:#6ee7b7"></div><div class="name">accent-action</div><div class="label">emerald-300 · 문의/완료</div></div>
-<div class="sw"><div class="chip" style="background:#fcd34d"></div><div class="name">status-warning</div><div class="label">amber-300 · 대기/주의</div></div>
-<div class="sw"><div class="chip" style="background:#fda4af"></div><div class="name">status-error</div><div class="label">rose-300 · 오류</div></div>
-<div class="sw"><div class="chip" style="background:#03c75a"></div><div class="name">channel-naver</div><div class="label">#03c75a · 네이버 링크만</div></div>
+<h2 class="subtitle">색면 위 글자</h2>
+<div class="stack" style="max-width:520px">
+  <p class="pair" style="background:var(--tt-tone-progress);color:var(--tt-tone-progress-on)">정상 진행 · 7.46:1</p>
+  <p class="pair" style="background:var(--tt-tone-waiting);color:var(--tt-tone-waiting-on)">정보 대기 · 11.96:1</p>
+  <p class="pair" style="background:var(--tt-tone-attention);color:var(--tt-tone-attention-on)">확인 필요 · 앰버 면 + 잉크 글자 · 10.83:1</p>
+  <p class="pair" style="background:var(--tt-tone-problem);color:var(--tt-tone-problem-on)">문제 · 빨강은 여기만 · 5.60:1</p>
+  <p class="pair" style="background:var(--tt-tone-done);color:var(--tt-tone-done-on)">완료 · 6.59:1</p>
+  <p class="pair" style="background:var(--tt-surface);color:var(--tt-muted)">흰 면 위 보조 글자 · 6.81:1 · 색면 위에서는 쓰지 않음</p>
 </div>
-<div class="row" style="margin-top:16px">
-<div class="sw"><div class="chip" style="background:#f8fafc"></div><div class="name">text-primary</div><div class="label">slate-50</div></div>
-<div class="sw"><div class="chip" style="background:#cbd5e1"></div><div class="name">text-secondary</div><div class="label">slate-300</div></div>
-<div class="sw"><div class="chip" style="background:#94a3b8"></div><div class="name">text-muted</div><div class="label">slate-400 · 12px 최저 대비</div></div>
-<div class="sw"><div class="chip" style="background:rgba(51,65,85,.8)"></div><div class="name">border-default</div><div class="label">slate-700 / 80%</div></div>
-</div></body></html>
+</body></html>

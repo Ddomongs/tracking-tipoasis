@@ -1,0 +1,72 @@
+<!-- @dsCard group="Components" name="Journey spine" subtitle="4구간 척추 · aria-current 1개 · 멈춤·끊김·갈림 · 위치 확인 전" -->
+<!doctype html><html lang="ko" data-style="signal"><head><meta charset="utf-8"><title>Journey spine</title><link rel="stylesheet" href="../_base.css"></head>
+<body>
+<p class="kicker">Components · journey 슬롯</p>
+<h1 class="title">4구간 여정 척추</h1>
+<p class="copy">지난 구간은 채운 8px, 지금 구간은 채운 20px, 남은 구간은 외곽선 8px이에요. 지금 구간 표식(aria-current=step)은 정확히 하나이고 위치 확인 전에는 없어요. 멈춤·끊김·갈림은 색·아이콘·글자를 함께 써요.</p>
+<div class="stack" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))">
+  <div data-slot="status-head" data-tone="progress">
+    <p class="section-label">정상 진행 · 통관 대기 2/4</p>
+    <div data-slot="journey"><ol aria-label="배송 여정 4구간" data-spine-current="customs">
+      <li data-station="departed" data-station-state="done"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name"><svg aria-hidden="true" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12.5l5 5L20 6.5"/></svg>해외 출발</span></span></li>
+      <li data-station="customs" data-station-state="current" aria-current="step"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">입항·통관</span></span></li>
+      <li data-station="domestic" data-station-state="todo"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">국내 배송</span></span></li>
+      <li data-station="arrived" data-station-state="todo"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">도착</span></span></li>
+    </ol></div>
+  </div>
+  <div data-slot="status-head" data-tone="progress">
+    <p class="section-label">통관 완료 · 인계 대기 2/4 (③으로 넘기지 않음)</p>
+    <div data-slot="journey"><ol aria-label="배송 여정 4구간" data-spine-current="customs">
+      <li data-station="departed" data-station-state="done"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name"><svg aria-hidden="true" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12.5l5 5L20 6.5"/></svg>해외 출발</span></span></li>
+      <li data-station="customs" data-station-state="current" aria-current="step"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name"><svg aria-hidden="true" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12.5l5 5L20 6.5"/></svg>입항·통관</span><span data-spine-part="sub">인계 대기</span></span></li>
+      <li data-station="domestic" data-station-state="todo"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">국내 배송</span></span></li>
+      <li data-station="arrived" data-station-state="todo"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">도착</span></span></li>
+    </ol></div>
+  </div>
+  <div data-slot="status-head" data-tone="done">
+    <p class="section-label">완료 · 도착 4/4</p>
+    <div data-slot="journey"><ol aria-label="배송 여정 4구간" data-spine-current="arrived">
+      <li data-station="departed" data-station-state="done"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name"><svg aria-hidden="true" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12.5l5 5L20 6.5"/></svg>해외 출발</span></span></li>
+      <li data-station="customs" data-station-state="done"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name"><svg aria-hidden="true" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12.5l5 5L20 6.5"/></svg>입항·통관</span></span></li>
+      <li data-station="domestic" data-station-state="done"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name"><svg aria-hidden="true" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12.5l5 5L20 6.5"/></svg>국내 배송</span></span></li>
+      <li data-station="arrived" data-station-state="current" aria-current="step"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">도착</span></span></li>
+    </ol></div>
+  </div>
+  <div data-slot="status-head" data-tone="attention">
+    <p class="section-label">멈춤 · 장기 정체</p>
+    <div data-slot="journey"><ol aria-label="배송 여정 4구간" data-spine-current="customs">
+      <li data-station="departed" data-station-state="done"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name"><svg aria-hidden="true" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12.5l5 5L20 6.5"/></svg>해외 출발</span></span></li>
+      <li data-station="customs" data-station-state="current" data-issue="stopped" aria-current="step"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"><svg aria-hidden="true" data-tone-icon="stopped" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5v14"/><path d="M15 5v14"/></svg></span></span><span data-spine-part="label"><span data-spine-part="issue">멈춤</span><span data-spine-part="name">입항·통관</span></span></li>
+      <li data-station="domestic" data-station-state="todo"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">국내 배송</span></span></li>
+      <li data-station="arrived" data-station-state="todo"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">도착</span></span></li>
+    </ol></div>
+  </div>
+  <div data-slot="status-head" data-tone="progress">
+    <p class="section-label">끊김 · 통관 중 택배사 조회 지연(③에 표식, 지금 구간은 ②)</p>
+    <div data-slot="journey"><ol aria-label="배송 여정 4구간" data-spine-current="customs">
+      <li data-station="departed" data-station-state="done"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name"><svg aria-hidden="true" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12.5l5 5L20 6.5"/></svg>해외 출발</span></span></li>
+      <li data-station="customs" data-station-state="current" aria-current="step"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">입항·통관</span></span></li>
+      <li data-station="domestic" data-station-state="todo" data-issue="cut"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"><svg aria-hidden="true" data-tone-icon="cut" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 7H7a5 5 0 0 0 0 10h3"/><path d="M14 7h3a5 5 0 0 1 0 10h-3"/></svg></span></span><span data-spine-part="label"><span data-spine-part="issue">끊김</span><span data-spine-part="name">국내 배송</span></span></li>
+      <li data-station="arrived" data-station-state="todo"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">도착</span></span></li>
+    </ol></div>
+  </div>
+  <div data-slot="status-head" data-tone="attention">
+    <p class="section-label">갈림 · 여러 택배사</p>
+    <div data-slot="journey"><ol aria-label="배송 여정 4구간" data-spine-current="domestic">
+      <li data-station="departed" data-station-state="done"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name"><svg aria-hidden="true" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12.5l5 5L20 6.5"/></svg>해외 출발</span></span></li>
+      <li data-station="customs" data-station-state="done"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name"><svg aria-hidden="true" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12.5l5 5L20 6.5"/></svg>입항·통관</span></span></li>
+      <li data-station="domestic" data-station-state="current" data-issue="branch" aria-current="step"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"><svg aria-hidden="true" data-tone-icon="branch" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 21v-8"/><path d="M12 13L5 4"/><path d="M12 13l7-9"/></svg></span></span><span data-spine-part="label"><span data-spine-part="issue">갈림</span><span data-spine-part="name">국내 배송</span></span></li>
+      <li data-station="arrived" data-station-state="todo"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">도착</span></span></li>
+    </ol></div>
+  </div>
+  <div data-slot="status-head" data-tone="waiting">
+    <p class="section-label">위치 확인 전 · 국내 도착 전 (표식 0)</p>
+    <div data-slot="journey"><ol aria-label="배송 여정 4구간" data-spine-current="none">
+      <li data-station="departed" data-station-state="todo"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">해외 출발</span></span></li>
+      <li data-station="customs" data-station-state="todo"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">입항·통관</span></span></li>
+      <li data-station="domestic" data-station-state="todo"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">국내 배송</span></span></li>
+      <li data-station="arrived" data-station-state="todo"><span data-spine-part="track" aria-hidden="true"><span data-spine-part="bar"></span></span><span data-spine-part="label"><span data-spine-part="name">도착</span></span></li>
+    </ol><p data-spine-part="unknown">위치 확인 전</p></div>
+  </div>
+</div>
+</body></html>
