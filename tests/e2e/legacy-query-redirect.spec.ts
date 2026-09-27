@@ -34,6 +34,19 @@ test("grouped digits with spaces or hyphens still redirect", async ({ request })
   }
 });
 
+test("surrounding spaces or a pasted newline (a form sent before hydration) still redirect to the trimmed number", async ({
+  request
+}) => {
+  for (const raw of [`%20${FAKE.domestic}`, `${FAKE.domestic}%0A`, `%20%20${FAKE.hbl}%20`]) {
+    const response = await request.get(`/?carrierCode=AUTO&trackingNumber=${raw}`, { maxRedirects: 0 });
+    expect(response.status(), raw).toBe(307);
+    const expected = raw.includes(FAKE.hbl) ? FAKE.hbl : FAKE.domestic;
+    expect(locationOf(response).pathname, raw).toBe(`/${expected}`);
+  }
+  const reserved = await request.get("/?trackingNumber=%20internal%20", { maxRedirects: 0 });
+  expect(reserved.status()).toBe(200);
+});
+
 test("unsafe or empty values are not redirected: no open redirect, no 500", async ({ request }) => {
   for (const raw of ["", "%20", "%2F%2Fexample.com", "abc.def", "%ED%95%9C", "internal", "api", "privacy"]) {
     const response = await request.get(`/?trackingNumber=${raw}`, { maxRedirects: 0 });

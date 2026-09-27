@@ -5,10 +5,12 @@ import { buildSecurityHeaders } from "./lib/security/headers";
  * Legacy links '/?trackingNumber=X' → 307 '/X' (spec §3). Only a value that starts with a letter or digit and
  * continues with letters, digits, spaces or hyphens (64 characters at most) is redirected: '//host' cannot
  * become an open redirect and non-ASCII values cannot produce an invalid Location header (500). The route names
- * 'internal', 'api' and 'privacy' stay on '/' (no basic-auth prompt or 404 from an old link).
+ * 'internal', 'api' and 'privacy' stay on '/' (no basic-auth prompt or 404 from an old link). Whitespace around
+ * the value (a pasted number sent by the form before hydration) is left outside the captured number.
  * Next passes the query through ('/X?trackingNumber=X&c=…'); the candidate-B scrub removes it in the browser.
  */
-const LEGACY_TRACKING_QUERY_VALUE = "(?<trackingNumber>(?!(?:internal|api|privacy)$)[A-Za-z0-9][A-Za-z0-9 -]{0,63})";
+const LEGACY_TRACKING_QUERY_VALUE =
+  "\\s*(?<trackingNumber>(?!(?:internal|api|privacy)\\s*$)[A-Za-z0-9][A-Za-z0-9 -]{0,63}?)\\s*";
 
 const nextConfig: NextConfig = {
   output: "standalone",
