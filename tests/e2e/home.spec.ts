@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { channels } from "@/config/site.config";
+import { channels, disclosures } from "@/config/site.config";
 import { FAKE, mockTrack, trackData } from "../fixtures/tracking-fixtures";
 
 test.describe("site header (S06)", () => {
@@ -153,5 +153,94 @@ test.describe("mode changes stay on '/' (S06)", () => {
     await page.waitForTimeout(3000);
     await expect(page.getByRole("button", RESULT_READY)).toHaveCount(0);
     await expect(page.locator('[data-view-state="idle"]')).toHaveCount(1);
+  });
+});
+
+/** Outside every shipped notice window, so no banner changes the first-view geometry (spec §16 item 1 relaxes it on notice days). */
+const NO_NOTICE_TIME = new Date("2026-11-18T10:00:00+09:00");
+const SHORTCUT_REGION = { name: "상담·스토어 바로가기" } as const;
+
+test.describe("상담·스토어 바로가기 row (S06, approval 1)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(NO_NOTICE_TIME);
+  });
+
+  test("the row is in the first view at 390×844, 375×812 and 360×780 and nothing covers the lookup button or the row", async ({ page }) => {
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 375, height: 812 },
+      { width: 360, height: 780 }
+    ]) {
+      const size = `${viewport.width}×${viewport.height}`;
+      await page.setViewportSize(viewport);
+      await page.goto("/");
+      const row = page.getByRole("region", SHORTCUT_REGION);
+      await expect(row, size).toHaveAttribute("data-shortcut-row", "full");
+      await expect(row, size).toBeInViewport({ ratio: 1 });
+      await page.getByRole("button", { name: "조회하기" }).click({ trial: true });
+      for (const name of ["톡톡 상담", "네이버 스토어", "쿠팡 스토어"]) {
+        await row.getByRole("link", { name: `${name} 새 창으로 열기` }).click({ trial: true });
+      }
+    }
+  });
+
+  test("the row ends by 550 px at 375×667 (about 500 px at 375×812)", async ({ page }) => {
+    for (const viewport of [
+      { width: 375, height: 667 },
+      { width: 375, height: 812 }
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/");
+      const box = await page.getByRole("region", SHORTCUT_REGION).boundingBox();
+      const bottom = Math.round((box?.y ?? 0) + (box?.height ?? Number.POSITIVE_INFINITY));
+      console.info(`[geometry] shortcut row bottom at ${viewport.width}x${viewport.height}: ${bottom} px (max 550 px)`);
+      expect(bottom).toBeLessThanOrEqual(550);
+    }
+  });
+
+  test("the definitive disclosure comes before the coupang link, and only affiliate links are sponsored", async ({ page }) => {
+    await page.goto("/");
+    const row = page.getByRole("region", SHORTCUT_REGION);
+    await expect(row.locator("p, a").first()).toHaveAttribute("data-affiliate-disclosure", "coupang");
+    await expect(row.locator('[data-affiliate-disclosure="coupang"]')).toHaveText(disclosures.coupang);
+    const relFor = (isAffiliate: boolean): string => (isAffiliate ? "sponsored nofollow noopener noreferrer" : "noopener noreferrer");
+    const links = [
+      { name: "톡톡 상담", href: channels.talk.url, rel: relFor(false) },
+      { name: "네이버 스토어", href: channels.naver.urls.shortcut, rel: relFor(channels.naver.isAffiliate) },
+      { name: "쿠팡 스토어", href: channels.coupang.urls.shortcut, rel: relFor(channels.coupang.isAffiliate) }
+    ];
+    for (const link of links) {
+      const anchor = row.getByRole("link", { name: `${link.name} 새 창으로 열기` });
+      await expect(anchor, link.name).toHaveAttribute("href", link.href);
+      await expect(anchor, link.name).toHaveAttribute("rel", link.rel);
+      await expect(anchor, link.name).toHaveAttribute("target", "_blank");
+      await expect(anchor, link.name).toHaveAttribute("data-link-placement", "shortcut");
+      expect((await anchor.boundingBox())?.height ?? 0, link.name).toBeGreaterThanOrEqual(44);
+    }
+  });
+
+  test("only 톡톡 stays while the number is invalid; the row is gone in loading and results", async ({ page }) => {
+    await mockTrack(page, trackData("inTransit", { trackingNumber: FAKE.domestic }), { delayMs: 1500 });
+    await page.goto("/");
+    const input = page.getByRole("textbox", { name: INPUT_LABEL, exact: true });
+    await input.fill(FAKE.invalidShort);
+    await input.press("Enter");
+    const row = page.getByRole("region", SHORTCUT_REGION);
+    await expect(row).toHaveAttribute("data-shortcut-row", "talkOnly");
+    await expect(row.getByRole("link")).toHaveCount(1);
+    await expect(row.getByRole("link").first()).toHaveAccessibleName(`${channels.talk.labels.cta} 새 창으로 열기`);
+    await expect(row.locator("[data-affiliate-disclosure]")).toHaveCount(0);
+    await input.fill(FAKE.domestic);
+    await input.press("Enter");
+    await expect(page.locator('[data-number-bar="true"]')).toBeVisible();
+    await expect(page.locator("[data-shortcut-row]")).toHaveCount(0);
+    await expect(page.getByRole("button", RESULT_READY)).toBeVisible();
+    await expect(page.locator("[data-shortcut-row]")).toHaveCount(0);
+  });
+
+  test("no dialog opens by itself", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(1500);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 });

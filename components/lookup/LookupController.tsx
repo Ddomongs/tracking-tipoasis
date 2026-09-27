@@ -8,12 +8,12 @@ import { getLoadedLegacyDeriver, LegacyRecommendations, LegacyResultSection, loa
 import { LookupForm } from "@/components/lookup/LookupForm";
 import { computeDisplay, outcomeKey, viewModeOf, type DerivedView, type InvalidInput, type LookupDisplay } from "@/components/lookup/lookup-display";
 import { PendingCard } from "@/components/lookup/PendingCard";
+import { ShortcutRow } from "@/components/lookup/ShortcutRow";
 import { getRestoreSnapshot, getServerRestoreSnapshot, isLookupHistoryEntry, markRestoreConsumed, pushLookupHistoryEntry, subscribeToNothing } from "@/components/lookup/session";
 import { useLookup } from "@/components/lookup/useLookup";
 import { Button } from "@/components/primitives/Button";
 import { useAnnounce } from "@/components/primitives/LiveAnnouncer";
 import { NumberBar } from "@/components/primitives/NumberBar";
-import { StoreContactPopup } from "@/components/StoreContactPopup";
 import { setAdSignals } from "@/lib/ads/ad-signals";
 import type { LoadingConfig } from "@/lib/config/types";
 import type { LookupState } from "@/lib/tracking/lookup-state";
@@ -393,7 +393,7 @@ export function LookupController({ entry, idleExtras }: LookupControllerProps): 
             id={HEADING_ID}
             className={
               display.kind === "form"
-                ? "m-0 px-[var(--tt-gutter)] pt-3 text-tt-xl font-black text-tt-ink [word-break:keep-all]"
+                ? "m-0 px-[var(--tt-gutter)] pt-2 text-tt-xl font-black text-tt-ink [word-break:keep-all]"
                 : "sr-only"
             }
           >
@@ -420,7 +420,7 @@ export function LookupController({ entry, idleExtras }: LookupControllerProps): 
           ) : (
             <NumberBar number={numberViewOf(display.request.number)} carrierLabel={carrierLabel} actions={numberBarAction} />
           )}
-          {display.kind === "form" && display.invalid !== null ? <FailureFallback guideKey="invalidNumber" /> : null}
+          {display.kind === "form" && !display.busy ? <ShortcutRow mode={display.invalid === null ? "full" : "talkOnly"} /> : null}
           {display.kind === "form" ? null : (
             <div aria-busy={loadingLike || undefined} className={loadingLike ? "min-h-[560px]" : undefined}>
               {display.kind === "pending" ? <PendingCard title={lookupConfig.copy.title} body={lookupConfig.copy.body} /> : null}
@@ -449,7 +449,6 @@ export function LookupController({ entry, idleExtras }: LookupControllerProps): 
         <LegacyRecommendations state={shownState} view={settled.view} />
       ) : null}
       {viewMode === "idle" ? idleExtras : null}
-      <StoreContactPopup visible={viewMode === "idle"} />
     </>
   );
 }

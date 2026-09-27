@@ -167,7 +167,6 @@ test("an overdue customs estimate is recalculated and remains readable on mobile
   await page.clock.setFixedTime(new Date("2026-07-20T12:00:00+09:00"));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.getByRole("dialog", { name: "상담·스토어 바로가기" }).getByRole("button", { name: "상담과 스토어 팝업 닫기" }).click();
   await page.getByLabel("조회번호 (HBL 또는 운송장)", { exact: true }).fill(FAKE.domestic);
   await page.getByRole("button", { name: "조회하기" }).click();
 
@@ -280,23 +279,6 @@ test("user can choose a representative domestic carrier before tracking", async 
   expect(skipLinkState.top).toBeLessThan(0);
 });
 
-test("mobile first view exposes consultation and store shortcuts", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
-
-  const popup = page.getByRole("dialog", { name: "상담·스토어 바로가기" });
-  await expect(popup).toBeVisible();
-  await expect(popup.getByRole("link", { name: "상담사에게 톡톡 문의하기 새 창으로 열기" })).toBeVisible();
-  await expect(popup.getByRole("link", { name: "네이버 스토어 바로가기 새 창으로 열기" })).toBeVisible();
-  await expect(popup.getByRole("link", { name: "쿠팡 스토어 바로가기 새 창으로 열기" })).toBeVisible();
-
-  await popup.getByRole("button", { name: "상담과 스토어 팝업 닫기" }).click();
-  const reopenButton = page.getByRole("button", { name: "상담과 스토어 바로가기 다시 열기" });
-  await expect(reopenButton).toBeVisible();
-  await reopenButton.click();
-  await expect(popup).toBeVisible();
-});
-
 test("home offers transparent storefront choices without interrupting tracking", async ({ page }) => {
   await page.goto("/");
 
@@ -307,7 +289,6 @@ test("home offers transparent storefront choices without interrupting tracking",
   await expect(
     storefront.getByText("일부 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.")
   ).toBeVisible();
-  await expect(page.getByRole("dialog", { name: "문의와 상품 확인을 바로 시작하세요" })).toBeVisible();
 });
 
 test("error state prioritizes inquiry without store promotion", async ({ page }) => {
