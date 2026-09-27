@@ -45,6 +45,7 @@ The rule of each row is unchanged; only the element moved (spec §3/§7: the for
 | S3 | `cta-consistency.spec.ts` → "invalid400: no store, showcase, popup, recommendation or sponsored link anywhere on the page" | the error block of a server INVALID answer sits under the form | the same test finds `[data-cta-state="error"]` on the page instead of inside the slot | pending (Task 5) |
 | S4 | `status-slot.spec.ts` → "deep link: focus stays where the customer is once they interacted; the live region still reads the result" | a loading deep link shows the number bar, not the input | the customer's focus is the skip link (Tab); it is still there after the result is read | pending (Task 5) |
 | S5 | `status-slot.spec.ts` → "carrier chips look the same number up again with the chosen carrier" | result modes hide the form | [다른 번호 조회] brings the form back with the chosen carrier | pending (Task 5) |
+| S6 | `tests/privacy.spec.ts` → "privacy policy is reachable from the footer and explains the no-storage rule" | the policy article's 톡톡 link opens a new tab | same test, locator `exact: true` (the public layout now mounts the footer on `/privacy`, whose 톡톡 link is named "톡톡으로 문의하기 새 창으로 열기") | re-pointed (Task 4) |
 
 ## N — new S06 assertions without a legacy counterpart
 

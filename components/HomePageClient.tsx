@@ -9,13 +9,11 @@ import { LogisticsFlow } from "@/components/LogisticsFlow";
 import { RecommendedProducts } from "@/components/RecommendedProducts";
 import type { RecommendationStage } from "@/components/RecommendedProducts";
 import { ServiceGuide } from "@/components/ServiceGuide";
-import { SiteFooter } from "@/components/SiteFooter";
-import { SiteHeader } from "@/components/SiteHeader";
 import { StoreContactPopup } from "@/components/StoreContactPopup";
 import { StorefrontShowcase } from "@/components/StorefrontShowcase";
 import { TrackingForm } from "@/components/TrackingForm";
 import { useLookup } from "@/components/lookup/useLookup";
-import { LiveAnnouncerProvider, useAnnounce } from "@/components/primitives/LiveAnnouncer";
+import { useAnnounce } from "@/components/primitives/LiveAnnouncer";
 import { StatusSlot } from "@/components/status-slot/StatusSlot";
 import { deriveStatusView } from "@/components/status-slot/status-view";
 import { Card } from "@/components/ui/card";
@@ -270,7 +268,6 @@ function HomePageContent({ initialTrackingNumber }: HomePageClientProps) {
 
   return (
     <MotionConfig reducedMotion="user">
-      <SiteHeader showStorefront={showStorefront} />
       <StoreContactPopup visible={idle} />
       <main id="main-content" className="mx-auto min-h-[100dvh] w-full max-w-6xl px-4 pb-10 sm:px-6">
         <section id="tracking" data-ad-exclude="true" className="scroll-mt-24 pb-9 pt-4 sm:pb-14 sm:pt-10">
@@ -355,14 +352,11 @@ function HomePageContent({ initialTrackingNumber }: HomePageClientProps) {
 
         {showStorefront ? <StorefrontShowcase /> : null}
         <ServiceGuide />
-        <SiteFooter />
       </main>
     </MotionConfig>
   );
 }
 
 export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) => (
-  <LiveAnnouncerProvider>
     <HomePageContent initialTrackingNumber={initialTrackingNumber} />
-  </LiveAnnouncerProvider>
 );

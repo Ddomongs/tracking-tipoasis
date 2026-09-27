@@ -13,7 +13,8 @@ test("privacy policy is reachable from the footer and explains the no-storage ru
   await page.goto("/privacy");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("개인정보처리방침");
   await expect(page.getByText("입력한 번호와 조회 결과는 서버 데이터베이스에 저장하지 않습니다.", { exact: false })).toBeVisible();
-  await expect(page.getByRole("link", { name: "톡톡으로 문의하기" })).toHaveAttribute("target", "_blank");
+  // exact: the public layout now also mounts the footer on /privacy, whose 톡톡 link is named "… 새 창으로 열기" (S06 Task 4).
+  await expect(page.getByRole("link", { name: "톡톡으로 문의하기", exact: true })).toHaveAttribute("target", "_blank");
 });
 
 test("a stale shipment shows a verification prompt instead of a delivery estimate", async ({ page }) => {
