@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Button } from "@/components/primitives/Button";
+import { EtaDisplay } from "@/components/primitives/EtaDisplay";
 import { JourneySpine } from "@/components/primitives/JourneySpine";
 import { ButtonLink } from "@/components/primitives/ButtonLink";
 import { StatusChip } from "@/components/primitives/StatusChip";
 import { DEFAULT_STYLE_ID, STYLE_LABELS } from "@/lib/style/styles";
 import { COLOR_TOKENS, CONTRAST_REQUIREMENTS, STYLE_COLOR_TOKENS, contrastRatio } from "@/lib/style/tokens";
-import type { SpineView, Tone } from "@/lib/tracking/types";
+import type { EtaDate, EtaView, SpineView, Tone } from "@/lib/tracking/types";
+import { formatKstDate, weekdayLabel } from "@/lib/tracking/time";
 
 export const metadata: Metadata = {
   title: "화면 부품 모음"
@@ -124,6 +126,7 @@ export default function UiKitPage(): React.JSX.Element {
         <ButtonSection />
         <ToneSection />
         <JourneySection />
+        <EtaSection />
       </div>
     </main>
   );
@@ -160,6 +163,7 @@ function StatusHeadDemo(): React.JSX.Element {
         </div>
       </div>
       <JourneySpine spine={CUSTOMS_SPINE} />
+      <EtaDisplay eta={DEMO_ETA} />
     </Field>
   );
 }
@@ -260,6 +264,57 @@ function JourneySection(): React.JSX.Element {
       <div data-demo="spine-surface" className="bg-tt-surface p-4">
         <JourneySpine spine={CUSTOMS_SPINE} />
       </div>
+    </Section>
+  );
+}
+
+/** EtaDate for a KST date key, formatted by S03's time helpers ('2026-09-30' → '9월 30일 (수)'). */
+function etaDate(key: string): EtaDate {
+  const [, month, day] = key.split("-").map(Number);
+  return { key, label: formatKstDate(key), month, day, weekday: weekdayLabel(key) };
+}
+
+// The gallery pretends today is 2026-09-26 (the fixture date), so 9월 30일 is D-4.
+const DEMO_ETA: EtaView = { kind: "date", label: "도착 예상", date: etaDate("2026-09-30"), dday: 4, caption: null };
+
+const HOLIDAY_ETA: EtaView = {
+  kind: "holidayAffected",
+  label: "도착 예상",
+  date: etaDate("2026-09-30"),
+  badge: "추석 연휴 영향 · 1~2일 늦어질 수 있어요",
+  holidayName: "추석 연휴",
+  caption: "통관 완료 예상 9월 28일 (월)"
+};
+
+const ETA_DEMOS: ReadonlyArray<{ readonly demo: string; readonly eta: EtaView }> = [
+  { demo: "eta-date", eta: DEMO_ETA },
+  // S03 addition 5: the "today" view carries '오늘 예상' as its label (resultCopy.etaTodayLabel); caption stays the secondary line.
+  { demo: "eta-today", eta: { kind: "today", label: "오늘 예상", date: etaDate("2026-09-26"), caption: null } },
+  { demo: "eta-holiday", eta: HOLIDAY_ETA },
+  { demo: "eta-overdue", eta: { kind: "overdue", label: "예상했던 날짜", date: etaDate("2026-09-30") } },
+  { demo: "eta-delivered", eta: { kind: "deliveredOn", label: "배송 완료일", date: etaDate("2026-09-25") } },
+  { demo: "eta-pending", eta: { kind: "pendingInfo", label: "도착 예상", text: "정보 등록 후 안내" } },
+  { demo: "eta-withheld", eta: { kind: "withheld", label: "도착 예상", text: "지금은 도착 예상일을 안내하기 어려워요" } },
+  { demo: "eta-unknown", eta: { kind: "unknown", label: "도착 예상", text: "아직 예상일을 계산할 기록이 없어요" } },
+  { demo: "eta-none", eta: { kind: "none" } }
+];
+
+function EtaSection(): React.JSX.Element {
+  return (
+    <Section id="eta" title="도착 예상">
+      <p className="m-0 text-tt-sm text-tt-muted">
+        날짜는 화면에서 가장 큰 글자예요. 화면 낭독기는 날짜 문장 하나만 읽고, 숫자 조각은 숨겨요.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {ETA_DEMOS.map((item) => (
+          <div key={item.demo} data-demo={item.demo} className="flex min-w-0 flex-col gap-2 bg-tt-surface p-4">
+            <EtaDisplay eta={item.eta} />
+          </div>
+        ))}
+      </div>
+      <Field tone="progress" demo="field-eta-holiday">
+        <EtaDisplay eta={HOLIDAY_ETA} />
+      </Field>
     </Section>
   );
 }

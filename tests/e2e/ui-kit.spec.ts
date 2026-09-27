@@ -425,3 +425,127 @@ test.describe("JourneySpine", () => {
     expect(result.current).toBe(result.canvasText);
   });
 });
+
+test.describe("EtaDisplay", () => {
+  const DATE_DEMOS = ["eta-date", "eta-today", "eta-holiday", "eta-overdue", "eta-delivered"] as const;
+  const TEXT_DEMOS = ["eta-pending", "eta-withheld", "eta-unknown"] as const;
+
+  test("renders one eta slot per kind and nothing for 'none'", async ({ page }) => {
+    await openKit(page);
+    const kinds: Readonly<Record<string, string>> = {
+      "eta-date": "date",
+      "eta-today": "today",
+      "eta-holiday": "holidayAffected",
+      "eta-overdue": "overdue",
+      "eta-delivered": "deliveredOn",
+      "eta-pending": "pendingInfo",
+      "eta-withheld": "withheld",
+      "eta-unknown": "unknown"
+    };
+    for (const [demo, kind] of Object.entries(kinds)) {
+      await expect(page.locator(`[data-demo="${demo}"] [data-slot="eta"]`), demo).toHaveAttribute("data-eta-kind", kind);
+    }
+    await expect(page.locator('[data-demo="eta-none"]')).toBeAttached();
+    await expect(page.locator('[data-demo="eta-none"] *')).toHaveCount(0);
+  });
+
+  test("dates are read once from a screen-reader label and drawn from aria-hidden digit parts", async ({ page }) => {
+    await openKit(page);
+    for (const demo of DATE_DEMOS) {
+      const parts = await page.locator(`[data-demo="${demo}"] [data-eta-value]`).evaluate((element) => {
+        const visual = element.querySelector("[data-eta-visual]");
+        return {
+          label: element.querySelector(".sr-only")?.textContent ?? "",
+          srOnlyCount: element.querySelectorAll(".sr-only").length,
+          hidden: visual?.getAttribute("aria-hidden") ?? null,
+          visualText: (visual?.textContent ?? "").replace(/\s+/g, " ").trim(),
+          partNames: Array.from(visual?.querySelectorAll("[data-eta-part]") ?? [], (part) => part.getAttribute("data-eta-part")),
+          digits: Array.from(visual?.querySelectorAll("[data-eta-digit]") ?? [], (digit) => [digit.getAttribute("data-eta-digit"), digit.textContent])
+        };
+      });
+      expect(parts.srOnlyCount, demo).toBe(1);
+      expect(parts.hidden, demo).toBe("true");
+      expect(parts.visualText, demo).toBe(parts.label);
+      expect(parts.partNames, demo).toEqual(["month", "day", "weekday"]);
+      expect(parts.digits.length, demo).toBe(parts.label.replace(/\D/g, "").length);
+      for (const [attribute, text] of parts.digits) expect(attribute, demo).toBe(text);
+    }
+    await expect(page.locator('[data-demo="eta-date"] [data-eta-value] .sr-only')).toHaveText("9월 30일 (수)");
+  });
+
+  test("D-n shows only for a plain estimate; the holiday badge replaces it", async ({ page }) => {
+    await openKit(page);
+    const dday = page.locator('[data-demo="eta-date"] [data-eta-dday]');
+    await expect(dday).toHaveText("D-4");
+    await expect(dday).toHaveAttribute("data-eta-dday", "4");
+    for (const demo of ["eta-today", "eta-holiday", "eta-overdue", "eta-delivered", ...TEXT_DEMOS]) {
+      await expect(page.locator(`[data-demo="${demo}"] [data-eta-dday]`), demo).toHaveCount(0);
+    }
+    const badge = page.locator('[data-demo="eta-holiday"] [data-eta-badge]');
+    await expect(badge).toHaveText("추석 연휴 영향 · 1~2일 늦어질 수 있어요");
+    await expect(badge.locator('svg[aria-hidden="true"]')).toHaveCount(1);
+    await expect(page.locator('[data-demo="eta-today"] [data-eta-label]')).toHaveText("오늘 예상");
+    await expect(page.locator('[data-demo="eta-holiday"] [data-eta-label]')).not.toHaveText("오늘 예상");
+  });
+
+  test("text kinds say what is known instead of a date", async ({ page }) => {
+    await openKit(page);
+    await expect(page.locator('[data-demo="eta-pending"] [data-eta-text]')).toHaveText("정보 등록 후 안내");
+    await expect(page.locator('[data-demo="eta-withheld"] [data-eta-text]')).toHaveText("지금은 도착 예상일을 안내하기 어려워요");
+    for (const demo of TEXT_DEMOS) await expect(page.locator(`[data-demo="${demo}"] [data-eta-value]`), demo).toHaveCount(0);
+  });
+
+  test("the estimated date is the largest text in the status field (32–40px)", async ({ page }) => {
+    await openKit(page, 375, 812);
+    const sizes = await page.locator('[data-demo="status-head"]').evaluate((field) => {
+      const eta = field.querySelector("[data-eta-visual]");
+      const textSizes = Array.from(field.querySelectorAll("*"))
+        .filter((element) =>
+          Array.from(element.childNodes).some((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim() !== "")
+        )
+        .filter((element) => !element.closest(".sr-only"))
+        .map((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+      return { eta: eta ? Number.parseFloat(getComputedStyle(eta).fontSize) : 0, max: Math.max(...textSizes) };
+    });
+    expect(sizes.eta).toBeGreaterThanOrEqual(32);
+    expect(sizes.eta).toBeLessThanOrEqual(40);
+    expect(sizes.max).toBe(sizes.eta);
+  });
+
+  test("status field budget: chip, title, reason, spine and date fit --tt-status-field-max at 375×812", async ({ page }) => {
+    await openKit(page, 375, 812);
+    const height = (await page.locator('[data-demo="status-head"]').boundingBox())?.height ?? Number.POSITIVE_INFINITY;
+    const budget = await page.evaluate(() =>
+      Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--tt-status-field-max"))
+    );
+    // Printed so the stage gate (G8) can record the measured budget.
+    console.info(`[budget] status-head field at 375x812: ${Math.round(height)} px (max ${budget} px)`);
+    expect(budget).toBe(300);
+    expect(height).toBeLessThanOrEqual(budget);
+  });
+
+  test("inside a field the D-n chip is reversed and the badge follows the field color", async ({ page }) => {
+    await openKit(page);
+    const dday = await page.locator('[data-demo="status-head"]').evaluate((field) => {
+      const chip = field.querySelector("[data-eta-dday]");
+      return {
+        fieldBg: getComputedStyle(field).backgroundColor,
+        fieldFg: getComputedStyle(field).color,
+        chipBg: chip ? getComputedStyle(chip).backgroundColor : null,
+        chipFg: chip ? getComputedStyle(chip).color : null
+      };
+    });
+    expect(dday.chipBg).toBe(dday.fieldFg);
+    expect(dday.chipFg).toBe(dday.fieldBg);
+    const badge = await page.locator('[data-demo="field-eta-holiday"]').evaluate((field) => {
+      const element = field.querySelector("[data-eta-badge]");
+      return {
+        fieldFg: getComputedStyle(field).color,
+        border: element ? getComputedStyle(element).borderTopColor : null,
+        color: element ? getComputedStyle(element).color : null
+      };
+    });
+    expect(badge.border).toBe(badge.fieldFg);
+    expect(badge.color).toBe(badge.fieldFg);
+  });
+});

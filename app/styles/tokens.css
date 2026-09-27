@@ -234,3 +234,85 @@
   [data-slot="journey"] [data-station-state="todo"] [data-spine-part="bar"] { border-color: CanvasText; }
   [data-slot="journey"] [data-spine-part="bar"] > [data-tone-icon] { color: Canvas; }
 }
+
+
+/* ---------- 변형 슬롯 eta — signal: 굵고 큰 날짜 숫자 ----------
+ * 화면에서 가장 큰 글자(--tt-text-eta). D-n 칩은 반전(색면 안: 색면 글자색 바탕), 연휴 배지는 2px 외곽선.
+ * '예상했던 날짜'(overdue)는 작고 가늘게 — 흐리게 보이도록 하되 대비는 그대로. */
+[data-slot="eta"] {
+  --eta-badge-bg: transparent;
+  --eta-badge-fg: currentColor;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+[data-slot="eta"] [data-eta-label] {
+  margin: 0;
+  font-size: var(--tt-text-xs);
+  line-height: 18px;
+  font-weight: 700;
+}
+[data-slot="eta"] [data-eta-value] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 0;
+}
+[data-slot="eta"] [data-eta-visual] {
+  font-family: var(--tt-font-display);
+  font-size: var(--tt-text-eta);
+  line-height: 1.1;
+  font-weight: var(--tt-weight-display);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+[data-slot="eta"] [data-eta-part] {
+  white-space: nowrap;
+}
+[data-slot="eta"] [data-eta-dday] {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  background-color: var(--field-fg, var(--tt-ink));
+  color: var(--field-bg, var(--tt-surface));
+  font-size: var(--tt-text-sm);
+  line-height: 20px;
+  font-weight: var(--tt-weight-display);
+  font-variant-numeric: tabular-nums;
+}
+[data-slot="eta"] [data-eta-badge] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  margin-top: 6px;
+  padding: 2px 10px;
+  border: 2px solid var(--eta-badge-fg);
+  background-color: var(--eta-badge-bg);
+  color: var(--eta-badge-fg);
+  font-size: var(--tt-text-sm);
+  line-height: 20px;
+  font-weight: 700;
+}
+[data-slot="eta"] [data-eta-caption] {
+  margin: 0;
+  font-size: var(--tt-text-sm);
+  line-height: 20px;
+  font-weight: 500;
+}
+[data-slot="eta"] [data-eta-text] {
+  margin: 0;
+  font-family: var(--tt-font-display);
+  font-size: var(--tt-text-lg);
+  line-height: 28px;
+  font-weight: var(--tt-weight-display);
+}
+[data-slot="eta"][data-eta-kind="overdue"] [data-eta-visual] {
+  font-size: var(--tt-text-lg);
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
