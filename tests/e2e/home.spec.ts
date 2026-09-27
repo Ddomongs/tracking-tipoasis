@@ -346,10 +346,13 @@ test.describe("history and the header after a lookup (S06 review)", () => {
     const numbers: unknown[] = [];
     await mockTrack(page, "serverError500", { onRequest: (body) => numbers.push(body) });
     await page.goto("/");
+    const lengthBefore = await page.evaluate(() => history.length);
     await page.getByRole("textbox", { name: INPUT_LABEL, exact: true }).fill(FAKE.domestic);
     await page.getByRole("textbox", { name: INPUT_LABEL, exact: true }).press("Enter");
     const retry = page.getByRole("button", { name: "다시 조회", exact: true });
     await expect(retry).toBeVisible();
+    // The same-address entry is pushed right after the screen is presented; Back before it would leave the site.
+    await expect.poll(() => page.evaluate(() => history.length)).toBe(lengthBefore + 1);
     await page.goBack();
     await expect(page.getByRole("textbox", { name: INPUT_LABEL, exact: true })).toBeVisible();
     await page.goForward();
