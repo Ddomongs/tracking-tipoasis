@@ -1,7 +1,7 @@
 "use client";
 
 import { CustomerCta, INLINE_HELP_IDS } from "@/components/CustomerCta";
-import { FailureNotice } from "@/components/status-slot/FailureNotice";
+import { FailureNotice } from "@/components/result/FailureCard";
 import { LoadingTimeline } from "@/components/status-slot/LoadingTimeline";
 import { ResultSummary } from "@/components/status-slot/ResultSummary";
 import type { LookupState } from "@/lib/tracking/lookup-state";
