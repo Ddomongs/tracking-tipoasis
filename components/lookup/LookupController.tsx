@@ -62,6 +62,15 @@ interface SettledViewRecord {
   readonly view: TrackingViewModel;
 }
 
+/** Form modes: S06's lookup column (keep the class S06 shipped; Task 7 Step 6 may have shortened its gap). */
+const SECTION_FORM_CLASS = "flex flex-col gap-4 pb-6";
+/**
+ * Result modes: the status field sits right under the number bar (no gap: S05 Addition 5, header 48 + number bar 56 + field
+ * ≤ 300 + 16 → 지금 할 일 by 420 px at 375×812). From 1024 px the section reaches past the 560 px main column on both sides
+ * by (320 px + 2rem) / 2, so the result grid gets 560 + 320 px while '/' stays one 560 px column (spec §3, §4).
+ */
+const SECTION_RESULT_CLASS = "flex flex-col bg-tt-surface pb-6 lg:-mx-[calc((var(--tt-side)_+_2rem)/2)]";
+
 /** The R2 recommendation component, kept until S08 replaces it; loaded only when a result allows recommendations. */
 const LegacyRecommendedProducts = dynamic(
   () => import("@/components/RecommendedProducts").then((module) => module.RecommendedProducts),
@@ -369,7 +378,7 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
           aria-labelledby={HEADING_ID}
           data-view-state={viewMode}
           data-ad-exclude="true"
-          className="flex flex-col gap-4 pb-6"
+          className={display.kind === "form" ? SECTION_FORM_CLASS : SECTION_RESULT_CLASS}
         >
           <h1
             id={HEADING_ID}
