@@ -271,6 +271,18 @@ test.describe("config invariants", () => {
     expect(issues).toContain("lookup.copy.elapsed: {seconds} 자리가 필요합니다");
   });
 
+  test("a malformed token (underscore, spaces, Hangul, a stray brace) fails instead of reaching customers", () => {
+    const issues = issuesOf(withConfig({
+      stateGuide: { customsWaiting: { worry: "{worry_date}까지 그대로면 알려 주세요" }, pending: { reason: "{ worryDate } 안내" } },
+      resultCopy: { etaPendingText: "{날짜}에 안내" },
+      notices: [{ ...FIXTURE_CONFIG.notices[0], body: "점검 중이에요 }" }]
+    }));
+    expect(issues).toContain("stateGuide.customsWaiting.worry: 중괄호 {…} 모양이 잘못됐습니다");
+    expect(issues).toContain("stateGuide.pending.reason: 중괄호 {…} 모양이 잘못됐습니다");
+    expect(issues).toContain("resultCopy.etaPendingText: 중괄호 {…} 모양이 잘못됐습니다");
+    expect(issues).toContain("notices[0].body: 중괄호 {…} 모양이 잘못됐습니다");
+  });
+
   test("staleDays must equal the server's 14", () => {
     expect(issuesOf(withConfig({ durations: { staleDays: 15 } })))
       .toContain("durations.staleDays: 서버 기준(14일)과 같아야 합니다");

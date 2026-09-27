@@ -84,12 +84,17 @@ function checkTokenPolicy(text: string, path: Path, report: Report): void {
   if (tokensIn(text).length > 0) report(path, "이 문구에는 토큰을 쓸 수 없습니다");
 }
 
+/** A token the renderer can fill: '{' + ASCII letters + '}'. */
+const WELL_FORMED_TOKEN = /\{[A-Za-z]+\}/g;
+
 function checkCopyText(config: SiteConfig, report: Report): void {
   visitStrings(config, [], (text, path) => {
     const realRuns = allMatches(DIGIT_RUN_PATTERN, text).filter((run) => !ZERO_RUN.test(run.replace(/[ -]/g, "")));
     if (realRuns.length > 0) report(path, "10자리 이상 숫자를 쓸 수 없습니다");
     if (allMatches(HBL_LIKE_PATTERN, text).length > 0) report(path, "HBL 형식 번호를 쓸 수 없습니다");
     if (AI_PATTERN.test(text)) report(path, "AI·인공지능·로봇·봇 표현을 쓸 수 없습니다");
+    // '{worry_date}', '{ worryDate }', '{날짜}' or a stray brace would reach customers as raw text.
+    if (/[{}]/.test(text.replace(WELL_FORMED_TOKEN, ""))) report(path, "중괄호 {…} 모양이 잘못됐습니다");
     checkTokenPolicy(text, path, report);
   });
 }
