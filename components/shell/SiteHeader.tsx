@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { channels } from "@/config/site.config";
+import { HomeLink } from "@/components/shell/HomeLink";
 import { TalkLink } from "@/components/primitives/TalkLink";
 
 const SITE_NAME = "통관·배송 조회";
@@ -21,12 +21,11 @@ export function SiteHeader(): React.JSX.Element {
       </a>
       <header className="h-[var(--tt-header-h)] border-b border-tt-rule bg-tt-surface text-tt-ink">
         <div className="mx-auto flex h-full w-full max-w-[var(--tt-column)] items-center justify-between gap-3 px-[var(--tt-gutter)]">
-          <Link
-            href="/"
+          <HomeLink
             className="tt-focus inline-flex min-h-[44px] items-center text-tt-md font-black tracking-[-0.01em] text-tt-ink no-underline [word-break:keep-all]"
           >
             {SITE_NAME}
-          </Link>
+          </HomeLink>
           <TalkLink href={channels.talk.url} label={channels.talk.labels.header} weight="text" placement="header" />
         </div>
       </header>

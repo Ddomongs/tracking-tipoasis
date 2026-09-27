@@ -9,7 +9,7 @@ import { LookupForm } from "@/components/lookup/LookupForm";
 import { computeDisplay, outcomeKey, stillActiveHomeNotice, viewModeOf, type DerivedView, type InvalidInput, type LookupDisplay } from "@/components/lookup/lookup-display";
 import { PendingCard } from "@/components/lookup/PendingCard";
 import { ShortcutRow } from "@/components/lookup/ShortcutRow";
-import { getClientNowSnapshot, getRestoreSnapshot, getServerNowSnapshot, getServerRestoreSnapshot, isLookupHistoryEntry, markRestoreConsumed, pushLookupHistoryEntry, subscribeToNothing } from "@/components/lookup/session";
+import { HOME_RESET_EVENT, getClientNowSnapshot, getRestoreSnapshot, getServerNowSnapshot, getServerRestoreSnapshot, isLookupHistoryEntry, markRestoreConsumed, pushLookupHistoryEntry, subscribeToNothing } from "@/components/lookup/session";
 import { useLookup } from "@/components/lookup/useLookup";
 import { Button } from "@/components/primitives/Button";
 import { useAnnounce } from "@/components/primitives/LiveAnnouncer";
@@ -221,6 +221,21 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
     };
   }, []);
 
+  // The header's site-name link on '/' (HomeLink): back to an empty lookup form.
+  useEffect(() => {
+    const onHome = (): void => {
+      setReplay(null);
+      setPasted(null);
+      reset();
+      setInputValue("");
+      setCarrier("AUTO");
+      setLocalInvalid(null);
+      setFormOpen(true);
+    };
+    window.addEventListener(HOME_RESET_EVENT, onHome);
+    return () => window.removeEventListener(HOME_RESET_EVENT, onHome);
+  }, [reset]);
+
   useEffect(() => {
     const onPopState = (event: PopStateEvent): void => {
       if (window.location.pathname !== "/") return;
@@ -355,6 +370,12 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
           openForm("cancel", activeRequest);
           return;
         case "retry":
+          // A screen replayed by Forward: useLookup was reset on Back, so it has no request to retry (S06 review).
+          if (replaying) {
+            setReplay(null);
+            beginLookup({ ...replay.state.outcome.request, entry: "retry" });
+            return;
+          }
           retry();
           return;
         case "chooseCarrier":
@@ -367,7 +388,7 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
           return;
       }
     },
-    [activeRequest, beginLookup, openForm, retry, setCarrier]
+    [activeRequest, beginLookup, openForm, replay, replaying, retry, setCarrier, setReplay]
   );
 
   // The question is asked before submitting; once the pre-check error shows, the diagnosis carries it instead.

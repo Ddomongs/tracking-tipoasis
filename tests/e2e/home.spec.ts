@@ -328,3 +328,32 @@ test.describe("axe (S06, approval 13)", () => {
     });
   }
 });
+
+test.describe("history and the header after a lookup (S06 review)", () => {
+  test("Back then Forward to a failed lookup: [다시 조회] looks the number up again", async ({ page }) => {
+    const numbers: unknown[] = [];
+    await mockTrack(page, "serverError500", { onRequest: (body) => numbers.push(body) });
+    await page.goto("/");
+    await page.getByRole("textbox", { name: INPUT_LABEL, exact: true }).fill(FAKE.domestic);
+    await page.getByRole("textbox", { name: INPUT_LABEL, exact: true }).press("Enter");
+    const retry = page.getByRole("button", { name: "다시 조회", exact: true });
+    await expect(retry).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole("textbox", { name: INPUT_LABEL, exact: true })).toBeVisible();
+    await page.goForward();
+    await expect(retry).toBeVisible();
+    await retry.click();
+    await expect.poll(() => numbers.length).toBe(2);
+  });
+
+  test("the site name in the header brings a home result back to the lookup form", async ({ page }) => {
+    await mockTrack(page, trackData("inTransit", { trackingNumber: FAKE.domestic }));
+    await page.goto("/");
+    await page.getByRole("textbox", { name: INPUT_LABEL, exact: true }).fill(FAKE.domestic);
+    await page.getByRole("textbox", { name: INPUT_LABEL, exact: true }).press("Enter");
+    await expect(page.getByRole("button", RESULT_READY)).toBeVisible();
+    await page.getByRole("banner").getByRole("link", { name: "통관·배송 조회", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: INPUT_LABEL, exact: true })).toBeVisible();
+    await expect(page.getByRole("button", RESULT_READY)).toHaveCount(0);
+  });
+});

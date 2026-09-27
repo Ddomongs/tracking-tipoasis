@@ -60,3 +60,6 @@ export function getClientNowSnapshot(): number | null {
 export function getServerNowSnapshot(): number | null {
   return null;
 }
+
+/** Dispatched by the header's site-name link while '/' shows a result: the island returns to an empty form. */
+export const HOME_RESET_EVENT = "tt:home";
