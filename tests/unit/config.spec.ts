@@ -7,7 +7,6 @@ import { GUIDE_KEYS } from "@/lib/tracking/types";
 import { FIXTURE_CONFIG, withConfig } from "../fixtures/config-fixtures";
 import { FAKE } from "../fixtures/tracking-fixtures";
 import { HOLIDAY_WINDOW_DAYS, getSiteConfig, holidayCoverageWarnings, parseSiteConfig } from "@/lib/config/server";
-import { COUPANG_STORE_URL, NAVER_STORE_URL, TALK_URL } from "@/lib/storefront";
 
 function issuesOf(value: unknown): string {
   const result = SiteConfigSchema.safeParse(value);
@@ -408,12 +407,6 @@ test.describe("server access", () => {
 
   test("the shipped holidays cover the 60 days after the stage date", () => {
     expect(holidayCoverageWarnings(siteConfig, new Date("2026-09-26T14:05:00+09:00"))).toEqual([]);
-  });
-
-  test("the legacy storefront constants come from the config channels", () => {
-    expect(NAVER_STORE_URL).toBe(channels.naver.urls.showcase);
-    expect(COUPANG_STORE_URL).toBe(channels.coupang.urls.showcase);
-    expect(TALK_URL).toBe(channels.talk.url);
   });
 });
 

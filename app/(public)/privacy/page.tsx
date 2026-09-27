@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { TALK_URL } from "@/lib/storefront";
+import { TalkLink } from "@/components/primitives/TalkLink";
+import { channels } from "@/config/site.config";
 import { AD_TIMING_POLICY } from "@/lib/ads/ad-gate";
 import type { AdTimingPolicy } from "@/lib/ads/ad-gate";
 
@@ -85,57 +85,50 @@ const sections = [
 
 export default function PrivacyPolicyPage() {
   return (
-    <main id="main-content" className="tt-legacy-dark mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="mx-auto w-full max-w-[var(--tt-column)] bg-tt-surface px-[var(--tt-gutter)] py-8 text-tt-ink outline-none"
+    >
       <Link
         href="/"
-        className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80"
+        className="tt-focus inline-flex min-h-[44px] items-center text-tt-sm font-bold text-tt-link underline decoration-2 underline-offset-[5px]"
       >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         배송 조회로 돌아가기
       </Link>
 
-      <article className="brand-panel mt-6 p-5 sm:p-8">
-        <p className="section-kicker">개인정보처리방침</p>
-        <h1 className="section-title mt-3 text-2xl sm:text-3xl">tracking.tipoasis.com 개인정보처리방침</h1>
-        <p className="mt-3 text-sm text-slate-400">시행일: {LAST_UPDATED}</p>
-        <p className="section-copy mt-5 text-sm sm:text-base">
-          이 서비스는 구매 고객이 통관과 국내 배송 상태를 조회할 수 있도록 운영자가 제공하는 무료 조회 도구입니다.
-          개인정보 최소 수집 원칙에 따라 조회에 필요한 번호 외에는 어떤 정보도 요구하지 않습니다.
-        </p>
+      <article className="mt-4 flex flex-col gap-6">
+        <header className="flex flex-col gap-2 border-b-2 border-tt-ink pb-4">
+          <h1 className="m-0 text-tt-xl font-black [word-break:keep-all]">tracking.tipoasis.com 개인정보처리방침</h1>
+          <p className="m-0 text-tt-sm text-tt-muted">시행일: {LAST_UPDATED}</p>
+          <p className="m-0 text-tt-md [word-break:keep-all]">
+            이 서비스는 구매 고객이 통관과 국내 배송 상태를 조회할 수 있도록 운영자가 제공하는 무료 조회 도구입니다.
+            개인정보 최소 수집 원칙에 따라 조회에 필요한 번호 외에는 어떤 정보도 요구하지 않습니다.
+          </p>
+        </header>
 
-        <div className="mt-8 space-y-8">
-          {sections.map((section) => (
-            <section key={section.title} aria-labelledby={section.title}>
-              <h2 id={section.title} className="text-lg font-semibold text-slate-100">
-                {section.title}
-              </h2>
-              <div className="mt-3 space-y-3">
-                {section.body.map((paragraph) => (
-                  <p key={paragraph} className="break-keep text-sm leading-6 text-slate-300">
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
-            </section>
-          ))}
-
-          <section aria-labelledby="privacy-contact">
-            <h2 id="privacy-contact" className="text-lg font-semibold text-slate-100">
-              8. 문의 채널
+        {sections.map((section) => (
+          <section key={section.title} aria-labelledby={section.title} className="flex flex-col gap-3">
+            <h2 id={section.title} className="m-0 text-tt-lg font-bold">
+              {section.title}
             </h2>
-            <p className="mt-3 break-keep text-sm leading-6 text-slate-300">
-              개인정보 관련 문의는 네이버 톡톡으로 남겨 주세요.
-            </p>
-            <a
-              href={TALK_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-300/35 bg-emerald-300/10 px-4 text-sm font-semibold text-emerald-100 transition-colors hover:bg-emerald-300/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200/80"
-            >
-              톡톡으로 문의하기
-            </a>
+            {section.body.map((paragraph) => (
+              <p key={paragraph} className="m-0 text-tt-sm leading-6 [word-break:keep-all]">
+                {paragraph}
+              </p>
+            ))}
           </section>
-        </div>
+        ))}
+
+        <section aria-labelledby="privacy-contact" className="flex flex-col gap-3">
+          <h2 id="privacy-contact" className="m-0 text-tt-lg font-bold">
+            8. 문의 채널
+          </h2>
+          <p className="m-0 text-tt-sm leading-6 [word-break:keep-all]">개인정보 관련 문의는 네이버 톡톡으로 남겨 주세요.</p>
+          <div>
+            <TalkLink href={channels.talk.url} label={channels.talk.labels.cta} weight="secondary" placement="state" />
+          </div>
+        </section>
       </article>
     </main>
   );

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { channels, resultCopy, siteConfig } from "@/config/site.config";
@@ -166,5 +166,35 @@ test.describe("supplementary copy in the config (S08)", () => {
     const issues = formatConfigIssues(broken.error);
     expect(issues).toContain("resultCopy.recommendationPriceChecked: {date} 자리가 필요합니다");
     expect(issues).toContain("resultCopy.showcaseTitle: 허용되지 않은 토큰 {date}입니다");
+  });
+});
+
+test.describe("legacy supplementary pieces are gone (S08)", () => {
+  const LEGACY_FILES = [
+    "components/RecommendedProducts.tsx",
+    "components/StorefrontShowcase.tsx",
+    "components/SiteFooter.tsx",
+    "components/AnimatedIcon.tsx",
+    "lib/storefront.ts"
+  ] as const;
+  const LEGACY_MENTION = /@\/lib\/storefront|AnimatedIcon|RecommendedProducts|StorefrontShowcase|@\/components\/SiteFooter"|tt-legacy-dark|data-storefront-showcase|\.brand-panel|\.section-title|\.section-copy/;
+
+  function sourceFiles(dir: string): string[] {
+    return readdirSync(path.join(REPO_ROOT, dir), { withFileTypes: true }).flatMap((entry) => {
+      const relative = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) return sourceFiles(relative);
+      return /\.(ts|tsx|css)$/.test(entry.name) ? [relative] : [];
+    });
+  }
+
+  test("the five legacy files are deleted", () => {
+    expect(LEGACY_FILES.filter((file) => existsSync(path.join(REPO_ROOT, file)))).toEqual([]);
+  });
+
+  test("no app, component, library or config file mentions them or the legacy band", () => {
+    const offenders = ["app", "components", "lib", "config"]
+      .flatMap(sourceFiles)
+      .filter((file) => LEGACY_MENTION.test(readFileSync(path.join(REPO_ROOT, file), "utf8")));
+    expect(offenders).toEqual([]);
   });
 });

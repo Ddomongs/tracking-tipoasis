@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { AD_TIMING_POLICY } from "@/lib/ads/ad-gate";
 import type { AdTimingPolicy } from "@/lib/ads/ad-gate";
+import { channels } from "@/config/site.config";
 
 test("privacy policy is reachable from the footer and explains the no-storage rule", async ({ page }) => {
   await page.goto("/");
@@ -9,8 +10,7 @@ test("privacy policy is reachable from the footer and explains the no-storage ru
   await page.goto("/privacy");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("개인정보처리방침");
   await expect(page.getByText("입력한 번호와 조회 결과는 서버 데이터베이스에 저장하지 않습니다.", { exact: false })).toBeVisible();
-  // exact: the public layout now also mounts the footer on /privacy, whose 톡톡 link is named "… 새 창으로 열기" (S06 Task 4).
-  await expect(page.getByRole("link", { name: "톡톡으로 문의하기", exact: true })).toHaveAttribute("target", "_blank");
+  await expect(page.getByRole("link", { name: "톡톡으로 문의하기" })).toHaveAttribute("target", "_blank");
 });
 
 const AD_TIMING_DISCLOSURE: Readonly<Record<AdTimingPolicy, string>> = {
@@ -47,4 +47,33 @@ test("privacy policy discloses page addresses, access logs, customs lookup forwa
   await expect(effective).toHaveText(/^시행일: \d{4}년 \d{1,2}월 \d{1,2}일$/);
   await expect(effective).not.toHaveText("시행일: 2026년 9월 3일");
   await expect(policy.getByRole("heading", { level: 2, name: "8. 문의 채널" })).toBeVisible();
+});
+
+test("the privacy page sits on the token shell with the configured 톡톡 contact (S08)", async ({ page }) => {
+  await page.goto("/privacy");
+  await expect(page.locator(".tt-legacy-dark, .brand-panel, .section-title")).toHaveCount(0);
+  const main = page.locator("main#main-content");
+  const colors = await main.evaluate((element) => {
+    const probe = (value: string): string => {
+      const span = document.createElement("span");
+      span.style.color = value;
+      document.body.append(span);
+      const rgb = getComputedStyle(span).color;
+      span.remove();
+      return rgb;
+    };
+    const root = getComputedStyle(document.documentElement);
+    return {
+      surface: probe(root.getPropertyValue("--tt-surface").trim()),
+      ink: probe(root.getPropertyValue("--tt-ink").trim()),
+      background: getComputedStyle(element).backgroundColor,
+      color: getComputedStyle(element).color
+    };
+  });
+  expect(colors.background).toBe(colors.surface);
+  expect(colors.color).toBe(colors.ink);
+  const contact = main.getByRole("link", { name: `${channels.talk.labels.cta} 새 창으로 열기` });
+  await expect(contact).toHaveAttribute("href", channels.talk.url);
+  await expect(contact).toHaveAttribute("target", "_blank");
+  await expect(contact).toHaveAttribute("data-link-placement", "state");
 });
