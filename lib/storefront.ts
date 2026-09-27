@@ -1,6 +1,9 @@
-export const NAVER_STORE_URL = "https://mkt.shopping.naver.com/link/6a0bbf9cc55d142f0519328c";
-export const COUPANG_STORE_URL = "https://link.coupang.com/a/d7TbzdnS1s";
-export const TALK_URL = "https://talk.naver.com/ct/w41rsr";
+import { channels } from "@/config/site.config";
+
+// Legacy entry points kept until S08 deletes this file; the values live in config/site.config.ts (channels).
+export const NAVER_STORE_URL = channels.naver.urls.showcase;
+export const COUPANG_STORE_URL = channels.coupang.urls.showcase;
+export const TALK_URL = channels.talk.url;
 
 export type StorefrontTone = "naver" | "coupang";
 

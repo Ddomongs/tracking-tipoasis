@@ -6,6 +6,8 @@ import { SiteConfigSchema, formatConfigIssues } from "@/lib/config/schema";
 import { GUIDE_KEYS } from "@/lib/tracking/types";
 import { FIXTURE_CONFIG, withConfig } from "../fixtures/config-fixtures";
 import { FAKE } from "../fixtures/tracking-fixtures";
+import { HOLIDAY_WINDOW_DAYS, getSiteConfig, holidayCoverageWarnings, parseSiteConfig } from "@/lib/config/server";
+import { COUPANG_STORE_URL, NAVER_STORE_URL, TALK_URL } from "@/lib/storefront";
 
 function issuesOf(value: unknown): string {
   const result = SiteConfigSchema.safeParse(value);
@@ -364,5 +366,40 @@ test.describe("config invariants", () => {
     expect(issues).toContain("featuredProducts[1].priceLabel: 가격에는 확인 시각이 필요합니다");
     expect(issues).toContain("help[0].openIn: 펼침 상태는 표시 상태 안에서만 고를 수 있습니다");
     expect(issues).toContain("calendar.holidays[1].id: 같은 id가 이미 있습니다");
+  });
+});
+
+test.describe("server access", () => {
+  test("getSiteConfig parses once and returns the shipped values", () => {
+    const first = getSiteConfig();
+    expect(first).toEqual(siteConfig);
+    expect(getSiteConfig()).toBe(first);
+  });
+
+  test("parseSiteConfig throws with one Korean line per problem", () => {
+    expect(() => parseSiteConfig(withConfig({ durations: { staleDays: 15 } })))
+      .toThrow("config/site.config.ts 설정 오류\ndurations.staleDays: 서버 기준(14일)과 같아야 합니다");
+  });
+
+  test("holiday coverage warns once per year without data in the next 60 days", () => {
+    expect(HOLIDAY_WINDOW_DAYS).toBe(60);
+    expect(holidayCoverageWarnings(FIXTURE_CONFIG, new Date("2026-09-26T14:05:00+09:00"))).toEqual([]);
+    expect(holidayCoverageWarnings(FIXTURE_CONFIG, new Date("2027-11-15T09:00:00+09:00"))).toEqual([
+      "calendar.holidays: 2028년 공휴일이 없습니다. 2028-01-01부터 걱정 기준일 계산에서 공휴일이 빠집니다. 월력요항을 보고 추가해 주세요."
+    ]);
+    expect(holidayCoverageWarnings(withConfig({ calendar: { holidays: [] } }), new Date("2026-12-10T09:00:00+09:00"))).toEqual([
+      "calendar.holidays: 2026년 공휴일이 없습니다. 2026-12-10부터 걱정 기준일 계산에서 공휴일이 빠집니다. 월력요항을 보고 추가해 주세요.",
+      "calendar.holidays: 2027년 공휴일이 없습니다. 2027-01-01부터 걱정 기준일 계산에서 공휴일이 빠집니다. 월력요항을 보고 추가해 주세요."
+    ]);
+  });
+
+  test("the shipped holidays cover the 60 days after the stage date", () => {
+    expect(holidayCoverageWarnings(siteConfig, new Date("2026-09-26T14:05:00+09:00"))).toEqual([]);
+  });
+
+  test("the legacy storefront constants come from the config channels", () => {
+    expect(NAVER_STORE_URL).toBe(channels.naver.urls.showcase);
+    expect(COUPANG_STORE_URL).toBe(channels.coupang.urls.showcase);
+    expect(TALK_URL).toBe(channels.talk.url);
   });
 });

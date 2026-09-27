@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getSiteConfig } from "@/lib/config/server";
 import { IBM_Plex_Sans_KR } from "next/font/google";
 import "./globals.css";
 
@@ -31,6 +32,8 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Validates config/site.config.ts: an invalid operator config fails `next build` with Korean 'path: message' lines.
+  getSiteConfig();
   return (
     <html lang="ko">
       <body className={`${bodyFont.variable} google-anno-skip antialiased`}>
