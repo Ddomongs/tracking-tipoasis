@@ -14,7 +14,7 @@ export interface StatusSlotApprovals {
   readonly approval3: boolean;
 }
 
-export const STATUS_SLOT_APPROVALS: StatusSlotApprovals = { approval2: false, approval3: false };
+export const STATUS_SLOT_APPROVALS: StatusSlotApprovals = { approval2: false, approval3: true };
 
 /** The pre-renewal result wording that tests/tracking.spec.ts and tests/privacy.spec.ts assert (roadmap §4, "S04 fallback"). */
 export const LEGACY_RESULT_COPY = {

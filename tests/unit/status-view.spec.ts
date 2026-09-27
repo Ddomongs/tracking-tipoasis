@@ -7,7 +7,7 @@ import {
 } from "@/components/status-slot/status-view";
 import { siteConfig } from "@/config/site.config";
 import { deriveTrackingView } from "@/lib/tracking/derive-view";
-import type { EtaView, LookupOutcome, TrackingViewModel } from "@/lib/tracking/types";
+import type { EtaView, FailureCause, LookupOutcome, TrackingViewModel } from "@/lib/tracking/types";
 import {
   OCTOBER_NOW,
   PICKUP_NOW,
@@ -36,8 +36,8 @@ test("ledger: approval 2 is pending (roadmap §4)", () => {
   expect(STATUS_SLOT_APPROVALS.approval2).toBe(BOTH_PENDING.approval2);
 });
 
-test("ledger: approval 3 is pending (roadmap §4)", () => {
-  expect(STATUS_SLOT_APPROVALS.approval3).toBe(BOTH_PENDING.approval3);
+test("ledger: approval 3 is approved (roadmap §4)", () => {
+  expect(STATUS_SLOT_APPROVALS.approval3).not.toBe(BOTH_PENDING.approval3);
 });
 
 test("with both approvals the view passes through untouched", () => {
@@ -160,4 +160,26 @@ test.describe("approval 2 pending: the tested result wording stays", () => {
       expect(applyApprovalFallbacks(view, ONLY_APPROVAL_3)).toEqual(view);
     }
   });
+});
+
+const ALL_CAUSES: readonly FailureCause[] = [
+  "invalidNumber",
+  "notFound",
+  "rateLimited",
+  "upstreamTimeout",
+  "badGateway",
+  "network",
+  "offline",
+  "clientTimeout",
+  "serverError",
+  "contractViolation"
+];
+
+test("approval 3 granted: the page's error views are deriveTrackingView's own, recovery action first", () => {
+  for (const cause of ALL_CAUSES) {
+    for (const consecutiveFailures of [1, 2]) {
+      const outcome = failure(cause, { consecutiveFailures });
+      expect(deriveStatusView(outcome, FIXTURE_NOW), `${cause} × ${consecutiveFailures}`).toEqual(base(outcome));
+    }
+  }
 });

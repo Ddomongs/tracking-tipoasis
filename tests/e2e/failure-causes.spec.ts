@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import { STATUS_SLOT_APPROVALS, deriveStatusView } from "@/components/status-slot/status-view";
 import { INVALID_NUMBER_ERROR_ID } from "@/components/TrackingForm";
 import { lookup, siteConfig } from "@/config/site.config";
-import type { FailureCause, TrackingViewModel } from "@/lib/tracking/types";
+import type { ActionKind, FailureCause, TrackingViewModel } from "@/lib/tracking/types";
 import { FAILURE_RESPONSES, FAKE, FIXTURE_NOW, mockTrack, successBody, trackData } from "../fixtures/tracking-fixtures";
 import type { FailureFixture } from "../fixtures/tracking-fixtures";
 import {
@@ -261,4 +261,66 @@ test("the client timeout stops the lookup and does not blame the number", async 
   await expect(heading).toBeFocused();
   await expect(notice.getByRole("alert")).toHaveText(view.reason ?? "");
   await expect(notice.getByRole("alert")).not.toContainText("번호 문제는 아니에요");
+});
+
+/** Spec §16 item 3 as approved, with the §7 rows: the failure card leads with the cause's own recovery action. */
+const APPROVED_PRIMARY: Readonly<Record<FailureFixture, ActionKind>> = {
+  invalid400: "fixNumber",
+  notFound404: "fixNumber",
+  rateLimited429: "retry",
+  upstreamTimeout504: "retry",
+  unavailable503: "retry",
+  serverError500: "copyAndTalk",
+  badGatewayHtml502: "retry",
+  contractViolation200: "copyAndTalk"
+};
+
+for (const fixture of Object.keys(APPROVED_PRIMARY) as FailureFixture[]) {
+  test(`${fixture} (approval 3): the recovery action leads and 톡톡 stays the first link of the block`, async ({ page }) => {
+    const cause = CAUSE_BY_FIXTURE[fixture];
+    const kind = APPROVED_PRIMARY[fixture];
+    expect(expectedFailure(cause, FAKE.domestic).nextAction.primary?.kind).toBe(kind);
+    await page.clock.setFixedTime(FIXTURE_NOW);
+    await mockTrack(page, fixture);
+    await page.goto("/");
+    await lookUp(page, FAKE.domestic);
+
+    const slot = statusSlot(page);
+    const primary = slot.locator('[data-action-weight="primary"]');
+    await expect(primary).toHaveCount(1);
+    await expect(primary).toHaveAttribute("data-action-kind", kind);
+    const cta = slot.locator('[data-cta-state="error"]');
+    const firstLink = cta.getByRole("link").first();
+    await expect(firstLink).toHaveAttribute("href", siteConfig.channels.talk.url);
+    if (kind === "copyAndTalk") {
+      await expect(cta.locator('[data-action-weight="primary"]')).toHaveAttribute("data-action-kind", "copyAndTalk");
+    } else {
+      await expect(slot.locator(`[data-failure-cause="${cause}"] [data-action-weight="primary"]`)).toHaveAttribute(
+        "data-action-kind",
+        kind
+      );
+      await expect(firstLink).not.toHaveAttribute("data-action-weight", "primary");
+    }
+  });
+}
+
+test("client timeout (approval 3): the row's recovery action leads the card, the other follows, 톡톡 stays the first link", async ({ page }) => {
+  // Spec §7 'error · 응답 없음': 주 행동 [다시 조회], 보조 [번호 수정] — S03 ships noResponse.primaryAction "retry". §16 item 3's
+  // proposal names [번호 수정] for 응답 없음; if the operator's approval-3 decision says so, S03's follow-up sets the row to
+  // "fixNumber" and the two swap here without a test edit. (Typed as string: the config literal type would make the comparison fail tsc.)
+  const lead: string = siteConfig.stateGuide.noResponse.primaryAction;
+  const follow = lead === "fixNumber" ? "retry" : "fixNumber";
+  const held = await holdTrack(page);
+  await openPaused(page);
+  await lookUp(page, FAKE.domestic);
+  await held.waitForRequests(1);
+  await page.clock.runFor(lookup.timeoutMs);
+  expect(expectedFailure("clientTimeout", FAKE.domestic, PAUSED_NOW).nextAction.primary?.kind).toBe(lead);
+  const notice = statusSlot(page).locator('[data-failure-cause="clientTimeout"]');
+  await expect(notice.locator('[data-action-weight="primary"]')).toHaveAttribute("data-action-kind", lead);
+  await expect(notice.locator(`[data-action-kind="${follow}"]`)).toHaveAttribute("data-action-weight", "secondary");
+  await expect(statusSlot(page).locator('[data-cta-state="error"]').getByRole("link").first()).toHaveAttribute(
+    "href",
+    siteConfig.channels.talk.url
+  );
 });
