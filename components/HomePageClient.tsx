@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AssuranceRail } from "@/components/AssuranceRail";
 import { CustomerCta } from "@/components/CustomerCta";
 import type { ResultCustomerCtaState } from "@/components/CustomerCta";
@@ -20,6 +20,9 @@ import { ReturnLinkButton } from "@/components/ReturnLinkButton";
 import { TrackingForm } from "@/components/TrackingForm";
 import { TrackingResultSummary } from "@/components/TrackingResultSummary";
 import { Card } from "@/components/ui/card";
+import { setAdSignals } from "@/lib/ads/ad-signals";
+import { saveRestoreEntry } from "@/lib/privacy/session-restore";
+import { SCRUB_TIMEOUT_MS, scrubNumberFromUrl } from "@/lib/privacy/url-scrub";
 import type { TrackResponseData } from "@/lib/types";
 
 type HomePageClientProps = {
@@ -40,6 +43,18 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
   const [loading, setLoading] = useState(false);
   const resultTopRef = useRef<HTMLHeadingElement | null>(null);
   const prefersReducedMotion = useReducedMotion();
+
+  // Candidate B (spec §3): TrackingForm's effect has already started the lookup. Now, once the App Router
+  // has committed, stash the number for restore, remove it from the URL, and report the result to the ad gate.
+  useEffect(() => {
+    if (!initialTrackingNumber) return;
+    void scrubNumberFromUrl({
+      timeoutMs: SCRUB_TIMEOUT_MS,
+      beforeReplace: () => saveRestoreEntry({ number: initialTrackingNumber, carrier: "AUTO", savedAt: Date.now() })
+    }).then((status) => {
+      if (status === "scrubbed" || status === "failed") setAdSignals({ scrub: status });
+    });
+  }, [initialTrackingNumber]);
 
   const handleSuccess = useCallback((data: TrackResponseData) => {
     setResult(data);

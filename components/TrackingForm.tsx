@@ -93,10 +93,7 @@ export const TrackingForm = ({
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const trimmed = value.trim();
-    if (trimmed) {
-      window.history.pushState(null, "", `/${encodeURIComponent(trimmed)}`);
-    }
+    // The number never goes into the URL (spec §3, GAP1-10); restore uses sessionStorage instead.
     await submitTracking(value, carrierCode);
   };
 

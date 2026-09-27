@@ -5,7 +5,13 @@ import { containsTrackingLikeValue } from "@/lib/privacy/number-patterns";
 import { ADSENSE_LOADER_URL } from "@/lib/site";
 import type { TrackResponseData } from "@/lib/types";
 import { FAKE, mockTrack, trackData } from "../fixtures/tracking-fixtures";
-import { assertNoTrackingValues, captureThirdParty, waitForIdle, watchAdLoader } from "../support/network-capture";
+import {
+  assertNoTrackingValues,
+  captureThirdParty,
+  recordLookups,
+  waitForIdle,
+  watchAdLoader
+} from "../support/network-capture";
 import type { AdLoaderInsertion, AdLoaderWatch } from "../support/network-capture";
 
 const INPUT_LABEL = "조회번호 (HBL 또는 운송장)";
@@ -97,5 +103,83 @@ test.describe("SSR shell and home", () => {
     }
     expectInsertionsSafe(loader.insertions());
     assertNoTrackingValues(capture.requests());
+  });
+});
+
+test.describe("deep links (candidate B)", () => {
+  test("the lookup starts, the URL becomes '/', and the loader follows the policy only at '/'", async ({ page }) => {
+    const capture = await captureThirdParty(page);
+    const loader = await watchAdLoader(page);
+    const lookups = recordLookups();
+    await mockTrack(page, inTransit(FAKE.domestic), { onRequest: lookups.onRequest });
+    await page.goto(`/${FAKE.domestic}`);
+    await expect(page.getByRole("button", RESULT_READY)).toBeVisible();
+    await expectPath(page, "/");
+    expect(lookups.numbers()).toEqual([FAKE.domestic]);
+    await expectLoaderInCurrentDocument(page, loader, "deepLink");
+    for (const insertion of loader.insertions()) expect(insertion.pathname).toBe("/");
+    expectInsertionsSafe(loader.insertions());
+    assertNoTrackingValues(capture.requests());
+  });
+
+  test("query and hash leave together with the number", async ({ page }) => {
+    const capture = await captureThirdParty(page);
+    const loader = await watchAdLoader(page);
+    await mockTrack(page, inTransit(FAKE.hbl));
+    await page.goto(`/${FAKE.hbl}?c=CJ#top`);
+    await expect(page.getByRole("button", RESULT_READY)).toBeVisible();
+    await expectPath(page, "/");
+    await expectLoaderInCurrentDocument(page, loader, "deepLink");
+    expectInsertionsSafe(loader.insertions());
+    assertNoTrackingValues(capture.requests());
+  });
+
+  test("a manual lookup on '/' never puts the number into the URL", async ({ page }) => {
+    const capture = await captureThirdParty(page);
+    const loader = await watchAdLoader(page);
+    const navigated: string[] = [];
+    page.on("framenavigated", (frame) => {
+      if (frame === page.mainFrame()) navigated.push(frame.url());
+    });
+    await mockTrack(page, inTransit(FAKE.domestic));
+    await page.goto("/");
+    await submitFromHome(page, FAKE.domestic);
+    await expectPath(page, "/");
+    await expectLoaderInCurrentDocument(page, loader, "home");
+    for (const url of navigated) expect(containsTrackingLikeValue(url), url).toBe(false);
+    expectInsertionsSafe(loader.insertions());
+    assertNoTrackingValues(capture.requests());
+  });
+
+  test("if the URL cannot be changed, the loader stays out (fail-closed)", async ({ page }) => {
+    const capture = await captureThirdParty(page);
+    const loader = await watchAdLoader(page);
+    // Simulates a browser/router that refuses the scrub: replaceState keeps the number URL.
+    await page.addInitScript(() => {
+      const original = History.prototype.replaceState;
+      History.prototype.replaceState = function replaceState(
+        this: History,
+        data: unknown,
+        unused: string,
+        url?: string | URL | null
+      ): void {
+        const onNumberPath = /^\/[^/.]+$/.test(location.pathname) && !/^\/(?:privacy|internal|api)$/.test(location.pathname);
+        if (onNumberPath && url !== undefined && url !== null && String(url) === "/") {
+          original.call(this, data, unused);
+          return;
+        }
+        original.call(this, data, unused, url);
+      };
+    });
+    await mockTrack(page, inTransit(FAKE.domestic));
+    await page.goto(`/${FAKE.domestic}`);
+    await expect(page.getByRole("button", RESULT_READY)).toBeVisible();
+    await waitForIdle(page);
+    await page.waitForTimeout(1000);
+    await waitForIdle(page);
+    await expectPath(page, `/${FAKE.domestic}`);
+    const documentId = await loader.currentDocumentId();
+    expect(loader.insertions().filter((insertion) => insertion.documentId === documentId)).toEqual([]);
+    expect(capture.requests()).toEqual([]);
   });
 });
