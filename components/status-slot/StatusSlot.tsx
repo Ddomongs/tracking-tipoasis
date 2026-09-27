@@ -2,7 +2,7 @@
 
 import { CustomerCta, INLINE_HELP_IDS } from "@/components/CustomerCta";
 import { FailureNotice } from "@/components/status-slot/FailureNotice";
-import { LoadingTimeline } from "@/components/status-slot/LoadingTimeline";
+import { LoadingTimeline } from "@/components/result/LoadingCard";
 import { ResultSummary } from "@/components/status-slot/ResultSummary";
 import type { LookupState } from "@/lib/tracking/lookup-state";
 import type { HelpItemView, LastEventView, LoadingViewModel, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
