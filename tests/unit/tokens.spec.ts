@@ -18,6 +18,7 @@ import {
 } from "@/lib/style/tokens";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import tailwindConfig from "@/tailwind.config";
 
 const HEX_COLOR = /^#[0-9A-F]{6}$/;
 const TONES = ["progress", "waiting", "attention", "problem", "done"] as const;
@@ -232,5 +233,45 @@ test.describe("tokens.css (signal)", () => {
     expect(block.get("--tt-motion-fast")).toBe("0ms");
     expect(block.get("--tt-motion-base")).toBe("0ms");
     expect(block.get("--tt-motion-slow")).toBe("0ms");
+  });
+});
+test.describe("tailwind mapping", () => {
+  const extend = (tailwindConfig.theme?.extend ?? {}) as Readonly<Record<string, unknown>>;
+
+  test("colors.tt maps every color token and no legacy color key remains", () => {
+    const colors = extend.colors as Readonly<Record<string, Readonly<Record<string, string>>>>;
+    expect(Object.keys(colors)).toEqual(["tt"]);
+    expect(Object.keys(colors.tt)).toEqual([
+      "ground", "surface", "raised", "ink", "muted", "rule", "control", "route", "primary", "on-primary", "accent", "link",
+      "focus", "tile", "board", "progress", "progress-on", "progress-ink", "waiting", "waiting-on", "waiting-ink",
+      "attention", "attention-on", "attention-ink", "problem", "problem-on", "problem-ink", "done", "done-on", "done-ink"
+    ]);
+    expect(colors.tt.ground).toBe("var(--tt-ground)");
+    expect(colors.tt["on-primary"]).toBe("var(--tt-on-primary)");
+    expect(colors.tt["attention-ink"]).toBe("var(--tt-tone-attention-ink)");
+    expect(Object.values(colors.tt).map((value) => value.slice(4, -1)).sort()).toEqual([...COLOR_TOKENS].sort());
+  });
+
+  test("font, size, radius, duration and easing keys point at tokens", () => {
+    expect(extend.fontFamily).toEqual({
+      "tt-body": "var(--tt-font-body)",
+      "tt-display": "var(--tt-font-display)",
+      "tt-mono": "var(--tt-font-mono)"
+    });
+    expect(extend.fontSize).toEqual({
+      "tt-xs": ["var(--tt-text-xs)", { lineHeight: "18px" }],
+      "tt-sm": ["var(--tt-text-sm)", { lineHeight: "20px" }],
+      "tt-md": ["var(--tt-text-md)", { lineHeight: "24px" }],
+      "tt-lg": ["var(--tt-text-lg)", { lineHeight: "28px" }],
+      "tt-xl": ["var(--tt-text-xl)", { lineHeight: "32px" }],
+      "tt-eta": ["var(--tt-text-eta)", { lineHeight: "1.1" }]
+    });
+    expect(extend.borderRadius).toMatchObject({ "tt-button": "var(--tt-radius-button)", "tt-card": "var(--tt-radius-card)" });
+    expect(extend.transitionDuration).toEqual({
+      "tt-fast": "var(--tt-motion-fast)",
+      "tt-base": "var(--tt-motion-base)",
+      "tt-slow": "var(--tt-motion-slow)"
+    });
+    expect(extend.transitionTimingFunction).toEqual({ tt: "var(--tt-ease)" });
   });
 });
