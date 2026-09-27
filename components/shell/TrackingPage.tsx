@@ -1,6 +1,6 @@
 import { LookupController } from "@/components/lookup/LookupController";
 import { TypicalDurations } from "@/components/lookup/TypicalDurations";
-import { StorefrontShowcase } from "@/components/StorefrontShowcase";
+import { StoreShowcase } from "@/components/supplementary/StoreShowcase";
 import { lookup, notices } from "@/config/site.config";
 import { pickNotice, toNoticeView } from "@/lib/tracking/notices";
 import type { NoticeView, TrackingEntry } from "@/lib/tracking/types";
@@ -37,16 +37,15 @@ export function TrackingPage({ entry }: { readonly entry: TrackingEntry }): Reac
   );
 }
 
-/** Below the first view, idle mode only (spec §4 order): typical durations, then the showcase (S08 swaps in StoreShowcase). */
+
+/** Below the first view, idle mode only (spec §4 order): typical durations, then the store showcase. */
 function IdleExtras(): React.JSX.Element {
   return (
     <>
       <div className="px-[var(--tt-gutter)] pb-6">
         <TypicalDurations />
       </div>
-      <div className="tt-legacy-dark px-4 py-6">
-        <StorefrontShowcase />
-      </div>
+      <StoreShowcase />
     </>
   );
 }

@@ -94,7 +94,7 @@ for (const fixture of (Object.keys(CAUSE_BY_FIXTURE) as FailureFixture[]).filter
     await expect(cta.getByRole("link").first()).toHaveAttribute("href", siteConfig.channels.talk.url);
     await expect(slot.locator('[data-slot="button"][data-variant="primary"]')).toHaveCount(1);
     await expect(page.locator('a[rel~="sponsored"]')).toHaveCount(0);
-    await expect(page.locator("[data-affiliate-group], [data-recommended-products], [data-storefront-showcase]")).toHaveCount(0);
+    await expect(page.locator("[data-affiliate-group], [data-recommended-products], [data-store-showcase]")).toHaveCount(0);
     const message = serverMessageOf(fixture);
     if (message !== null) await expect(page.getByText(message)).toHaveCount(0);
   });
@@ -117,7 +117,7 @@ test("invalid400 (S06): a server INVALID answer reopens the form with the error 
   // The form's [조회하기] is the one filled button of the INVALID screen (Open issue 5).
   await expect(page.locator('[data-slot="button"][data-variant="primary"]')).toHaveCount(1);
   await expect(page.locator('a[rel~="sponsored"]')).toHaveCount(0);
-  await expect(page.locator("[data-affiliate-group], [data-recommended-products], [data-storefront-showcase]")).toHaveCount(0);
+  await expect(page.locator("[data-affiliate-group], [data-recommended-products], [data-store-showcase]")).toHaveCount(0);
   const message = serverMessageOf("invalid400");
   if (message !== null) await expect(page.getByText(message)).toHaveCount(0);
 });

@@ -41,17 +41,8 @@ test.beforeEach(async ({ page }) => {
 test("the idle page keeps its store shortcuts", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/");
-  await expect(page.locator("[data-storefront-showcase]")).toBeVisible();
+  await expect(page.locator("[data-store-showcase]")).toBeVisible();
   await expect(page.locator(PAGE_STORE_PLACEMENTS).first()).toBeAttached();
-  // Moved from tests/tracking.spec.ts "home offers transparent storefront choices…" (RULE-MAP S1, S07 review): the legacy
-  // showcase keeps its disclosure and both store links until S08 replaces it.
-  const storefront = page.locator('[data-storefront-showcase="true"]');
-  await expect(storefront.getByRole("heading", { name: "새로운 상품을 찾고 계신가요?" })).toBeVisible();
-  await expect(storefront.getByRole("link", { name: "네이버 스토어 상품 보기 새 창으로 열기" })).toBeVisible();
-  await expect(storefront.getByRole("link", { name: "쿠팡 스토어 상품 보기 새 창으로 열기" })).toBeVisible();
-  await expect(
-    storefront.getByText("일부 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.")
-  ).toBeVisible();
 });
 
 for (const state of GAP3_06_VARIANTS) {
@@ -106,6 +97,6 @@ for (const [fixture, cause] of ERROR_FIXTURES) {
     // S06: a server INVALID answer shows its error block under the form, outside the slot (RULE-MAP S3).
     await expect(page.locator('[data-cta-state="error"]')).toBeVisible();
     await expect(page.locator(PAGE_STORE_PLACEMENTS)).toHaveCount(0);
-    await expect(page.locator('a[rel~="sponsored"], [data-recommended-products], [data-storefront-showcase], [data-contact-popup]')).toHaveCount(0);
+    await expect(page.locator('a[rel~="sponsored"], [data-recommended-products], [data-store-showcase], [data-contact-popup]')).toHaveCount(0);
   });
 }
