@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { loadResultModule } from "@/components/result/load-result-module";
 // Loads the lazy entry into the Node test runner's CommonJS cache so the loader's dynamic import("./result-module") resolves
@@ -117,4 +117,34 @@ test("resultCopy carries the return-link and inquiry feedback strings, and the s
   ]);
   const parsed = SiteConfigSchema.safeParse(siteConfig);
   expect(parsed.success ? "" : formatConfigIssues(parsed.error)).toBe("");
+});
+
+/** Legacy result UI S07 deletes (roadmap File Map §10.3, S04 Addition 3, S06 Addition 2). */
+const LEGACY_RESULT_PATHS: readonly string[] = [
+  "components/status-slot",
+  "components/lookup/LegacyResultSection.tsx",
+  "components/lookup/PendingCard.tsx",
+  "components/CustomerCta.tsx",
+  "components/CustomsTimeline.tsx",
+  "components/DeliveryTimeline.tsx",
+  "components/TimelineStep.tsx",
+  "components/ReturnLinkButton.tsx",
+  "tests/unit/status-view.spec.ts"
+];
+/** An import specifier that names a legacy file (tests/support/status-slot.ts — S04's E2E helpers — is not one). */
+const LEGACY_IMPORT =
+  /["'](?:@\/components\/|(?:\.{1,2}\/)+)(?:[\w-]+\/)*(?:status-slot\/[\w-]+|LegacyResultSection|PendingCard|CustomerCta|CustomsTimeline|DeliveryTimeline|TimelineStep|ReturnLinkButton)["']/;
+
+function sourceFilesUnder(directory: string): readonly string[] {
+  return readdirSync(path.join(ROOT, directory), { recursive: true, encoding: "utf8" })
+    .filter((entry) => /\.(ts|tsx)$/.test(entry))
+    .map((entry) => path.posix.join(directory, entry.split(path.sep).join("/")));
+}
+
+test("the legacy result UI is gone and nothing imports it", () => {
+  expect(LEGACY_RESULT_PATHS.filter((file) => existsSync(path.join(ROOT, file)))).toEqual([]);
+  const offenders = ["app", "components", "lib", "tests"]
+    .flatMap(sourceFilesUnder)
+    .filter((file) => file !== "tests/unit/result-module.spec.ts" && LEGACY_IMPORT.test(readSource(file)));
+  expect(offenders).toEqual([]);
 });
