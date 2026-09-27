@@ -136,3 +136,34 @@ test.describe("focus, live sentence, title and fill", () => {
     expect(cls).toBeLessThanOrEqual(0.05);
   });
 });
+
+test.describe("one result area (Task 9)", () => {
+  test("the lookup area says loading while the card waits and settled once the result shows", async ({ page }) => {
+    const view = deriveTrackingView(success(trackData("customsWaiting")), FIXTURE_NOW, siteConfig);
+    await openDeepLink(page, 1_500);
+    await expect(page.locator('[data-view-state="loading"] [data-loading-stage]')).toBeVisible();
+    await expect(page.locator('[data-view-state="settled"] [data-result-view="settled"]')).toBeVisible();
+    await expect(page.locator("[data-number-bar]")).toContainText(view.carrier.barLabel);
+  });
+
+  test("a failed lookup reports error on the lookup area", async ({ page }) => {
+    await page.clock.setFixedTime(FIXTURE_NOW);
+    await blockOtherHosts(page);
+    await mockTrack(page, "notFound404");
+    await page.goto(`/${FAKE.domestic}`);
+    await expect(page.locator('[data-view-state="error"] [data-result-view="error"]')).toBeVisible();
+  });
+
+  test("focus in the lookup form downloads the result module before any lookup", async ({ page }) => {
+    await blockOtherHosts(page);
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    const resultChunk = page.waitForResponse(async (response) => {
+      if (response.request().resourceType() !== "script") return false;
+      if (!new URL(response.url()).pathname.startsWith("/_next/")) return false;
+      return (await response.text()).includes("data-primary-end");
+    });
+    await page.getByLabel(INPUT_LABEL, { exact: true }).focus();
+    await resultChunk;
+  });
+});
