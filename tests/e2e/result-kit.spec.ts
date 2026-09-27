@@ -78,6 +78,18 @@ async function removeShareSheet(page: Page): Promise<void> {
   });
 }
 
+/** True when `second` comes after `first` in document order (both must exist). */
+async function follows(page: Page, first: string, second: string): Promise<boolean> {
+  return page.evaluate(
+    ([one, two]) => {
+      const a = document.querySelector(one);
+      const b = document.querySelector(two);
+      return a !== null && b !== null && (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    },
+    [first, second] as const
+  );
+}
+
 test.describe("status card", () => {
   test("customs waiting: chip, focusable h2, reason, one current station, the in-card notice and the ETA as the largest text", async ({ page }) => {
     const view = viewFor(success(customsWaitingData()));
@@ -370,5 +382,88 @@ test.describe("carrier chooser", () => {
     await expect(cta.getByText(view.nextAction.sentence, { exact: true })).toBeVisible();
     await expect(cta.getByRole("group", { name: "택배사 선택" }).getByRole("radio")).toHaveCount(5);
     await expect(cta.locator('[data-slot="button"][data-variant="primary"]')).toHaveCount(0);
+  });
+});
+
+test.describe("last event, history, help and the recommendation slot", () => {
+  test("the fixed order: status h2 → ETA → 지금 할 일 → last event → primary-end → 처리 내역", async ({ page }) => {
+    await openKit(page);
+    await showView(page, viewFor(success(customsWaitingData())));
+    const chain = [
+      "[data-result-view] h2",
+      '[data-result-view] [data-slot="eta"]',
+      "[data-result-view] [data-cta-state]",
+      "[data-result-view] [data-last-event]",
+      "[data-result-view] [data-primary-end]",
+      "[data-result-view] details[data-history]"
+    ];
+    for (let index = 1; index < chain.length; index += 1) {
+      expect(await follows(page, chain[index - 1], chain[index]), chain[index]).toBe(true);
+    }
+  });
+
+  test("마지막 처리 line, then a closed '처리 내역' details grouped by station without aria-current", async ({ page }) => {
+    const view = viewFor(success(customsWaitingData()));
+    await openKit(page);
+    await showView(page, view);
+    const root = page.locator("[data-result-view]");
+    const last = root.locator("[data-last-event]");
+    await expect(last).toContainText("마지막 처리");
+    await expect(last).toContainText(view.lastEvent?.text ?? "");
+    await expect(last).toContainText(view.lastEvent?.original ?? "");
+    const history = root.locator("details[data-history]");
+    await expect(history).not.toHaveAttribute("open");
+    await expect(history.locator("summary")).toHaveText(view.history.summaryText);
+    await history.locator("summary").click();
+    await expect(history).toHaveAttribute("open", "");
+    await expect(history.locator("[data-history-segment]")).toHaveCount(view.history.segments.length);
+    await expect(history.locator("li")).toHaveCount(view.history.count);
+    await expect(history.locator("[aria-current]")).toHaveCount(0);
+  });
+
+  test("pending shows one sentence instead of an empty history", async ({ page }) => {
+    const view = viewFor(success(pendingData()));
+    await openKit(page);
+    await showView(page, view);
+    await expect(page.locator("[data-history-empty]")).toHaveText(view.history.emptyText ?? "");
+    await expect(page.locator("details[data-history]")).toHaveCount(0);
+  });
+
+  test("받지 못하셨나요? opens the 미수령 안내 and focuses its summary", async ({ page }) => {
+    await openKit(page);
+    await showView(page, viewFor(success(deliveredData())));
+    const help = page.locator("details[data-delivered-help]");
+    await expect(help).not.toHaveAttribute("open");
+    await page.locator('[data-cta-state="delivered"]').getByRole("button", { name: "받지 못하셨나요?" }).click();
+    await expect(help).toHaveAttribute("open", "");
+    await expect(help.locator("summary")).toBeFocused();
+  });
+
+  test("help items follow the view: stale opens the customs-delay item", async ({ page }) => {
+    const view = viewFor(success(staleData()));
+    await openKit(page);
+    await showView(page, view);
+    const shown = await page
+      .locator("[data-result-view] details[data-help]")
+      .evaluateAll((items) => items.map((item) => [item.getAttribute("data-help"), item instanceof HTMLDetailsElement && item.open]));
+    expect(shown).toEqual(view.help.map((item) => [item.id, item.defaultOpen]));
+  });
+
+  test("the recommendation slot: after the history, right after primary-end for delivered, absent without recommendations", async ({ page }) => {
+    await openKit(page);
+    await showView(page, viewFor(success(inTransitData()), OCTOBER_NOW), { withRecommendation: true });
+    const slot = "[data-result-view] [data-recommendation-slot]";
+    await expect(page.locator(`${slot} [data-recommended-products="inTransit"]`)).toBeVisible();
+    expect(await follows(page, "[data-result-view] [data-primary-end]", slot)).toBe(true);
+    expect(await follows(page, "[data-result-view] details[data-history]", slot)).toBe(true);
+
+    await showView(page, viewFor(success(deliveredData())), { withRecommendation: true });
+    await expect(page.locator(`${slot} [data-recommended-products="delivered"]`)).toBeVisible();
+    expect(await follows(page, "[data-result-view] [data-primary-end]", slot)).toBe(true);
+    expect(await follows(page, slot, "[data-result-view] details[data-history]")).toBe(true);
+
+    await showView(page, viewFor(success(staleData())), { withRecommendation: true });
+    await expect(page.locator('[data-cta-state="stale"]')).toBeVisible();
+    await expect(page.locator(slot)).toHaveCount(0);
   });
 });
