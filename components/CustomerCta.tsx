@@ -13,15 +13,11 @@ import { cn } from "@/lib/utils";
 export type CustomerCtaState = "idle" | "error" | "pending" | "inTransit" | "delivered";
 export type ResultCustomerCtaState = Exclude<CustomerCtaState, "idle">;
 
-type LegacyCtaProps =
-  | {
-      readonly variant: "floating";
-      readonly state: "idle";
-    }
-  | {
-      readonly variant: "result";
-      readonly state: ResultCustomerCtaState;
-    };
+/** Only the unused floating variant is left for S06 to delete; results use variant "view". */
+type LegacyCtaProps = {
+  readonly variant: "floating";
+  readonly state: "idle";
+};
 
 type CustomerCtaProps =
   | LegacyCtaProps

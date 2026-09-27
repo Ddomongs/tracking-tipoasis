@@ -39,7 +39,7 @@ test("a stale shipment shows a verification prompt instead of a delivery estimat
 
   await page.goto(`/${FAKE.domestic}`);
 
-  const summary = page.locator('[data-tracking-result-summary="true"]');
+  const summary = page.locator('[data-status-slot="settled"]');
   await expect(summary.getByText("배송 이력 확인 필요")).toBeVisible();
   await expect(summary.getByText("확인 필요", { exact: true })).toBeVisible();
   await expect(summary.getByText("오늘 예상")).toHaveCount(0);

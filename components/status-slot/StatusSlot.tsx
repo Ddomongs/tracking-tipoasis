@@ -3,11 +3,12 @@
 import { CustomerCta, INLINE_HELP_IDS } from "@/components/CustomerCta";
 import { FailureNotice } from "@/components/status-slot/FailureNotice";
 import { LoadingTimeline } from "@/components/status-slot/LoadingTimeline";
+import { ResultSummary } from "@/components/status-slot/ResultSummary";
 import type { LookupState } from "@/lib/tracking/lookup-state";
-import type { HelpItemView, LoadingViewModel, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
+import type { HelpItemView, LastEventView, LoadingViewModel, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
 
 // Transitional (contract §11.9; deleted by S07). One slot directly under the lookup form: loading, then the error or the result, in the
-// same place (spec §2 원칙 1, §5). Results arrive in Task 6 of the S04 plan.
+// same place (spec §2 원칙 1, §5). Result order (spec §6): status card → 지금 할 일 → last event → help, all before any store or ad.
 
 export interface StatusSlotProps {
   readonly state: LookupState;
@@ -15,6 +16,15 @@ export interface StatusSlotProps {
   readonly view: TrackingViewModel | null;
   readonly onAction: (action: ResultAction) => void;
   readonly headingRef: React.RefObject<HTMLHeadingElement | null>;
+}
+
+function LastEventLine({ lastEvent }: { readonly lastEvent: LastEventView }): React.JSX.Element {
+  return (
+    <p data-last-event="true" className="break-keep text-sm text-slate-700">
+      {lastEvent.text}
+      {lastEvent.original ? <span className="ml-1 text-xs text-slate-500">({lastEvent.original})</span> : null}
+    </p>
+  );
 }
 
 function HelpList({ items }: { readonly items: readonly HelpItemView[] }): React.JSX.Element | null {
@@ -48,12 +58,22 @@ export function StatusSlot({ state, loading, view, onAction, headingRef }: Statu
       </div>
     );
   }
-  if (view === null || state.phase === "settled") return null;
+  if (view === null) return null;
   const help = view.help.filter((item) => !INLINE_HELP_IDS.has(item.id));
+  if (state.phase === "error") {
+    return (
+      <div data-status-slot="error" className="mt-5 space-y-4">
+        <FailureNotice key={state.settledAt} view={view} cause={state.outcome.cause} headingRef={headingRef} onAction={onAction} />
+        <CustomerCta key={`cta-${state.settledAt}`} variant="view" view={view} onAction={onAction} />
+        <HelpList items={help} />
+      </div>
+    );
+  }
   return (
-    <div data-status-slot="error" className="mt-5 space-y-4">
-      <FailureNotice key={state.settledAt} view={view} cause={state.outcome.cause} headingRef={headingRef} onAction={onAction} />
+    <div data-status-slot="settled" className="mt-5 space-y-4">
+      <ResultSummary key={state.settledAt} view={view} headingRef={headingRef} onAction={onAction} />
       <CustomerCta key={`cta-${state.settledAt}`} variant="view" view={view} onAction={onAction} />
+      {view.lastEvent ? <LastEventLine lastEvent={view.lastEvent} /> : null}
       <HelpList items={help} />
     </div>
   );

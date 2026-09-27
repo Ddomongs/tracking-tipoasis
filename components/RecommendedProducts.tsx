@@ -14,11 +14,8 @@ import {
 import { FEATURED_PRODUCTS } from "@/lib/storefront";
 import { AnimatedIcon } from "@/components/AnimatedIcon";
 import type { FeaturedProduct } from "@/lib/storefront";
-import type { StatusCode } from "@/lib/types";
-
 type RecommendedProductsProps = {
-  readonly statusCode: StatusCode;
-  readonly isPending?: boolean;
+  readonly context: RecommendationStage;
 };
 
 const iconByCategory: Record<FeaturedProduct["category"], typeof CarFront> = {
@@ -34,12 +31,15 @@ const recommendationByStage = {
   delivered: "배송 완료 고객이 다시 찾는 상품을 모았습니다."
 } as const;
 
-export const RecommendedProducts = ({ statusCode, isPending }: RecommendedProductsProps) => {
+/** Where the view places inline recommendations on the R2 page (S08 replaces this component). */
+export type RecommendationStage = keyof typeof recommendationByStage;
+
+export const RecommendedProducts = ({ context }: RecommendedProductsProps) => {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
-  const stage = isPending || statusCode <= 4 ? "pending" : statusCode === 7 ? "delivered" : "inTransit";
+  const stage = context;
 
   useEffect(() => {
     if (!open) return undefined;

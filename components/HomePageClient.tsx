@@ -3,20 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { motion, MotionConfig, useReducedMotion } from "framer-motion";
 import { AssuranceRail } from "@/components/AssuranceRail";
-import { CustomerCta } from "@/components/CustomerCta";
-import type { ResultCustomerCtaState } from "@/components/CustomerCta";
 import { CustomsTimeline } from "@/components/CustomsTimeline";
 import { DeliveryTimeline } from "@/components/DeliveryTimeline";
 import { LogisticsFlow } from "@/components/LogisticsFlow";
 import { RecommendedProducts } from "@/components/RecommendedProducts";
-import { ReturnLinkButton } from "@/components/ReturnLinkButton";
+import type { RecommendationStage } from "@/components/RecommendedProducts";
 import { ServiceGuide } from "@/components/ServiceGuide";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { StoreContactPopup } from "@/components/StoreContactPopup";
 import { StorefrontShowcase } from "@/components/StorefrontShowcase";
 import { TrackingForm } from "@/components/TrackingForm";
-import { TrackingResultSummary } from "@/components/TrackingResultSummary";
 import { useLookup } from "@/components/lookup/useLookup";
 import { LiveAnnouncerProvider, useAnnounce } from "@/components/primitives/LiveAnnouncer";
 import { StatusSlot } from "@/components/status-slot/StatusSlot";
@@ -45,14 +42,14 @@ const toRequestNumber = (value: string): string =>
     .replace(/[\s-]/g, "")
     .toUpperCase();
 
-// S04-BRIDGE:settled — legacy result section helpers until Task 6 of the S04 plan.
-const getResultCustomerCtaState = (data: TrackResponseData): ResultCustomerCtaState => {
-  if (data.delivery.ambiguous) return "pending";
-  if (data.delivery.lookupUnavailable) return "pending";
-  if (data.isPending) return "pending";
-  if (data.currentStatusCode === 7) return "delivered";
-  return "inTransit";
+/** Inline recommendations only where the view places them (spec §8); the legacy list knows pending, in transit and delivered. */
+const recommendationStageOf = (view: TrackingViewModel | null): RecommendationStage | null => {
+  if (view === null || view.mode !== "settled" || view.revenue.recommendations !== "inline") return null;
+  const context = view.revenue.recommendationContext;
+  return context === "pending" || context === "inTransit" || context === "delivered" ? context : null;
 };
+
+// The legacy timelines stay below the slot as the details until S07 moves the history into the result view.
 
 const getDeliveryWaitingMessage = (data: TrackResponseData): string | undefined => {
   if (data.delivery.events.length > 0) return undefined;
@@ -267,6 +264,7 @@ function HomePageContent({ initialTrackingNumber }: HomePageClientProps) {
   const busy = state.phase === "loading";
   const invalid = slotState.phase === "error" && slotView?.guideKey === "invalidNumber";
   const settledData = slotState.phase === "settled" ? slotState.outcome.data : null;
+  const recommendationStage = recommendationStageOf(slotView);
   // Store link and showcase keep the pre-renewal rule until Task 7 of the S04 plan narrows them to the idle page.
   const showStorefront = idle || settledData?.currentStatusCode === 7;
 
@@ -334,18 +332,8 @@ function HomePageContent({ initialTrackingNumber }: HomePageClientProps) {
         </section>
 
         <div className="mx-auto max-w-5xl">
-          {/* S04-BRIDGE:settled — legacy result section until Task 6 of the S04 plan. */}
           {settledData ? (
-            <section className="space-y-4 pb-8" aria-labelledby="tracking-result-title" data-ad-exclude="true">
-              <h2 ref={headingRef} id="tracking-result-title" tabIndex={-1} className="sr-only scroll-mt-24 outline-none">
-                배송 조회 결과
-              </h2>
-              <TrackingResultSummary data={settledData} />
-              <ReturnLinkButton
-                key={`${settledData.trackingNumber}:${settledData.delivery.carrierCode}`}
-                number={settledData.trackingNumber}
-                carrier={settledData.delivery.carrierCode}
-              />
+            <section aria-label="배송 조회 결과" data-ad-exclude="true" className="space-y-4 pb-8">
               <section className="space-y-3 pt-3" aria-labelledby="tracking-details-title">
                 <div>
                   <h3 id="tracking-details-title" className="text-lg font-bold text-slate-50">상세 진행 내역</h3>
@@ -360,11 +348,7 @@ function HomePageContent({ initialTrackingNumber }: HomePageClientProps) {
                   </div>
                 </div>
               </section>
-              <CustomerCta variant="result" state={getResultCustomerCtaState(settledData)} />
-              <RecommendedProducts
-                statusCode={settledData.currentStatusCode}
-                isPending={settledData.isPending || settledData.delivery.lookupUnavailable || settledData.delivery.ambiguous}
-              />
+              {recommendationStage ? <RecommendedProducts context={recommendationStage} /> : null}
             </section>
           ) : null}
         </div>

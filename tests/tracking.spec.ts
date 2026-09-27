@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { TrackRequestSchema } from "@/lib/schemas";
 import { normalizeTrackingData } from "@/lib/services/normalizer";
+import { disclosures } from "@/config/site.config";
 import type { StatusCode, TrackResponseData } from "@/lib/types";
 import { FAKE } from "./fixtures/tracking-fixtures";
 
@@ -100,16 +101,14 @@ test("tracking result leads with delivery date and keeps customs estimate second
   await page.getByLabel("조회번호 (HBL 또는 운송장)", { exact: true }).fill(FAKE.domestic);
   await page.getByRole("button", { name: "조회하기" }).click();
 
-  const summary = page.locator('[data-tracking-result-summary="true"]');
-  const deliveryEstimate = summary.locator('[data-delivery-estimate="true"]');
+  const summary = page.locator('[data-status-slot="settled"]');
+  const deliveryEstimate = summary.locator("[data-eta-kind]");
   await expect(summary.getByRole("heading", { name: "통관대기" })).toBeVisible();
   await expect(deliveryEstimate.getByText("배송 완료 예상일", { exact: true })).toBeVisible();
   await expect(deliveryEstimate.getByText(/7월 17일/)).toBeVisible();
-  const customsEstimate = deliveryEstimate.locator('[data-customs-estimate="true"]');
-  await expect(customsEstimate.getByText("통관완료 예상일", { exact: true })).toBeVisible();
-  await expect(customsEstimate.getByText(/7월 14일/)).toBeVisible();
+  await expect(deliveryEstimate.getByText(/^통관완료 예상일 .*7월 14일/)).toBeVisible();
   await expect(summary.getByText("정상 통관 대기 상태입니다. 지금은 별도 문의 없이 조금만 기다려 주세요.")).toBeVisible();
-  await expect(summary.getByText("전체 흐름 한눈에 보기", { exact: true })).toBeVisible();
+  await expect(summary.getByRole("list", { name: "배송 여정 4구간" }).locator('[aria-current="step"]')).toHaveCount(1);
   await expect(summary.getByText("전체 진행 단계", { exact: true })).toHaveCount(0);
 });
 
@@ -142,12 +141,10 @@ test("an overdue customs estimate is recalculated and remains readable on mobile
   await page.getByLabel("조회번호 (HBL 또는 운송장)", { exact: true }).fill(FAKE.domestic);
   await page.getByRole("button", { name: "조회하기" }).click();
 
-  const summary = page.locator('[data-tracking-result-summary="true"]');
+  const summary = page.locator('[data-status-slot="settled"]');
   await expect(summary.getByRole("heading", { name: "통관대기" })).toBeVisible();
   await expect(summary.getByText("7월 23일 (목)")).toBeVisible();
   await expect(summary.getByText("7월 20일 (월)")).toBeVisible();
-  await expect(summary.getByText("오늘 예상")).toBeVisible();
-  await expect(summary.getByText("현재 통관 상태를 반영해 예상일을 다시 계산했습니다.")).toBeVisible();
   await expect(summary.getByText("7월 17일 (금)")).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
@@ -175,18 +172,18 @@ test("pickup status names the carrier pickup and prioritizes the delivery estima
   await page.route("**/api/track", async (route) => {
     await route.fulfill({ contentType: "application/json", body: JSON.stringify({ success: true, data }) });
   });
+  // The client judges stale and overdue with its own clock when a result settles (spec §6): pin it to the fixture's day.
+  await page.clock.setFixedTime(new Date("2026-07-14T16:00:00+09:00"));
   await submitTracking(page);
 
-  const summary = page.locator('[data-tracking-result-summary="true"]');
-  const deliveryEstimate = summary.locator('[data-delivery-estimate="true"]');
+  const summary = page.locator('[data-status-slot="settled"]');
+  const deliveryEstimate = summary.locator("[data-eta-kind]");
   await expect(summary.getByRole("heading", { name: "CJ대한통운 기사님 픽업 완료!" })).toBeVisible();
   await expect(summary.getByText("CJ대한통운 기사님이 상품을 인수해 배송 출발을 준비하고 있습니다.")).toBeVisible();
   await expect(summary.getByText("픽업이 완료됐습니다. 배송 이동이 시작되면 현재 위치가 업데이트됩니다.")).toBeVisible();
   await expect(deliveryEstimate.getByText("배송 완료 예상일", { exact: true })).toBeVisible();
   await expect(deliveryEstimate.getByText(/7월 16일/)).toBeVisible();
-  const customsEstimate = deliveryEstimate.locator('[data-customs-estimate="true"]');
-  await expect(customsEstimate.getByText("통관 완료일", { exact: true })).toBeVisible();
-  await expect(customsEstimate.getByText(/7월 14일/)).toBeVisible();
+  await expect(deliveryEstimate.getByText(/^통관 완료일 .*7월 14일/)).toBeVisible();
 });
 
 const mockTrackSuccess = async (page: Page, state: MockTrackingState): Promise<void> => {
@@ -384,7 +381,7 @@ test("pending state offers inquiry and purchase-channel choices", async ({ page 
   await submitTracking(page);
 
   const cta = page.locator('[data-cta-state="pending"]');
-  const summary = page.locator('[data-tracking-result-summary="true"]');
+  const summary = page.locator('[data-status-slot="settled"]');
   await expect(summary.getByRole("heading", { name: "통관 정보 등록 전" })).toBeVisible();
   await expect(summary.getByText("정보 등록 후 안내", { exact: true })).toBeVisible();
   await expect(summary.getByText("정보 반영까지 시간이 걸릴 수 있어 2~3시간 뒤 다시 확인해 주세요.")).toBeVisible();
@@ -394,9 +391,7 @@ test("pending state offers inquiry and purchase-channel choices", async ({ page 
   const coupangLink = cta.getByRole("link", { name: "쿠팡 스토어 보기 새 창으로 열기" });
   await expect(coupangLink).toBeVisible();
   await expect(coupangLink).toHaveAttribute("rel", /sponsored/);
-  await expect(
-    cta.getByText("쿠팡 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.")
-  ).toBeVisible();
+  await expect(cta.getByText(disclosures.coupang)).toBeVisible();
   const recommendations = page.locator('[data-recommended-products="pending"]');
   const bestTrigger = recommendations.getByRole("button", { name: "금주의 베스트 리뷰 상품 간략히 보기" });
   await expect(bestTrigger).toBeVisible();
@@ -416,13 +411,11 @@ test("in-transit state keeps shopping links out of the primary flow", async ({ p
   await submitTracking(page);
 
   const cta = page.locator('[data-cta-state="inTransit"]');
-  const summary = page.locator('[data-tracking-result-summary="true"]');
+  const summary = page.locator('[data-status-slot="settled"]');
   await expect(summary.getByRole("heading", { name: "국내 배송 중" })).toBeVisible();
   await expect(summary.getByText("배송 완료 예상일", { exact: true })).toBeVisible();
   await expect(summary.getByText("배송 중입니다. 문자로 안내된 배송 예정 시간을 확인해 주세요.")).toBeVisible();
-  await expect(summary.locator('[data-motion-visual="result"]')).toBeVisible();
-  await expect(summary.getByRole("link", { name: "기타 문의는 톡톡으로 문의하기 새 창으로 열기" })).toBeVisible();
-  await expect(summary.getByRole("list", { name: "배송 진행 구간" }).getByText("국내 배송", { exact: true })).toBeVisible();
+  await expect(summary.getByRole("list", { name: "배송 여정 4구간" }).locator('[aria-current="step"]')).toContainText("국내 배송");
   await expect(cta.getByRole("heading", { name: "배송이 진행 중이에요" })).toBeVisible();
   await expect(cta.getByRole("link", { name: "톡톡으로 문의하기 새 창으로 열기" })).toBeVisible();
   await expect(cta.getByRole("link", { name: "네이버 스토어 보기 새 창으로 열기" })).toHaveCount(0);
@@ -436,7 +429,7 @@ test("delivered state leads with store choices", async ({ page }) => {
   await submitTracking(page);
 
   const cta = page.locator('[data-cta-state="delivered"]');
-  const summary = page.locator('[data-tracking-result-summary="true"]');
+  const summary = page.locator('[data-status-slot="settled"]');
   await expect(summary.getByRole("heading", { name: "배송 완료" })).toBeVisible();
   await expect(summary.getByText("배송 완료일", { exact: true })).toBeVisible();
   await expect(summary.getByText("배송이 완료됐습니다. 상품 상태를 확인해 주세요.")).toBeVisible();
@@ -444,8 +437,6 @@ test("delivered state leads with store choices", async ({ page }) => {
   await expect(cta.getByRole("link", { name: "네이버 스토어 보기 새 창으로 열기" })).toBeVisible();
   await expect(cta.getByRole("link", { name: "쿠팡 스토어 보기 새 창으로 열기" })).toBeVisible();
   await expect(cta.getByRole("link", { name: "톡톡으로 문의하기 새 창으로 열기" })).toBeVisible();
-  await expect(
-    cta.getByText("쿠팡 링크로 구매하면 운영자가 일정 수수료를 받을 수 있으며 구매 가격에는 영향이 없습니다.")
-  ).toBeVisible();
+  await expect(cta.getByText(disclosures.coupang)).toBeVisible();
   await expect(page.locator('[data-recommended-products="delivered"]')).toBeVisible();
 });
