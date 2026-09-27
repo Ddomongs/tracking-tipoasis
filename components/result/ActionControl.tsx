@@ -27,12 +27,20 @@ function sizeOf(action: ActionView): ButtonSize {
 
 /** [다시 조회]: during a 429 countdown it stays focusable but inert (aria-disabled; never `disabled`, spec §5). */
 function RetryControl({ action, onRetry }: { readonly action: ActionView; readonly onRetry: () => void }): React.JSX.Element {
-  const [remaining, setRemaining] = useState(action.cooldownSeconds ?? 0);
+  const cooldown = action.cooldownSeconds ?? 0;
+  const [remaining, setRemaining] = useState(cooldown);
+  // Counted from the start time, not by one timer per second: a throttled background tab (or a test clock that jumps)
+  // still ends the countdown on time.
   useEffect(() => {
-    if (remaining <= 0) return undefined;
-    const timer = window.setTimeout(() => setRemaining((value) => value - 1), ONE_SECOND_MS);
-    return () => window.clearTimeout(timer);
-  }, [remaining]);
+    if (cooldown <= 0) return undefined;
+    const startedAt = performance.now();
+    const timer = window.setInterval(() => {
+      const left = Math.max(0, cooldown - Math.floor((performance.now() - startedAt) / ONE_SECOND_MS));
+      setRemaining(left);
+      if (left === 0) window.clearInterval(timer);
+    }, ONE_SECOND_MS);
+    return () => window.clearInterval(timer);
+  }, [cooldown]);
   const waiting = remaining > 0;
   return (
     <Button

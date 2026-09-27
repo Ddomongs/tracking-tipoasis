@@ -2,11 +2,11 @@ import { expect, test, type Page } from "@playwright/test";
 import { disclosures, siteConfig } from "@/config/site.config";
 import { deriveTrackingView } from "@/lib/tracking/derive-view";
 import { groupTrackingNumber } from "@/lib/tracking/number-format";
-import type { FailureCause, LookupOutcome, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
+import type { ActionView, FailureCause, LookupOutcome, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
 import { INTERNAL_TEST_CREDENTIALS } from "../internal-auth";
 import {
-  OCTOBER_NOW, ambiguousData, carrierCutData, customsWaitingData, deliveredData, inTransitData, lookupUnavailableData, pendingData,
-  staleData, success
+  OCTOBER_NOW, ambiguousData, carrierCutData, customsWaitingData, deliveredData, failure, inTransitData, lookupUnavailableData,
+  pendingData, staleData, success
 } from "../fixtures/derive-scenarios";
 import { FAKE, FIXTURE_NOW } from "../fixtures/tracking-fixtures";
 
@@ -89,6 +89,19 @@ async function follows(page: Page, first: string, second: string): Promise<boole
     },
     [first, second] as const
   );
+}
+
+const RECOVERY_KINDS: readonly ActionView["kind"][] = ["fixNumber", "retry"];
+
+function viewActions(view: TrackingViewModel): readonly ActionView[] {
+  return [view.nextAction.primary, ...view.nextAction.secondary].filter((item): item is ActionView => item !== null);
+}
+
+/** Links of the error block in view order: every action that is not a recovery step and has an href. */
+function inquiryHrefs(view: TrackingViewModel): readonly string[] {
+  return viewActions(view)
+    .filter((item) => !RECOVERY_KINDS.includes(item.kind) && item.href !== null)
+    .map((item) => item.href ?? "");
 }
 
 test.describe("status card", () => {
@@ -564,5 +577,133 @@ test.describe("layout and modes", () => {
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(overflow, view.guideKey).toBeLessThanOrEqual(0);
     }
+  });
+});
+
+test.describe("failure card", () => {
+  test("NOT_FOUND: 번호 수정 in the card, 톡톡 first in the error block, the worry line without a second 톡톡 link, no store", async ({ page }) => {
+    const view = viewFor(failure("notFound"));
+    await openKit(page);
+    await showView(page, view, { failureCause: "notFound" });
+    await expect(page.locator("[data-result-view]")).toHaveAttribute("data-result-view", "error");
+    const card = page.locator("[data-result-view] [data-guide-key]");
+    await expect(card).toHaveAttribute("data-guide-key", "notFound");
+    await expect(card).toHaveAttribute("data-failure-cause", "notFound");
+    await expect(card).toHaveAttribute("data-tone", "attention");
+    await expect(card.getByRole("heading", { level: 2 })).toHaveText(view.title);
+    const field = card.locator('[data-slot="status-head"]');
+    await expect(field.locator('[aria-current="step"]')).toHaveCount(0);
+    await expect(field.locator('[data-spine-part="unknown"]')).toHaveText("위치 확인 전");
+    const fix = viewActions(view).find((item) => item.kind === "fixNumber");
+    const fixButton = field.locator("[data-recovery]").getByRole("button", { name: fix?.label ?? "" });
+    await expect(fixButton).toHaveAttribute("data-variant", fix?.weight ?? "");
+    await expect(field.locator("[data-auxiliary-line]")).toHaveCount(view.auxiliaryLine === null ? 0 : 1);
+    const cta = card.locator('[data-cta-state="error"]');
+    await expect(cta.getByRole("heading", { level: 3 })).toHaveText(view.nextAction.heading ?? "");
+    await expect(cta.locator(`a[href="${TALK_URL}"]`)).toHaveCount(1);
+    await expect(cta.locator("[data-worry-line]")).toHaveText(view.nextAction.worry?.text ?? "");
+    await expect(card.locator("[data-affiliate-group]")).toHaveCount(0);
+    await expect(card.locator("details[data-help]")).toHaveCount(view.help.length);
+    await fixButton.click();
+    expect(await kitActions(page)).toEqual([{ kind: "fixNumber" }]);
+  });
+
+  test("every error view: recovery steps in the card, 톡톡 first in the only error block, no ETA, no store", async ({ page }) => {
+    await openKit(page);
+    const causes: readonly FailureCause[] = [
+      "invalidNumber", "notFound", "rateLimited", "upstreamTimeout", "badGateway", "network", "offline", "clientTimeout", "serverError",
+      "contractViolation"
+    ];
+    for (const cause of causes) {
+      const view = viewFor(failure(cause));
+      await showView(page, view, { failureCause: cause });
+      const card = page.locator(`[data-result-view] [data-failure-cause="${cause}"]`);
+      await expect(card, cause).toHaveAttribute("data-guide-key", view.guideKey);
+      const cta = page.locator('[data-cta-state="error"]');
+      await expect(cta, cause).toHaveCount(1);
+      const hrefs = await cta.locator("a[href]").evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? ""));
+      expect(hrefs, cause).toEqual(inquiryHrefs(view));
+      expect(hrefs[0], cause).toBe(TALK_URL);
+      const recoveryCount = viewActions(view).filter((item) => RECOVERY_KINDS.includes(item.kind)).length;
+      await expect(card.locator("[data-recovery] button"), cause).toHaveCount(recoveryCount);
+      await expect(card.locator('[data-slot="eta"]'), cause).toHaveCount(0);
+      await expect(card.locator("[data-affiliate-group]"), cause).toHaveCount(0);
+    }
+  });
+
+  test("429: 다시 조회 waits out the countdown; clicks before it report nothing", async ({ page }) => {
+    await page.clock.install({ time: FIXTURE_NOW });
+    const view = viewFor(failure("rateLimited"));
+    await openKit(page);
+    await showView(page, view, { failureCause: "rateLimited" });
+    await expect(page.locator("[data-result-view] [data-guide-key]")).toContainText(view.reason ?? "");
+    const retry = page.locator("[data-recovery]").getByRole("button", { name: "다시 조회" });
+    await expect(retry).toHaveAttribute("aria-disabled", "true");
+    // Playwright treats aria-disabled as disabled; force the clicks a customer can still make.
+    await retry.click({ force: true });
+    await retry.dblclick({ force: true });
+    expect(await kitActions(page)).toEqual([]);
+    await page.clock.runFor(10_000);
+    await expect(retry).not.toHaveAttribute("aria-disabled");
+    await retry.click();
+    expect(await kitActions(page)).toEqual([{ kind: "retry" }]);
+  });
+
+  test("server error: 문의 내용 복사하고 톡톡 열기 leads the error block with the copied text shown; 다시 조회 stays in the card", async ({ page }) => {
+    const view = viewFor(failure("serverError"));
+    await openKit(page);
+    await showView(page, view, { failureCause: "serverError" });
+    const card = page.locator("[data-result-view] [data-guide-key]");
+    await expect(card).toHaveAttribute("data-tone", "problem");
+    const cta = card.locator('[data-cta-state="error"]');
+    const first = cta.locator("a[href]").first();
+    await expect(first).toHaveAccessibleName(COPY_AND_TALK_NAME);
+    await expect(first).toHaveAttribute("data-variant", "primary");
+    await expect(cta.locator("[data-inquiry-preview]")).toHaveText(view.inquiryCopy ?? "");
+    await expect(card.locator("[data-recovery]").getByRole("button", { name: "다시 조회" })).toBeVisible();
+  });
+
+  test("two failures in a row: 톡톡 becomes the filled primary and the recovery step stays in the card", async ({ page }) => {
+    const view = viewFor(failure("network", { consecutiveFailures: 2 }));
+    expect(view.nextAction.primary?.kind).toBe("copyAndTalk");
+    await openKit(page);
+    await showView(page, view, { failureCause: "network" });
+    const card = page.locator("[data-result-view] [data-guide-key]");
+    await expect(card.locator('[data-cta-state="error"] a[href]').first()).toHaveAccessibleName(COPY_AND_TALK_NAME);
+    await expect(card.locator("[data-recovery]").getByRole("button", { name: "다시 조회" })).toHaveAttribute("data-variant", "secondary");
+  });
+
+  test("no response: the recovery steps in the card and no '번호 문제는 아니에요'", async ({ page }) => {
+    const view = viewFor(failure("clientTimeout"));
+    await openKit(page);
+    await showView(page, view, { failureCause: "clientTimeout" });
+    const card = page.locator("[data-result-view] [data-guide-key]");
+    await expect(card).toHaveAttribute("data-guide-key", "noResponse");
+    await expect(card).not.toContainText("번호 문제는 아니에요");
+    const recoveryLabels = viewActions(view)
+      .filter((item) => RECOVERY_KINDS.includes(item.kind))
+      .map((item) => item.label);
+    expect(recoveryLabels).toContain("다시 조회");
+    await expect(card.locator("[data-recovery] button")).toHaveText(recoveryLabels);
+  });
+
+  test("a delay with a chosen carrier: 톡톡 first, then that carrier's official lookup", async ({ page }) => {
+    const view = viewFor(failure("upstreamTimeout", { carrier: "CJ" }));
+    await openKit(page);
+    await showView(page, view, { failureCause: "upstreamTimeout" });
+    const hrefs = await page
+      .locator('[data-cta-state="error"] a[href]')
+      .evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? ""));
+    expect(hrefs).toEqual(inquiryHrefs(view));
+    expect(hrefs[0]).toBe(TALK_URL);
+  });
+
+  test("the invalid view (CS preview) shows the input sentence as its title and 톡톡 as the only link", async ({ page }) => {
+    const view = viewFor(failure("invalidNumber"));
+    await openKit(page);
+    await showView(page, view, { failureCause: "invalidNumber" });
+    await expect(page.locator("[data-result-view] h2")).toHaveText(view.title);
+    const hrefs = await page.locator('[data-cta-state="error"] a[href]').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+    expect(hrefs).toEqual([TALK_URL]);
   });
 });

@@ -6,6 +6,7 @@ import type { FailureCause, HelpItemView, ResultAction, TrackingViewModel } from
 import { ActionControl } from "./ActionControl";
 import { CarrierChooser } from "./CarrierChooser";
 import { DeliveredHelp, UNDELIVERED_HELP_ITEM_ID } from "./DeliveredHelp";
+import { FailureCard } from "./FailureCard";
 import { HistoryDetails } from "./HistoryDetails";
 import { LastEventLine } from "./LastEventLine";
 import { NextActionBlock } from "./NextActionBlock";
@@ -87,11 +88,54 @@ function AuxiliaryLine({
   );
 }
 
+interface SettledFlowProps {
+  readonly view: TrackingViewModel;
+  readonly baseId: string;
+  readonly onAction: (action: ResultAction) => void;
+  readonly headingRef?: React.Ref<HTMLHeadingElement>;
+  readonly recommendationSlot?: React.ReactNode;
+}
+
 /**
- * The result area (spec §6–§7), loaded lazily through result-module.ts. It renders only the view model, in the fixed
- * order 상태 카드 → 도착 예상 → 지금 할 일 → 마지막 처리 (data-primary-end) → 처리 내역. Recommendations come right after
- * the marker for delivered (spec §7 "CTA 바로 아래") and after 처리 내역 otherwise — never between the fixed blocks.
- * The number bar above it belongs to the caller.
+ * 상태 카드 → 도착 예상 → 지금 할 일 → 마지막 처리 (data-primary-end) → 처리 내역 (spec §6). Recommendations come right
+ * after the marker for delivered (spec §7 "CTA 바로 아래") and after 처리 내역 otherwise — never between the fixed blocks.
+ */
+function SettledFlow({ view, baseId, onAction, headingRef, recommendationSlot }: SettledFlowProps): React.JSX.Element {
+  const undelivered: HelpItemView | null = view.help.find((item) => item.id === UNDELIVERED_HELP_ITEM_ID) ?? null;
+  const undeliveredId = `${baseId}-undelivered`;
+  const choices = view.nextAction.carrierChoices;
+  const hasRecommendations = view.revenue.recommendations !== "none" && recommendationSlot !== undefined && recommendationSlot !== null;
+  const recommendations = hasRecommendations ? <div data-recommendation-slot="true">{recommendationSlot}</div> : null;
+  const recommendationsLead = view.guideKey === "delivered";
+  return (
+    <>
+      <StatusCard view={view} titleId={`${baseId}-title`} headingRef={headingRef}>
+        <AuxiliaryLine view={view} onAction={onAction} />
+      </StatusCard>
+      <NextActionBlock
+        view={view}
+        headingId={`${baseId}-next`}
+        onAction={onAction}
+        undeliveredHelpId={undelivered === null ? null : undeliveredId}
+        carrierChooser={
+          choices === null ? undefined : (
+            <CarrierChooser choices={choices} onChoose={(carrier) => onAction({ kind: "chooseCarrier", carrier })} />
+          )
+        }
+      />
+      <LastEventLine lastEvent={view.lastEvent} />
+      <div data-primary-end="true" aria-hidden="true" />
+      {recommendationsLead ? recommendations : null}
+      <HistoryDetails history={view.history} id={`${baseId}-history`} />
+      {undelivered === null ? null : <DeliveredHelp item={undelivered} id={undeliveredId} />}
+      {recommendationsLead ? null : recommendations}
+    </>
+  );
+}
+
+/**
+ * The result area (spec §6–§7), loaded lazily through result-module.ts. It renders only the view model: the settled
+ * flow with its side column, or the failure card for error views. The number bar above it belongs to the caller.
  */
 export function ResultView({
   view,
@@ -99,18 +143,12 @@ export function ResultView({
   headingRef,
   recommendationSlot,
   readOnly = false,
-  frame = "responsive"
+  frame = "responsive",
+  failureCause
 }: ResultViewProps): React.JSX.Element {
   const baseId = useId();
   const act = readOnly ? ignoreAction : onAction;
-  const historyId = `${baseId}-history`;
-  const undeliveredId = `${baseId}-undelivered`;
-  const undelivered: HelpItemView | null = view.help.find((item) => item.id === UNDELIVERED_HELP_ITEM_ID) ?? null;
   const otherHelp = view.help.filter((item) => item.id !== UNDELIVERED_HELP_ITEM_ID);
-  const choices = view.nextAction.carrierChoices;
-  const hasRecommendations = view.revenue.recommendations !== "none" && recommendationSlot !== undefined && recommendationSlot !== null;
-  const recommendations = hasRecommendations ? <div data-recommendation-slot="true">{recommendationSlot}</div> : null;
-  const recommendationsLead = view.guideKey === "delivered";
   return (
     <div
       data-result-view={view.mode}
@@ -122,28 +160,20 @@ export function ResultView({
       className={frame === "mobile" ? MOBILE_FRAME_LAYOUT : RESPONSIVE_LAYOUT}
     >
       <div data-result-main="true" className="flex min-w-0 flex-col gap-4">
-        <StatusCard view={view} titleId={`${baseId}-title`} headingRef={headingRef}>
-          <AuxiliaryLine view={view} onAction={act} />
-        </StatusCard>
-        <NextActionBlock
-          view={view}
-          headingId={`${baseId}-next`}
-          onAction={act}
-          undeliveredHelpId={undelivered === null ? null : undeliveredId}
-          carrierChooser={
-            choices === null ? undefined : (
-              <CarrierChooser choices={choices} onChoose={(carrier) => act({ kind: "chooseCarrier", carrier })} />
-            )
-          }
-        />
-        <LastEventLine lastEvent={view.lastEvent} />
-        <div data-primary-end="true" aria-hidden="true" />
-        {recommendationsLead ? recommendations : null}
-        <HistoryDetails history={view.history} id={historyId} />
-        {undelivered === null ? null : <DeliveredHelp item={undelivered} id={undeliveredId} />}
-        {recommendationsLead ? null : recommendations}
+        {view.mode === "error" ? (
+          <FailureCard
+            view={view}
+            titleId={`${baseId}-title`}
+            ctaHeadingId={`${baseId}-next`}
+            onAction={act}
+            headingRef={headingRef}
+            failureCause={failureCause}
+          />
+        ) : (
+          <SettledFlow view={view} baseId={baseId} onAction={act} headingRef={headingRef} recommendationSlot={recommendationSlot} />
+        )}
       </div>
-      <SideColumn view={view} frame={frame} historyId={historyId} help={otherHelp} />
+      {view.mode === "error" ? null : <SideColumn view={view} frame={frame} historyId={`${baseId}-history`} help={otherHelp} />}
     </div>
   );
 }
