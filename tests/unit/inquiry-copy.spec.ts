@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { buildInquiryCopy, parseInquiryCopy } from "@/lib/tracking/inquiry-copy";
+import { groupTrackingNumber } from "@/lib/tracking/number-format";
 import { FAKE, FAKE_GROUPED, FIXTURE_NOW } from "../fixtures/tracking-fixtures";
 
 const DOMESTIC = { raw: FAKE.domestic, grouped: FAKE_GROUPED.domestic };
@@ -42,6 +43,15 @@ test("never guesses: words after the number, a short number, no label or an empt
   expect(parseInquiryCopy(`조회번호 ${FAKE.invalidShort}`)).toBeNull();
   expect(parseInquiryCopy(`[배송 문의] ${FAKE_GROUPED.domestic}`)).toBeNull();
   expect(parseInquiryCopy("조회번호 / 마지막 단계 통관 대기")).toBeNull();
+});
+
+test("never merges extra digits: an appended phone number or a second waybill gives null", () => {
+  const withPhone = `조회번호 ${FAKE_GROUPED.domestic} ${FAKE.phone.replace(/-/g, " ")}\n연락 부탁드려요`;
+  expect(parseInquiryCopy(withPhone)).toBeNull();
+  expect(parseInquiryCopy(`조회번호 ${FAKE_GROUPED.domestic} ${FAKE_GROUPED.domesticAlt}`)).toBeNull();
+  expect(parseInquiryCopy(`조회번호 ${FAKE_GROUPED.domestic}  ${FAKE_GROUPED.domesticAlt}`)).toBeNull();
+  // The grouped form buildInquiryCopy writes for a cargo number still parses.
+  expect(parseInquiryCopy(`조회번호 ${groupTrackingNumber(FAKE.cargo)}`)).toEqual({ number: FAKE.cargo });
 });
 
 test("the first label wins", () => {

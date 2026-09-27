@@ -1,4 +1,5 @@
 import { identifyTrackingNumber } from "@/lib/services/identifier";
+import { groupTrackingNumber } from "@/lib/tracking/number-format";
 import { formatKstShortDateTime } from "@/lib/tracking/time";
 import type { NumberView } from "@/lib/tracking/types";
 
@@ -31,11 +32,26 @@ export function buildInquiryCopy(
   return parts.join(SEPARATOR);
 }
 
+/** The longest all-digit identifier a customer copies (a cargo number); longer runs are two numbers glued together. */
+const MAX_DIGIT_IDENTIFIER_LENGTH = 19;
+
+/**
+ * One unbroken run (hyphens allowed) or exactly the 4-character grouping buildInquiryCopy writes. Anything else
+ * (an appended phone number, a second waybill) would merge extra digits into the number, so it is refused.
+ */
+function isSingleIdentifier(segment: string, number: string): boolean {
+  const spaced = segment.replace(/[ 　]+/g, " ").toUpperCase();
+  if (!spaced.includes(" ")) return true;
+  return spaced === groupTrackingNumber(number);
+}
+
 /** The number after '조회번호' when that segment is a clean identifier; otherwise null (never a guess). */
 export function parseInquiryCopy(text: string): { readonly number: string } | null {
   const halfWidth = text.replace(FULL_WIDTH_ALNUM, (char) => String.fromCharCode(char.charCodeAt(0) - FULL_WIDTH_OFFSET));
   const segment = LABEL_SEGMENT.exec(halfWidth)?.[1].trim() ?? "";
   if (!CLEAN_SEGMENT.test(segment)) return null;
   const number = segment.replace(/[ 　-]/g, "").toUpperCase();
+  if (!isSingleIdentifier(segment, number)) return null;
+  if (/^\d+$/.test(number) && number.length > MAX_DIGIT_IDENTIFIER_LENGTH) return null;
   return identifyTrackingNumber(number).type === "UNKNOWN" ? null : { number };
 }
