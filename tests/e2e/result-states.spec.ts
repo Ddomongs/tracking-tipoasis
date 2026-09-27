@@ -194,8 +194,24 @@ test.describe("errors", () => {
     await mockTrack(page, trackData("inTransit"));
     await page.goto("/");
     const input = page.getByLabel(INPUT_LABEL, { exact: true });
+    // Focus in the lookup form preloads the result module; wait until its chunk and the scripts requested with it have
+    // arrived. (A second waitForLoadState("networkidle") returns at once: that state is reached only once per load.)
+    const pendingScripts = new Set<string>();
+    page.on("request", (request) => {
+      if (request.resourceType() === "script") pendingScripts.add(request.url());
+    });
+    const settleScript = (url: string): void => {
+      pendingScripts.delete(url);
+    };
+    page.on("requestfinished", (request) => settleScript(request.url()));
+    page.on("requestfailed", (request) => settleScript(request.url()));
+    const resultChunk = page.waitForResponse(
+      async (response) => response.request().resourceType() === "script" && (await response.text()).includes("data-primary-end"),
+      { timeout: 15_000 }
+    );
     await input.fill(FAKE.hbl);
-    await page.waitForLoadState("networkidle"); // focus in the lookup form preloads the result module
+    await resultChunk;
+    await expect.poll(() => pendingScripts.size, { timeout: 15_000 }).toBe(0);
     await page.context().setOffline(true);
     await input.press("Enter");
     await expect(resultCard(page)).toHaveAttribute("data-guide-key", "offline");

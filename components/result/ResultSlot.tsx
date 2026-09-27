@@ -151,6 +151,8 @@ export function ResultSlot({
     const stopWatching = watchFirstInput(markInteraction);
     for (const type of INTERACTION_EVENTS) window.addEventListener(type, markInteraction, { capture: true, passive: true });
     document.addEventListener("focusin", preloadOnIntent);
+    // Focus that reached the form before hydration (a slow page) never fired the listener above: preload now.
+    if (document.activeElement?.closest("[data-lookup-form]")) preloadResultModule();
     return () => {
       stopWatching?.();
       for (const type of INTERACTION_EVENTS) window.removeEventListener(type, markInteraction, { capture: true });
