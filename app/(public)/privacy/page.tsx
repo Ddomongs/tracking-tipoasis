@@ -11,8 +11,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/privacy" }
 };
 
-const LAST_UPDATED = "2026년 9월 27일";
-const PREVIOUS_EFFECTIVE_DATE = "2026년 9월 3일";
+const LAST_UPDATED = "2026년 9월 28일";
+const PREVIOUS_EFFECTIVE_DATE = "2026년 9월 27일";
 
 // The ad paragraph follows the policy that actually ships (lib/ads/ad-gate.ts), so text and behavior cannot disagree.
 const AD_URL_SENTENCE: Readonly<Record<AdTimingPolicy, string>> = {
@@ -78,7 +78,8 @@ const sections = [
     title: "7. 방침 변경",
     body: [
       "이 방침이 바뀌면 이 페이지에 변경 내용과 시행일을 표시합니다.",
-      `${LAST_UPDATED} 변경: 광고 코드가 받는 페이지 주소 처리, 접속 로그에 남는 페이지 주소, 통관 조회 서비스(customstrack.com) 확인, 이 브라우저 탭 임시 보관, 조회 링크 공유 안내를 추가했습니다. 이전 시행일: ${PREVIOUS_EFFECTIVE_DATE}.`
+      `${LAST_UPDATED} 변경: 광고 코드를 불러오는 시점을 바꿨습니다(조회 결과가 광고를 보여도 되는 상태로 확인된 뒤, 또는 첫 화면에서 판매 상품 안내까지 내려온 뒤). 이전 시행일: ${PREVIOUS_EFFECTIVE_DATE}.`,
+      "2026년 9월 27일 변경: 광고 코드가 받는 페이지 주소 처리, 접속 로그에 남는 페이지 주소, 통관 조회 서비스(customstrack.com) 확인, 이 브라우저 탭 임시 보관, 조회 링크 공유 안내를 추가했습니다. 이전 시행일: 2026년 9월 3일."
     ]
   }
 ] as const;

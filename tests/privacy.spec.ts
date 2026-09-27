@@ -77,3 +77,13 @@ test("the privacy page sits on the token shell with the configured 톡톡 contac
   await expect(contact).toHaveAttribute("target", "_blank");
   await expect(contact).toHaveAttribute("data-link-placement", "state");
 });
+
+test("the ad-timing change of approval 7 is announced with a new effective date (S08 review)", async ({ page }) => {
+  await page.goto("/privacy");
+  const policy = page.locator("main");
+  const changes = policy.getByRole("heading", { level: 2, name: "7. 방침 변경" }).locator("xpath=..");
+  // The page promises to show what changed and when; the switch to afterAllowedResult changed the ad paragraph.
+  await expect(changes).toContainText("광고 코드를 불러오는 시점");
+  await expect(policy.getByText(/^시행일: /)).not.toHaveText("시행일: 2026년 9월 27일");
+  await expect(policy.getByText("이전 시행일: 2026년 9월 27일", { exact: false })).toBeVisible();
+});
