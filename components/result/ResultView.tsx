@@ -4,6 +4,7 @@ import { useId } from "react";
 import { channels } from "@/config/site.config";
 import type { FailureCause, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
 import { ActionControl } from "./ActionControl";
+import { CarrierChooser } from "./CarrierChooser";
 import { NextActionBlock } from "./NextActionBlock";
 import { StatusCard } from "./StatusCard";
 
@@ -75,7 +76,20 @@ export function ResultView({ view, onAction, headingRef, readOnly = false, frame
             </p>
           )}
         </StatusCard>
-        <NextActionBlock view={view} headingId={`${baseId}-next`} onAction={onAction} undeliveredHelpId={null} />
+        <NextActionBlock
+          view={view}
+          headingId={`${baseId}-next`}
+          onAction={onAction}
+          undeliveredHelpId={null}
+          carrierChooser={
+            view.nextAction.carrierChoices === null ? undefined : (
+              <CarrierChooser
+                choices={view.nextAction.carrierChoices}
+                onChoose={(carrier) => onAction({ kind: "chooseCarrier", carrier })}
+              />
+            )
+          }
+        />
       </div>
     </div>
   );

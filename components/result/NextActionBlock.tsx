@@ -10,6 +10,8 @@ export interface NextActionBlockProps {
   readonly headingId: string;
   readonly onAction: (action: ResultAction) => void;
   readonly undeliveredHelpId: string | null;
+  /** CarrierChooser for ambiguous results and carrier delays without an official link. */
+  readonly carrierChooser?: React.ReactNode;
 }
 
 /**
@@ -17,7 +19,7 @@ export interface NextActionBlockProps {
  * Store links lead only for delivered (spec §8 "스토어 선두") and follow 톡톡 for pending (purchase choices after the
  * disclosure). 톡톡 appears once: the worry line gets its own 톡톡 link only when no 톡톡 control is in the block.
  */
-export function NextActionBlock({ view, headingId, onAction, undeliveredHelpId }: NextActionBlockProps): React.JSX.Element {
+export function NextActionBlock({ view, headingId, onAction, undeliveredHelpId, carrierChooser }: NextActionBlockProps): React.JSX.Element {
   const next = view.nextAction;
   const controls = [next.primary, ...next.secondary].filter((item): item is ActionView => item !== null);
   const hasTalk = controls.some((item) => TALK_KINDS.has(item.kind));
@@ -58,6 +60,7 @@ export function NextActionBlock({ view, headingId, onAction, undeliveredHelpId }
         </p>
       )}
       {!storesLead && next.stores !== null ? <AffiliateLinkGroup stores={next.stores} /> : null}
+      {carrierChooser}
       {next.note === null ? null : (
         <p data-next-note="true" className="m-0 text-tt-sm text-tt-muted [word-break:keep-all]">
           {next.note}

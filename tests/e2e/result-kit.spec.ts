@@ -4,8 +4,8 @@ import { deriveTrackingView } from "@/lib/tracking/derive-view";
 import type { FailureCause, LookupOutcome, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
 import { INTERNAL_TEST_CREDENTIALS } from "../internal-auth";
 import {
-  OCTOBER_NOW, carrierCutData, customsWaitingData, deliveredData, inTransitData, lookupUnavailableData, pendingData, staleData,
-  success
+  OCTOBER_NOW, ambiguousData, carrierCutData, customsWaitingData, deliveredData, inTransitData, lookupUnavailableData, pendingData,
+  staleData, success
 } from "../fixtures/derive-scenarios";
 import { FIXTURE_NOW } from "../fixtures/tracking-fixtures";
 
@@ -321,4 +321,54 @@ test("blocked clipboard: copy-and-talk still opens 톡톡 with a selectable box;
     .poll(() => box.evaluate((element) => (element instanceof HTMLTextAreaElement ? element.selectionEnd - element.selectionStart : -1)))
     .toBe(waiting.returnLink.length);
   expect(await kitActions(page)).toEqual([{ kind: "copied", what: "returnLink", outcome: "fallback" }]);
+});
+
+test.describe("carrier chooser", () => {
+  test("ambiguous: a '택배사 선택' group of five 44 px radio chips; a pointer choice reports chooseCarrier", async ({ page }) => {
+    const view = viewFor(success(ambiguousData()));
+    await openKit(page);
+    await showView(page, view);
+    const group = page.locator('[data-cta-state="ambiguous"]').getByRole("group", { name: "택배사 선택" });
+    await expect(group.getByRole("radio")).toHaveCount(5);
+    await expect(group.locator("label")).toHaveText((view.nextAction.carrierChoices ?? []).map((choice) => choice.name));
+    const heights = await group.locator("label").evaluateAll((labels) => labels.map((label) => label.getBoundingClientRect().height));
+    expect(Math.min(...heights)).toBeGreaterThanOrEqual(44);
+    await group.getByRole("radio", { name: "한진택배" }).click();
+    expect(await kitActions(page)).toEqual([{ kind: "chooseCarrier", carrier: "HANJIN" }]);
+  });
+
+  test("a double click reports one choice", async ({ page }) => {
+    await openKit(page);
+    await showView(page, viewFor(success(ambiguousData())));
+    await page.getByRole("group", { name: "택배사 선택" }).getByText("롯데택배", { exact: true }).dblclick();
+    expect(await kitActions(page)).toEqual([{ kind: "chooseCarrier", carrier: "LOTTE" }]);
+  });
+
+  test("keyboard: arrows move without choosing; Space or Enter chooses the focused carrier", async ({ page }) => {
+    await openKit(page);
+    await showView(page, viewFor(success(ambiguousData())));
+    const group = page.getByRole("group", { name: "택배사 선택" });
+    await group.getByRole("radio", { name: "CJ대한통운" }).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(group.getByRole("radio", { name: "우체국택배" })).toBeFocused();
+    expect(await kitActions(page)).toEqual([]);
+    await page.keyboard.press("Space");
+    await page.keyboard.press("ArrowRight");
+    await expect(group.getByRole("radio", { name: "한진택배" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    expect(await kitActions(page)).toEqual([
+      { kind: "chooseCarrier", carrier: "EPOST" },
+      { kind: "chooseCarrier", carrier: "HANJIN" }
+    ]);
+  });
+
+  test("a carrier lookup delay without an official link offers the same chooser under its sentence", async ({ page }) => {
+    const view = viewFor(success(lookupUnavailableData("AUTO")));
+    await openKit(page);
+    await showView(page, view);
+    const cta = page.locator('[data-cta-state="lookupUnavailable"]');
+    await expect(cta.getByText(view.nextAction.sentence, { exact: true })).toBeVisible();
+    await expect(cta.getByRole("group", { name: "택배사 선택" }).getByRole("radio")).toHaveCount(5);
+    await expect(cta.locator('[data-slot="button"][data-variant="primary"]')).toHaveCount(0);
+  });
 });
