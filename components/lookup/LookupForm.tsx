@@ -3,6 +3,7 @@
 import type { RefObject } from "react";
 import { lookup as lookupConfig } from "@/config/site.config";
 import { FormatHint } from "@/components/lookup/FormatHint";
+import { INPUT_ASSIST_ID } from "@/components/lookup/InputAssist";
 import { NumberFinderHelp } from "@/components/lookup/NumberFinderHelp";
 import { Button } from "@/components/primitives/Button";
 import { ToneIcon } from "@/components/primitives/ToneIcon";
@@ -36,6 +37,11 @@ export interface LookupFormProps {
   readonly onValueChange: (value: string) => void;
   readonly onCarrierChange: (carrier: DeliveryCarrierCode) => void;
   readonly onSubmit: () => void;
+  /** Rendered right under the input (Task 6: paste notice, confusable question). */
+  readonly assist: React.ReactNode;
+  /** True while `assist` renders something; adds its id to aria-describedby. */
+  readonly assistVisible: boolean;
+  readonly onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => void;
 }
 
 /**
@@ -51,9 +57,12 @@ export function LookupForm({
   inputRef,
   onValueChange,
   onCarrierChange,
-  onSubmit
+  onSubmit,
+  assist,
+  assistVisible,
+  onPaste
 }: LookupFormProps): React.JSX.Element {
-  const describedBy = [FORMAT_HINT_ID, invalid ? ERROR_ID : null, invalid?.diagnosis ? DIAGNOSIS_ID : null]
+  const describedBy = [FORMAT_HINT_ID, assistVisible ? INPUT_ASSIST_ID : null, invalid ? ERROR_ID : null, invalid?.diagnosis ? DIAGNOSIS_ID : null]
     .filter((id): id is string => id !== null)
     .join(" ");
   return (
@@ -85,12 +94,14 @@ export function LookupForm({
         enterKeyHint="search"
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
+        onPaste={onPaste}
         aria-invalid={invalid ? true : undefined}
         aria-describedby={describedBy}
         className={`tt-focus mt-1 h-14 w-full rounded-none border-[3px] bg-tt-surface px-4 font-tt-mono text-tt-lg tracking-[0.04em] text-tt-ink ${
           invalid ? "border-tt-attention-ink" : "border-tt-ink"
         }`}
       />
+      {assist}
       {invalid ? (
         <div data-guide-key="invalidNumber" className="mt-2 flex flex-col gap-1">
           <p

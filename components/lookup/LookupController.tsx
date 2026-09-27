@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { lookup as lookupConfig, notices, stateGuide } from "@/config/site.config";
 import { FailureFallback } from "@/components/lookup/FailureFallback";
+import { InputAssist } from "@/components/lookup/InputAssist";
 import { getLoadedLegacyDeriver, LegacyRecommendations, LegacyResultSection, loadLegacyDeriver, type LegacyDeriver } from "@/components/lookup/LegacyResultSection";
 import { LookupForm } from "@/components/lookup/LookupForm";
 import { computeDisplay, outcomeKey, viewModeOf, type DerivedView, type InvalidInput, type LookupDisplay } from "@/components/lookup/lookup-display";
@@ -18,9 +19,9 @@ import type { LoadingConfig } from "@/lib/config/types";
 import type { LookupState } from "@/lib/tracking/lookup-state";
 import { saveRestoreEntry, type RestoreEntry } from "@/lib/privacy/session-restore";
 import { SCRUB_TIMEOUT_MS, scrubNumberFromUrl } from "@/lib/privacy/url-scrub";
-import { requestCarrierView } from "@/lib/tracking/carriers";
+import { CARRIER_NAMES, requestCarrierView } from "@/lib/tracking/carriers";
 import { groupTrackingNumber } from "@/lib/tracking/number-format";
-import { precheckNumber } from "@/lib/tracking/number-input";
+import { detectConfusables, extractFromPastedText, normalizeInput, pasteCarrierNotice, precheckNumber } from "@/lib/tracking/number-input";
 import type {
   LookupEntry,
   LookupOutcome,
@@ -137,6 +138,7 @@ export function LookupController({ entry, idleExtras }: LookupControllerProps): 
   const [formOpen, setFormOpen] = useState(entry.kind !== "deepLink");
   const [localInvalid, setLocalInvalid] = useState<InvalidInput | null>(() => initialInvalid(entry));
   const [derived, setDerived] = useState<DerivedView | null>(null);
+  const [pasted, setPasted] = useState<{ readonly carrierName: string; readonly previous: DeliveryCarrierCode } | null>(null);
   const [replay, setReplay] = useState<ReplayFrame | null>(null);
 
   // Overdue and every date are judged with the client clock at settle time (spec §6), never during render.
@@ -279,6 +281,7 @@ export function LookupController({ entry, idleExtras }: LookupControllerProps): 
 
   const openForm = useCallback(
     (how: "cancel" | "reset", request: LookupRequest | null) => {
+      setPasted(null);
       setReplay(null);
       if (how === "cancel") cancel();
       else reset();
@@ -290,10 +293,11 @@ export function LookupController({ entry, idleExtras }: LookupControllerProps): 
       setFormOpen(true);
       focusInputRef.current = true;
     },
-    [cancel, reset, setCarrier, setFormOpen, setInputValue, setLocalInvalid, setReplay]
+    [cancel, reset, setCarrier, setFormOpen, setInputValue, setLocalInvalid, setPasted, setReplay]
   );
 
   const handleSubmit = useCallback(() => {
+    setPasted(null);
     setReplay(null);
     const result = precheckNumber(inputValue);
     if (!result.ok) {
@@ -304,7 +308,39 @@ export function LookupController({ entry, idleExtras }: LookupControllerProps): 
     }
     setLocalInvalid(null);
     beginLookup({ number: result.number, carrier, entry: "manual" });
-  }, [beginLookup, cancel, carrier, inputValue, setLocalInvalid, setReplay, state.phase]);
+  }, [beginLookup, cancel, carrier, inputValue, setLocalInvalid, setPasted, setReplay, state.phase]);
+
+  const handlePaste = useCallback(
+    (event: React.ClipboardEvent<HTMLInputElement>) => {
+      const text = event.clipboardData.getData("text");
+      if (text === "" || precheckNumber(text).ok) return; // a bare number: the browser pastes it
+      const extraction = extractFromPastedText(text);
+      if (extraction === null) return; // zero or several candidates: the customer edits the text (Review Focus 1)
+      event.preventDefault();
+      setInputValue(extraction.number);
+      setLocalInvalid(null);
+      if (extraction.carrier === null || extraction.carrier === carrier) {
+        setPasted(null);
+        return;
+      }
+      const carrierName = CARRIER_NAMES[extraction.carrier];
+      setPasted({ carrierName, previous: carrier });
+      setCarrier(extraction.carrier);
+      announce(pasteCarrierNotice(carrierName));
+    },
+    [announce, carrier, setCarrier, setInputValue, setLocalInvalid, setPasted]
+  );
+
+  const handleUndoPaste = useCallback(() => {
+    if (pasted !== null) setCarrier(pasted.previous);
+    setPasted(null);
+    inputRef.current?.focus(); // the [되돌리기] button disappears; keep the keyboard in the form
+  }, [pasted, setCarrier, setPasted]);
+
+  const handleCarrierChange = useCallback((next: DeliveryCarrierCode) => {
+    setCarrier(next);
+    setPasted(null);
+  }, [setCarrier, setPasted]);
 
   const handleAction = useCallback(
     (action: ResultAction) => {
@@ -331,6 +367,8 @@ export function LookupController({ entry, idleExtras }: LookupControllerProps): 
     [activeRequest, beginLookup, openForm, retry, setCarrier]
   );
 
+  // The question is asked before submitting; once the pre-check error shows, the diagnosis carries it instead.
+  const confusable = display.kind === "form" && display.invalid === null ? detectConfusables(normalizeInput(inputValue)) : null;
   const numberBarAction =
     activeRequest === null ? null : (
       <Button variant="text" onClick={() => openForm(loadingLike ? "cancel" : "reset", activeRequest)}>
@@ -373,8 +411,11 @@ export function LookupController({ entry, idleExtras }: LookupControllerProps): 
               }
               inputRef={inputRef}
               onValueChange={setInputValue}
-              onCarrierChange={setCarrier}
+              onCarrierChange={handleCarrierChange}
               onSubmit={handleSubmit}
+              assist={<InputAssist confusable={confusable} pastedCarrierName={pasted?.carrierName ?? null} onUndo={handleUndoPaste} />}
+              assistVisible={confusable !== null || pasted !== null}
+              onPaste={handlePaste}
             />
           ) : (
             <NumberBar number={numberViewOf(display.request.number)} carrierLabel={carrierLabel} actions={numberBarAction} />

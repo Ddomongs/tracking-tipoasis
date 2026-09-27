@@ -129,3 +129,78 @@ test.describe("lookup input without JavaScript (S06)", () => {
     await expect(bar).toContainText("CJ대한통운");
   });
 });
+
+const NOTIFICATION = [
+  "[CJ대한통운] 고객님의 상품이 발송되었습니다.",
+  `운송장번호 ${FAKE_GROUPED.domestic.replaceAll(" ", "-")}`,
+  `배송 문의 ${FAKE.phone}`
+].join("\n");
+/** An order number shaped like Naver's 16-digit ones; fixture-safe (starts with 0000). */
+const ORDER_NUMBER = `0000${"0".repeat(11)}1`;
+
+async function pasteText(page: Page, text: string): Promise<void> {
+  await page.evaluate((value) => navigator.clipboard.writeText(value), text);
+  await trackingInput(page).focus();
+  await page.keyboard.press("ControlOrMeta+V");
+}
+
+test.describe("input assist (S06)", () => {
+  test.beforeEach(async ({ context, baseURL }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: baseURL ?? "http://127.0.0.1:43210" });
+  });
+
+  test("typing a letter O where a zero belongs shows the question before submitting", async ({ page }) => {
+    const bodies = await recordTrack(page);
+    await page.goto("/");
+    await trackingInput(page).fill(FAKE.invalidConfusable);
+    await expect(page.locator("#tracking-input-assist")).toHaveText("영문 O가 섞여 있어요. 숫자 0인가요?");
+    const describedBy = (await trackingInput(page).getAttribute("aria-describedby")) ?? "";
+    expect(describedBy.split(" ")).toContain("tracking-input-assist");
+    await expect(page.locator('[data-lookup-form="true"]').getByRole("alert")).toHaveCount(0);
+    expect(bodies).toEqual([]);
+  });
+
+  test("a submitted confusable number names the value and the likely fix", async ({ page }) => {
+    const bodies = await recordTrack(page);
+    await page.goto("/");
+    await trackingInput(page).fill(FAKE.invalidConfusable);
+    await trackingInput(page).press("Enter");
+    const error = page.locator('[data-guide-key="invalidNumber"]');
+    await expect(error.getByRole("alert")).toHaveText(stateGuide.invalidNumber.title);
+    await expect(error).toContainText(`입력하신 값: ${FAKE.invalidConfusable} → 영문 O가 섞여 있어요. 숫자 0인가요?`);
+    await expect(page.locator("#tracking-input-assist")).toHaveCount(0);
+    await waitForIdle(page);
+    expect(bodies).toEqual([]);
+  });
+
+  test("a pasted notification sets the number and the carrier, and 되돌리기 restores the carrier", async ({ page }) => {
+    await page.goto("/");
+    await pasteText(page, NOTIFICATION);
+    await expect(trackingInput(page)).toHaveValue(FAKE.domestic);
+    const carrier = page.getByRole("combobox", { name: "국내 택배사" });
+    await expect(carrier).toHaveValue("CJ");
+    const assist = page.locator("#tracking-input-assist");
+    await expect(assist).toContainText("택배사를 CJ대한통운으로 맞췄어요");
+    await expect(page.locator('[data-live-region="polite"]')).toHaveText("택배사를 CJ대한통운으로 맞췄어요");
+    await assist.getByRole("button", { name: "되돌리기" }).click();
+    await expect(carrier).toHaveValue("AUTO");
+    await expect(assist).toHaveCount(0);
+    await expect(trackingInput(page)).toBeFocused();
+  });
+
+  test("a pasted text with two number candidates is left for the customer to edit", async ({ page }) => {
+    await page.goto("/");
+    const text = `주문번호 ${ORDER_NUMBER} 운송장 ${FAKE.domestic}`;
+    await pasteText(page, text);
+    await expect(trackingInput(page)).toHaveValue(text);
+    await expect(page.getByRole("combobox", { name: "국내 택배사" })).toHaveValue("AUTO");
+    await expect(page.locator("#tracking-input-assist")).toHaveCount(0);
+  });
+
+  test("pasting a bare number just pastes it", async ({ page }) => {
+    await page.goto("/");
+    await pasteText(page, FAKE_GROUPED.domestic);
+    await expect(trackingInput(page)).toHaveValue(FAKE_GROUPED.domestic);
+    await expect(page.locator("#tracking-input-assist")).toHaveCount(0);
+  });
+});
