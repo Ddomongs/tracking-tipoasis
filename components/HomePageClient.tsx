@@ -1,36 +1,51 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { motion, MotionConfig, useReducedMotion } from "framer-motion";
 import { AssuranceRail } from "@/components/AssuranceRail";
 import { CustomerCta } from "@/components/CustomerCta";
 import type { ResultCustomerCtaState } from "@/components/CustomerCta";
-import { motion, MotionConfig, useReducedMotion } from "framer-motion";
 import { CustomsTimeline } from "@/components/CustomsTimeline";
 import { DeliveryTimeline } from "@/components/DeliveryTimeline";
-import { ErrorMessage } from "@/components/ErrorMessage";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { LogisticsFlow } from "@/components/LogisticsFlow";
+import { RecommendedProducts } from "@/components/RecommendedProducts";
+import { ReturnLinkButton } from "@/components/ReturnLinkButton";
 import { ServiceGuide } from "@/components/ServiceGuide";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { StoreContactPopup } from "@/components/StoreContactPopup";
 import { StorefrontShowcase } from "@/components/StorefrontShowcase";
-import { RecommendedProducts } from "@/components/RecommendedProducts";
-import { ReturnLinkButton } from "@/components/ReturnLinkButton";
 import { TrackingForm } from "@/components/TrackingForm";
-import type { TrackingFormSubmitSource } from "@/components/TrackingForm";
 import { TrackingResultSummary } from "@/components/TrackingResultSummary";
+import { useLookup } from "@/components/lookup/useLookup";
+import { LiveAnnouncerProvider, useAnnounce } from "@/components/primitives/LiveAnnouncer";
+import { StatusSlot } from "@/components/status-slot/StatusSlot";
+import { deriveStatusView } from "@/components/status-slot/status-view";
 import { Card } from "@/components/ui/card";
+import { lookup as lookupSettings, notices } from "@/config/site.config";
 import { setAdSignals } from "@/lib/ads/ad-signals";
+import type { LoadingConfig } from "@/lib/config/types";
 import { currentNavigationKind, readRestoreEntry, saveRestoreEntry } from "@/lib/privacy/session-restore";
 import type { RestoreEntry } from "@/lib/privacy/session-restore";
 import { SCRUB_TIMEOUT_MS, scrubNumberFromUrl } from "@/lib/privacy/url-scrub";
+import { INITIAL_LOOKUP_STATE } from "@/lib/tracking/lookup-state";
+import type { LookupOutcome, LookupRequest, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
 import type { DeliveryCarrierCode, TrackResponseData } from "@/lib/types";
 
 type HomePageClientProps = {
   initialTrackingNumber: string;
 };
 
+const LOADING_CONFIG: LoadingConfig = { lookup: lookupSettings, notices };
+
+/** Transitional normalization of a typed number (S06's normalizeInput replaces it): half-width digits, no spaces or hyphens, uppercase. */
+const toRequestNumber = (value: string): string =>
+  value
+    .replace(/[０-９]/g, (digit) => String.fromCharCode(digit.charCodeAt(0) - 0xfee0))
+    .replace(/[\s-]/g, "")
+    .toUpperCase();
+
+// S04-BRIDGE:settled — legacy result section helpers until Task 6 of the S04 plan.
 const getResultCustomerCtaState = (data: TrackResponseData): ResultCustomerCtaState => {
   if (data.delivery.ambiguous) return "pending";
   if (data.delivery.lookupUnavailable) return "pending";
@@ -39,7 +54,31 @@ const getResultCustomerCtaState = (data: TrackResponseData): ResultCustomerCtaSt
   return "inTransit";
 };
 
-// Session restore (spec §3): only in reload/back_forward documents, read once per document, and dropped as
+const getDeliveryWaitingMessage = (data: TrackResponseData): string | undefined => {
+  if (data.delivery.events.length > 0) return undefined;
+
+  if (data.delivery.ambiguous) {
+    return "같은 번호가 여러 택배사에서 확인됐습니다. 위에서 택배사를 선택해 다시 조회해 주세요.";
+  }
+
+  if (data.delivery.lookupUnavailable) {
+    return data.delivery.trackingUrl
+      ? "택배사 조회가 지연되고 있습니다. 아래 링크에서 확인해 주세요."
+      : "자동 조회가 지연되고 있습니다. 위에서 택배사를 선택해 다시 조회해 주세요.";
+  }
+
+  if (data.isPending) {
+    return "상품이 아직 국내 도착 전이라 통관·배송 내역이 없습니다. 구매한 쇼핑몰을 선택하거나 톡톡으로 문의해 주세요.";
+  }
+
+  if (data.customs.events.length > 0 && data.currentStatusCode >= 4) {
+    return "택배사 인계를 기다리고 있습니다. 보통 통관 완료 후 0~1영업일 내 인계됩니다.";
+  }
+
+  return undefined;
+};
+
+// Session restore (spec §3, S02): only in reload/back_forward documents, read once per document, and dropped as
 // soon as any lookup starts in this document (so an in-app return to '/' does not replay it). The server
 // snapshot is null, so the static '/' HTML and the first client render stay identical.
 let restoreSnapshot: RestoreEntry | null | undefined;
@@ -57,8 +96,9 @@ const markRestoreConsumed = (): void => {
   restoreConsumed = true;
 };
 
-// Same-address history entry (spec §3 뒤로가기): when a manual lookup settles on '/', push '/' once more so that
-// Back returns to the lookup form instead of leaving the site. Kept only because the local-router regression passes.
+// S02-HISTORY-ENTRY:BEGIN
+// Same-address history entry (spec §3 뒤로가기, S02 Task 11): when a manual lookup settles on '/', push '/' once more so that
+// Back returns to the lookup form instead of leaving the site.
 const LOOKUP_HISTORY_MARK = "ttLookup";
 const isLookupHistoryEntry = (state: unknown): boolean =>
   typeof state === "object" && state !== null && LOOKUP_HISTORY_MARK in state;
@@ -68,18 +108,27 @@ const pushLookupHistoryEntry = (): void => {
   if (isLookupHistoryEntry(window.history.state)) return;
   window.history.pushState({ [LOOKUP_HISTORY_MARK]: true }, "", "/");
 };
+// S02-HISTORY-ENTRY:END
 
-export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) => {
-  const [result, setResult] = useState<TrackResponseData | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const resultTopRef = useRef<HTMLHeadingElement | null>(null);
-  const lastOutcomeRef = useRef<{ readonly result: TrackResponseData | null; readonly error: string } | null>(null);
-  const manualLookupPendingRef = useRef(false);
+/** Any of these since the page loaded means the customer is busy elsewhere: a deep-link result then must not take focus (spec §5). */
+const INTERACTION_EVENTS = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
+
+type FocusTarget = "heading" | "input" | null;
+
+function HomePageContent({ initialTrackingNumber }: HomePageClientProps) {
   const prefersReducedMotion = useReducedMotion();
+  const announce = useAnnounce();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const interactedRef = useRef(false);
+  const focusTargetRef = useRef<FocusTarget>(null);
+  const startedInitialRef = useRef<string | null>(null);
+  const manualLookupPendingRef = useRef(false); // S02-HISTORY-ENTRY
+  const [view, setView] = useState<TrackingViewModel | null>(null);
+  const [resultHidden, setResultHidden] = useState(false);
 
-  // Candidate B (spec §3): TrackingForm's effect has already started the lookup. Now, once the App Router
-  // has committed, stash the number for restore, remove it from the URL, and report the result to the ad gate.
+  // Candidate B (spec §3, S02): the lookup has already started (effect below). Once the App Router has committed, stash the number
+  // for restore, remove it from the URL, and report the result to the ad gate.
   useEffect(() => {
     if (!initialTrackingNumber) return;
     void scrubNumberFromUrl({
@@ -92,94 +141,139 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
 
   const restoreEntry = useSyncExternalStore(subscribeToNothing, getRestoreSnapshot, getServerRestoreSnapshot);
   const restoredRequest = initialTrackingNumber ? null : restoreEntry;
+  const initialRequest = useMemo<LookupRequest | null>(() => {
+    if (initialTrackingNumber) return { number: toRequestNumber(initialTrackingNumber), carrier: "AUTO", entry: "deepLink" };
+    if (restoredRequest) return { number: restoredRequest.number, carrier: restoredRequest.carrier, entry: "restore" };
+    return null;
+  }, [initialTrackingNumber, restoredRequest]);
+  const initialKey = initialRequest === null ? null : `${initialRequest.entry}:${initialRequest.number}:${initialRequest.carrier}`;
 
-  const handleSubmitted = useCallback(
-    (number: string, carrier: DeliveryCarrierCode, source: TrackingFormSubmitSource) => {
-      markRestoreConsumed();
-      saveRestoreEntry({ number, carrier, savedAt: Date.now() });
-      manualLookupPendingRef.current = source === "manual";
+  const [value, setValue] = useState(initialTrackingNumber);
+  const [carrier, setCarrier] = useState<DeliveryCarrierCode>("AUTO");
+  const [syncedInitialKey, setSyncedInitialKey] = useState<string | null>(null);
+  // A deep link or a restored lookup fills the form during render rather than in an effect (S02 pattern).
+  if (initialRequest !== null && initialKey !== syncedInitialKey) {
+    setSyncedInitialKey(initialKey);
+    setValue(initialRequest.number);
+    setCarrier(initialRequest.carrier);
+  }
+
+  const handleSettled = useCallback(
+    (outcome: LookupOutcome, now: Date) => {
+      const next = deriveStatusView(outcome, now);
+      setView(next);
+      if (next.mode === "settled") announce(next.liveMessage);
+      const fromLink = outcome.request.entry === "deepLink" || outcome.request.entry === "restore";
+      focusTargetRef.current = fromLink && interactedRef.current ? null : next.guideKey === "invalidNumber" ? "input" : "heading";
+      // S02-HISTORY-ENTRY:BEGIN
+      if (manualLookupPendingRef.current) {
+        manualLookupPendingRef.current = false;
+        pushLookupHistoryEntry();
+      }
+      // S02-HISTORY-ENTRY:END
     },
-    []
+    [announce]
   );
 
+  const { state, loading, submit, retry, cancel } = useLookup({ config: LOADING_CONFIG, onSettled: handleSettled });
+
+  /** Every lookup start overwrites the tab's restore entry and consumes a pending restore (S02). */
+  const beginLookup = useCallback(
+    (request: LookupRequest) => {
+      markRestoreConsumed();
+      saveRestoreEntry({ number: request.number, carrier: request.carrier, savedAt: Date.now() });
+      manualLookupPendingRef.current = request.entry === "manual"; // S02-HISTORY-ENTRY
+      submit(request);
+    },
+    [submit]
+  );
+
+  // Deep links and restored lookups start right after hydration (candidate B ②); the ref keeps Strict Mode from starting twice.
+  useEffect(() => {
+    if (initialRequest === null || startedInitialRef.current === initialKey) return;
+    startedInitialRef.current = initialKey;
+    beginLookup(initialRequest);
+  }, [beginLookup, initialKey, initialRequest]);
+
+  useEffect(() => {
+    const markInteracted = (): void => {
+      interactedRef.current = true;
+    };
+    for (const name of INTERACTION_EVENTS) window.addEventListener(name, markInteracted, { capture: true, passive: true });
+    return () => {
+      for (const name of INTERACTION_EVENTS) window.removeEventListener(name, markInteracted, { capture: true });
+    };
+  }, []);
+
+  // After a settled view is on screen: focus the visible status heading, or the input for a malformed number (spec §5).
+  useEffect(() => {
+    const target = focusTargetRef.current;
+    if (target === null || view === null) return;
+    focusTargetRef.current = null;
+    if (target === "input") inputRef.current?.focus();
+    else headingRef.current?.focus();
+  }, [view]);
+
+  // S02-HISTORY-ENTRY:BEGIN
   useEffect(() => {
     const onPopState = (event: PopStateEvent): void => {
       if (window.location.pathname !== "/") return;
-      if (isLookupHistoryEntry(event.state)) {
-        const last = lastOutcomeRef.current;
-        if (!last) return;
-        setResult(last.result);
-        setError(last.error);
-        return;
-      }
-      setResult(null);
-      setError("");
+      setResultHidden(!isLookupHistoryEntry(event.state));
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
+  // S02-HISTORY-ENTRY:END
 
-  const handleSuccess = useCallback((data: TrackResponseData) => {
-    setResult(data);
-    setError("");
-    lastOutcomeRef.current = { result: data, error: "" };
-    if (manualLookupPendingRef.current) {
-      manualLookupPendingRef.current = false;
-      pushLookupHistoryEntry();
+  const handleFormSubmit = useCallback(() => {
+    const number = toRequestNumber(value);
+    if (number === "") {
+      inputRef.current?.focus();
+      return;
     }
+    setResultHidden(false);
+    beginLookup({ number, carrier, entry: "manual" });
+  }, [beginLookup, carrier, value]);
 
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        resultTopRef.current?.focus({ preventScroll: true });
-        resultTopRef.current?.scrollIntoView({
-          behavior: prefersReducedMotion ? "auto" : "smooth",
-          block: "start"
-        });
-      });
-    });
-  }, [prefersReducedMotion]);
+  const handleAction = useCallback(
+    (action: ResultAction) => {
+      switch (action.kind) {
+        case "fixNumber":
+          inputRef.current?.focus();
+          inputRef.current?.select();
+          return;
+        case "retry":
+          retry();
+          return;
+        case "cancel":
+          cancel();
+          inputRef.current?.focus();
+          return;
+        case "chooseCarrier":
+          setCarrier(action.carrier);
+          beginLookup({ number: view?.number.raw ?? toRequestNumber(value), carrier: action.carrier, entry: "carrierChip" });
+          return;
+        case "copied":
+        case "openedExternal":
+          return;
+      }
+    },
+    [beginLookup, cancel, retry, value, view]
+  );
 
-  const handleError = useCallback((message: string) => {
-    setError(message);
-    if (!message) return;
-    setResult(null);
-    lastOutcomeRef.current = { result: null, error: message };
-    if (manualLookupPendingRef.current) {
-      manualLookupPendingRef.current = false;
-      pushLookupHistoryEntry();
-    }
-  }, []);
-
-  const getDeliveryWaitingMessage = (data: TrackResponseData): string | undefined => {
-    if (data.delivery.events.length > 0) return undefined;
-
-    if (data.delivery.ambiguous) {
-      return "같은 번호가 여러 택배사에서 확인됐습니다. 위에서 택배사를 선택해 다시 조회해 주세요.";
-    }
-
-    if (data.delivery.lookupUnavailable) {
-      return data.delivery.trackingUrl
-        ? "택배사 조회가 지연되고 있습니다. 아래 링크에서 확인해 주세요."
-        : "자동 조회가 지연되고 있습니다. 위에서 택배사를 선택해 다시 조회해 주세요.";
-    }
-
-    if (data.isPending) {
-      return "상품이 아직 국내 도착 전이라 통관·배송 내역이 없습니다. 구매한 쇼핑몰을 선택하거나 톡톡으로 문의해 주세요.";
-    }
-
-    if (data.customs.events.length > 0 && data.currentStatusCode >= 4) {
-      return "택배사 인계를 기다리고 있습니다. 보통 통관 완료 후 0~1영업일 내 인계됩니다.";
-    }
-
-    return undefined;
-  };
-
-  const showStorefront = !loading && !error && (!result || result.currentStatusCode === 7);
+  const slotState = resultHidden ? INITIAL_LOOKUP_STATE : state;
+  const slotView = resultHidden ? null : view;
+  const idle = slotState.phase === "idle";
+  const busy = state.phase === "loading";
+  const invalid = slotState.phase === "error" && slotView?.guideKey === "invalidNumber";
+  const settledData = slotState.phase === "settled" ? slotState.outcome.data : null;
+  // Store link and showcase keep the pre-renewal rule until Task 7 of the S04 plan narrows them to the idle page.
+  const showStorefront = idle || settledData?.currentStatusCode === 7;
 
   return (
     <MotionConfig reducedMotion="user">
       <SiteHeader showStorefront={showStorefront} />
-      <StoreContactPopup visible={!loading && !error && !result} />
+      <StoreContactPopup visible={idle} />
       <main id="main-content" className="mx-auto min-h-[100dvh] w-full max-w-6xl px-4 pb-10 sm:px-6">
         <section id="tracking" data-ad-exclude="true" className="scroll-mt-24 pb-9 pt-4 sm:pb-14 sm:pt-10">
           <motion.div
@@ -218,14 +312,17 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
                 </p>
                 <div className="mt-6">
                   <TrackingForm
-                    onSuccess={handleSuccess}
-                    onError={handleError}
-                    onLoading={setLoading}
-                    onSubmitted={handleSubmitted}
-                    initialTrackingNumber={initialTrackingNumber || restoredRequest?.number || ""}
-                    initialCarrier={restoredRequest?.carrier}
+                    value={value}
+                    onValueChange={setValue}
+                    carrier={carrier}
+                    onCarrierChange={setCarrier}
+                    onSubmit={handleFormSubmit}
+                    busy={busy}
+                    invalid={invalid}
+                    inputRef={inputRef}
                     surface="light"
                   />
+                  <StatusSlot state={slotState} loading={loading} view={slotView} onAction={handleAction} headingRef={headingRef} />
                 </div>
               </div>
             </Card>
@@ -237,42 +334,24 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
         </section>
 
         <div className="mx-auto max-w-5xl">
-          {error && !loading ? (
-            <section className="mb-8 space-y-3" aria-live="assertive">
-              <ErrorMessage message={error} />
+          {/* S04-BRIDGE:error — legacy error CTA block until Task 5 of the S04 plan. */}
+          {slotState.phase === "error" ? (
+            <section className="mb-8 space-y-3">
               <CustomerCta variant="result" state="error" />
             </section>
           ) : null}
 
-          {loading ? (
-            <section aria-live="polite" aria-busy="true">
-              <p className="sr-only">배송 정보를 조회하고 있습니다.</p>
-              <LoadingSpinner />
-            </section>
-          ) : result ? (
-            <motion.section
-              className="space-y-4 pb-8"
-              aria-labelledby="tracking-result-title"
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: prefersReducedMotion ? 0 : 0.3 }}
-            >
-              <h2
-                ref={resultTopRef}
-                id="tracking-result-title"
-                tabIndex={-1}
-                className="sr-only scroll-mt-24 outline-none"
-              >
+          {/* S04-BRIDGE:settled — legacy result section until Task 6 of the S04 plan. */}
+          {settledData ? (
+            <section className="space-y-4 pb-8" aria-labelledby="tracking-result-title" data-ad-exclude="true">
+              <h2 ref={headingRef} id="tracking-result-title" tabIndex={-1} className="sr-only scroll-mt-24 outline-none">
                 배송 조회 결과
               </h2>
-              <p role="status" className="sr-only">
-                현재 배송 상태는 {result.currentStatus}입니다.
-              </p>
-              <TrackingResultSummary data={result} />
+              <TrackingResultSummary data={settledData} />
               <ReturnLinkButton
-                key={`${result.trackingNumber}:${result.delivery.carrierCode}`}
-                number={result.trackingNumber}
-                carrier={result.delivery.carrierCode}
+                key={`${settledData.trackingNumber}:${settledData.delivery.carrierCode}`}
+                number={settledData.trackingNumber}
+                carrier={settledData.delivery.carrierCode}
               />
               <section className="space-y-3 pt-3" aria-labelledby="tracking-details-title">
                 <div>
@@ -281,26 +360,32 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
                 </div>
                 <div className="grid items-start gap-4 lg:grid-cols-2">
                   <div className="order-2 lg:order-1">
-                    <CustomsTimeline events={result.customs.events} />
+                    <CustomsTimeline events={settledData.customs.events} />
                   </div>
                   <div className="order-1 lg:order-2">
-                    <DeliveryTimeline delivery={result.delivery} waitingMessage={getDeliveryWaitingMessage(result)} />
+                    <DeliveryTimeline delivery={settledData.delivery} waitingMessage={getDeliveryWaitingMessage(settledData)} />
                   </div>
                 </div>
               </section>
-              <CustomerCta variant="result" state={getResultCustomerCtaState(result)} />
+              <CustomerCta variant="result" state={getResultCustomerCtaState(settledData)} />
               <RecommendedProducts
-                statusCode={result.currentStatusCode}
-                isPending={result.isPending || result.delivery.lookupUnavailable || result.delivery.ambiguous}
+                statusCode={settledData.currentStatusCode}
+                isPending={settledData.isPending || settledData.delivery.lookupUnavailable || settledData.delivery.ambiguous}
               />
-            </motion.section>
+            </section>
           ) : null}
         </div>
 
-        {!loading && !error && showStorefront ? <StorefrontShowcase /> : null}
+        {showStorefront ? <StorefrontShowcase /> : null}
         <ServiceGuide />
         <SiteFooter />
       </main>
     </MotionConfig>
   );
-};
+}
+
+export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) => (
+  <LiveAnnouncerProvider>
+    <HomePageContent initialTrackingNumber={initialTrackingNumber} />
+  </LiveAnnouncerProvider>
+);
