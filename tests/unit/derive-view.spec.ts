@@ -15,6 +15,7 @@ import {
   movedEstimateData, pendingData, pickedUpData, staleData, success
 } from "../fixtures/derive-scenarios";
 import { FAKE, FAKE_GROUPED, FIXTURE_NOW, GAP3_06_VARIANTS, trackData } from "../fixtures/tracking-fixtures";
+import { formatKstDate } from "@/lib/tracking/time";
 import type { FixtureState } from "../fixtures/tracking-fixtures";
 
 const CONFIG = FIXTURE_CONFIG;
@@ -668,4 +669,14 @@ test.describe("GAP3-06: 12 state variants and the 5 API error codes show 0 contr
     ];
     expect(views.flatMap(contradictions)).toEqual([]);
   });
+});
+
+test("a cleared shipment without customs events (a domestic lookup) still shows the clearance date from the estimate", () => {
+  const data: TrackResponseData = { ...pickedUpData(), customs: { events: [] } };
+  const view = deriveTrackingView(success(data), PICKUP_NOW, CONFIG);
+  const estimate = data.estimatedCustomsClearanceDate;
+  if (estimate === undefined) throw new Error("fixture has no customs estimate");
+  const expected = CONFIG.resultCopy.customsDoneCaption.replace("{date}", formatKstDate(new Date(estimate)));
+  expect(view.eta.kind === "date" || view.eta.kind === "today" || view.eta.kind === "holidayAffected").toBe(true);
+  expect("caption" in view.eta ? view.eta.caption : null).toBe(expected);
 });

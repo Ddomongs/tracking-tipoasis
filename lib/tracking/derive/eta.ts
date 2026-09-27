@@ -35,7 +35,11 @@ function captionFor(input: EtaInput): string | null {
   }
   if (CUSTOMS_DONE_KEYS.has(key)) {
     const cleared = latestEvent(events, (item) => item.event.statusCode === 4);
-    return cleared === null ? null : fillSlots(config.resultCopy.customsDoneCaption, { date: formatKstDate(cleared.at) });
+    if (cleared !== null) return fillSlots(config.resultCopy.customsDoneCaption, { date: formatKstDate(cleared.at) });
+    // No code-4 event (a domestic lookup without customs data): the normalizer's clearance date, the same fallback
+    // the worry-date base uses (contract addition 8).
+    const clearedOn = isoToKey(data.estimatedCustomsClearanceDate);
+    return clearedOn === null ? null : fillSlots(config.resultCopy.customsDoneCaption, { date: formatKstDate(clearedOn) });
   }
   return null;
 }
