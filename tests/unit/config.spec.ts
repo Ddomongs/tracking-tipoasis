@@ -5,6 +5,7 @@ import {
 import { SiteConfigSchema, formatConfigIssues } from "@/lib/config/schema";
 import { GUIDE_KEYS } from "@/lib/tracking/types";
 import { FIXTURE_CONFIG, withConfig } from "../fixtures/config-fixtures";
+import { FAKE } from "../fixtures/tracking-fixtures";
 
 function issuesOf(value: unknown): string {
   const result = SiteConfigSchema.safeParse(value);
@@ -192,5 +193,176 @@ test.describe("Korean issue lines", () => {
 
   test("a blank required text is rejected", () => {
     expect(issuesOf(withConfig({ resultCopy: { etaLabel: " " } }))).toContain("resultCopy.etaLabel: 빈 문구입니다");
+  });
+});
+
+test.describe("config invariants", () => {
+  test("problem states and loading carry no stores, recommendations or ads", () => {
+    const issues = issuesOf(withConfig({
+      stateGuide: {
+        stale: { stores: "ctaLead" }, serverError: { revenueTier: "quiet" },
+        ambiguous: { recommendations: "inline" }, loading: { stores: "shortcutRow" }
+      }
+    }));
+    expect(issues).toContain("stateGuide.stale.stores: 문제 상태에는 스토어를 둘 수 없습니다");
+    expect(issues).toContain("stateGuide.serverError.revenueTier: 문제 상태에는 광고를 둘 수 없습니다");
+    expect(issues).toContain("stateGuide.ambiguous.recommendations: 문제 상태에는 추천 상품을 둘 수 없습니다");
+    expect(issues).toContain("stateGuide.loading.stores: 조회 중에는 스토어를 둘 수 없습니다");
+  });
+
+  test("in transit shows no stores", () => {
+    expect(issuesOf(withConfig({ stateGuide: { inTransit: { stores: "ctaLead" } } })))
+      .toContain("stateGuide.inTransit.stores: 배송 중에는 스토어를 둘 수 없습니다");
+  });
+
+  test("delivered leads with the stores", () => {
+    const issues = issuesOf(withConfig({ stateGuide: { delivered: { stores: "none", primaryAction: "none" } } }));
+    expect(issues).toContain("stateGuide.delivered.stores: 배송 완료는 스토어가 먼저 와야 합니다");
+    expect(issues).toContain("stateGuide.delivered.primaryAction: 배송 완료는 스토어가 먼저 와야 합니다");
+  });
+
+  test("pending offers inquiry and purchase choices", () => {
+    const issues = issuesOf(withConfig({ stateGuide: { pending: { stores: "none", inquiryLevel: "textLink" } } }));
+    expect(issues).toContain("stateGuide.pending.stores: 국내 도착 전에는 구매처 선택지가 있어야 합니다");
+    expect(issues).toContain("stateGuide.pending.inquiryLevel: 국내 도착 전에는 문의 버튼이 있어야 합니다");
+  });
+
+  test("affiliate links need the disclosure; without affiliate links it may be empty", () => {
+    expect(issuesOf(withConfig({ disclosures: { coupang: " " } })))
+      .toContain("disclosures.coupang: 제휴 링크에는 고지 문구가 필요합니다");
+    expect(issuesOf(withConfig({ disclosures: { coupang: "" }, channels: { coupang: { isAffiliate: false } }, featuredProducts: [] })))
+      .not.toContain("disclosures.coupang");
+  });
+
+  test("copy with a real-looking number, an HBL token or AI wording fails", () => {
+    const notice = { ...FIXTURE_CONFIG.notices[0], body: `택배 ${FAKE.domestic} 확인해 주세요` };
+    const helpEntry = { ...FIXTURE_CONFIG.help[0], body: ["안내", `${FAKE.hbl} 확인`] };
+    const issues = issuesOf(withConfig({
+      notices: [notice],
+      help: [helpEntry],
+      stateGuide: { inTransit: { reason: "AI가 위치를 알려 드려요" } },
+      resultCopy: { carrierCutLine: "배송 로봇이 늦어요" }
+    }));
+    expect(issues).toContain("notices[0].body: 10자리 이상 숫자를 쓸 수 없습니다");
+    expect(issues).toContain("help[0].body[1]: HBL 형식 번호를 쓸 수 없습니다");
+    expect(issues).toContain("stateGuide.inTransit.reason: AI·인공지능·로봇·봇 표현을 쓸 수 없습니다");
+    expect(issues).toContain("resultCopy.carrierCutLine: AI·인공지능·로봇·봇 표현을 쓸 수 없습니다");
+  });
+
+  test("all-zero placeholders, clock times and short digit runs are allowed", () => {
+    const notice = { ...FIXTURE_CONFIG.notices[0], body: "예: 0000 0000 0000 · 22:00~24:00 점검 · 1~2일" };
+    expect(issuesOf(withConfig({ notices: [notice] }))).toBe("");
+  });
+
+  test("stateGuide copy uses only the five tokens; other copy uses none or its fixed slots", () => {
+    const issues = issuesOf(withConfig({
+      stateGuide: { customsWaiting: { worry: "{orderId}에 {worryDate}까지 그대로면 알려 주세요" } },
+      notices: [{ ...FIXTURE_CONFIG.notices[0], title: "{etaDate} 안내" }],
+      resultCopy: { historySummary: "처리 내역 보기", actionRetry: "{carrier} 다시 조회" },
+      lookup: { copy: { elapsed: "경과" } }
+    }));
+    expect(issues).toContain("stateGuide.customsWaiting.worry: 허용되지 않은 토큰 {orderId}입니다");
+    expect(issues).toContain("notices[0].title: 이 문구에는 토큰을 쓸 수 없습니다");
+    expect(issues).toContain("resultCopy.historySummary: {n} 자리가 필요합니다");
+    expect(issues).toContain("resultCopy.actionRetry: 허용되지 않은 토큰 {carrier}입니다");
+    expect(issues).toContain("lookup.copy.elapsed: {seconds} 자리가 필요합니다");
+  });
+
+  test("staleDays must equal the server's 14", () => {
+    expect(issuesOf(withConfig({ durations: { staleDays: 15 } })))
+      .toContain("durations.staleDays: 서버 기준(14일)과 같아야 합니다");
+  });
+
+  test("notice limits, windows and ids", () => {
+    const base = FIXTURE_CONFIG.notices[0];
+    const issues = issuesOf(withConfig({
+      notices: [
+        { ...base, id: "a", title: "가".repeat(21) },
+        { ...base, id: "b", body: "나".repeat(81) },
+        { ...base, id: "c", startsAt: "2026-09-29T00:00:00+09:00", endsAt: "2026-09-21T00:00:00+09:00" },
+        { ...base, id: "c" }
+      ]
+    }));
+    expect(issues).toContain("notices[0].title: 제목은 20자 이하여야 합니다");
+    expect(issues).toContain("notices[1].body: 본문은 80자 이하여야 합니다");
+    expect(issues).toContain("notices[2].endsAt: 종료 시각이 시작보다 빠릅니다");
+    expect(issues).toContain("notices[3].id: 같은 id가 이미 있습니다");
+    expect(issuesOf(withConfig({ notices: [{ ...base, title: "가".repeat(20), body: "나".repeat(80) }] }))).toBe("");
+  });
+
+  test("links must be https on an allowed host", () => {
+    const issues = issuesOf(withConfig({
+      channels: {
+        naver: { urls: { pending: "http://mkt.shopping.naver.com/link/x" } },
+        coupang: { urls: { deliveredLead: "https://example.com/x" } }
+      }
+    }));
+    expect(issues).toContain("channels.naver.urls.pending: https 주소만 쓸 수 있습니다");
+    expect(issues).toContain("channels.coupang.urls.deliveredLead: 허용 목록에 없는 호스트입니다: example.com");
+  });
+
+  test("overdue titles exist exactly for the six progress states, with a {worryDate} worry line", () => {
+    const issues = issuesOf(withConfig({
+      stateGuide: {
+        customsWaiting: { overdueTitle: null },
+        delivered: { overdueTitle: "{worryDate}이 지났어요" },
+        inTransit: { worry: "곧 도착해요" }
+      }
+    }));
+    expect(issues).toContain("stateGuide.customsWaiting.overdueTitle: 기준일이 지난 상태의 제목이 필요합니다");
+    expect(issues).toContain("stateGuide.delivered.overdueTitle: 이 상태에는 기준일 경과 제목을 쓸 수 없습니다");
+    expect(issues).toContain("stateGuide.inTransit.worry: {worryDate} 자리가 필요합니다");
+  });
+
+  test("day counts in the copy follow the durations", () => {
+    const issues = issuesOf(withConfig({
+      durations: { worry: { notFoundDays: 5, pendingDays: 12 }, stages: { visibleAfterDeparture: { min: 2, max: 6 } } }
+    }));
+    expect(issues).toContain("stateGuide.notFound.worry: 걱정 기준(5일)과 문구가 다릅니다");
+    expect(issues).toContain("stateGuide.pending.worry: 걱정 기준(12일)과 문구가 다릅니다");
+    expect(issues).toContain("stateGuide.notFound.reason: 조회 가능 시점(2~6일)과 문구가 다릅니다");
+  });
+
+  test("state-table sanity rules", () => {
+    const issues = issuesOf(withConfig({
+      stateGuide: {
+        stale: { tone: "problem", etaMode: "estimate" },
+        customsWaiting: { primaryAction: "copyAndTalk" },
+        pending: { etaMode: "estimate" },
+        customsCleared: { docTitle: "통관 {carrier} 완료" }
+      }
+    }));
+    expect(issues).toContain("stateGuide.stale.tone: 빨간 톤은 오류 상태에만 쓸 수 있습니다");
+    expect(issues).toContain("stateGuide.stale.etaMode: 정체 상태는 예상일 대신 확인 안내를 보여야 합니다");
+    expect(issues).toContain("stateGuide.customsWaiting.primaryAction: 정상 대기 상태에는 채움 버튼을 둘 수 없습니다");
+    expect(issues).toContain("stateGuide.pending.etaMode: 국내 도착 전에는 '정보 등록 후 안내'를 보여야 합니다");
+    expect(issues).toContain("stateGuide.customsCleared.docTitle: 문서 제목에는 숫자나 토큰을 쓸 수 없습니다");
+  });
+
+  test("lookup timings must increase", () => {
+    expect(issuesOf(withConfig({ lookup: { stageMs: [9000, 8000] } })))
+      .toContain("lookup.stageMs: 단계 시각은 스켈레톤 < 긴 대기 < 아주 긴 대기 < 제한 시간 순서여야 합니다");
+    expect(issuesOf(withConfig({ lookup: { spinnerStopMs: 60000 } })))
+      .toContain("lookup.spinnerStopMs: 스피너 정지 시각은 제한 시간보다 빨라야 합니다");
+  });
+
+  test("the S10 Part B values are accepted", () => {
+    expect(issuesOf(withConfig({ lookup: { timeoutMs: 25000, notFoundServiceCaveat: false, stageMs: [3000, 7000] } }))).toBe("");
+  });
+
+  test("featured items, help entries and holiday ids", () => {
+    const late = { ...FIXTURE_CONFIG.featuredProducts[0], validUntil: "2026-09-20T00:00:00+09:00" };
+    const unchecked = { ...FIXTURE_CONFIG.featuredProducts[1], priceCheckedAt: null };
+    const helpEntry = { ...FIXTURE_CONFIG.help[0], openIn: ["delivered" as const] };
+    const [first, second] = FIXTURE_CONFIG.calendar.holidays;
+    const issues = issuesOf(withConfig({
+      featuredProducts: [late, unchecked],
+      help: [helpEntry],
+      calendar: { holidays: [first, { ...second, id: first.id }] }
+    }));
+    expect(issues).toContain("featuredProducts[0].validUntil: 종료 시각이 시작보다 빠릅니다");
+    expect(issues).toContain("featuredProducts[1].priceLabel: 가격에는 확인 시각이 필요합니다");
+    expect(issues).toContain("help[0].openIn: 펼침 상태는 표시 상태 안에서만 고를 수 있습니다");
+    expect(issues).toContain("calendar.holidays[1].id: 같은 id가 이미 있습니다");
   });
 });

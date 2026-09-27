@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { RESULT_COPY_SLOTS } from "@/lib/config/invariants";
+import { RESULT_COPY_SLOTS, checkInvariants } from "@/lib/config/invariants";
 import type { ResultCopyConfig, SiteConfig } from "@/lib/config/types";
 import { GUIDE_KEYS } from "@/lib/tracking/types";
 import type {
@@ -216,7 +216,7 @@ const SiteConfigObjectSchema = z.object({
   resultCopy: ResultCopySchema
 }).strict();
 
-export const SiteConfigSchema: z.ZodType<SiteConfig, z.ZodTypeDef, unknown> = SiteConfigObjectSchema;
+export const SiteConfigSchema: z.ZodType<SiteConfig, z.ZodTypeDef, unknown> = SiteConfigObjectSchema.superRefine(checkInvariants);
 
 const TYPE_NAMES: Readonly<Record<string, string>> = {
   string: "문자열", number: "숫자", boolean: "true/false", array: "목록", object: "객체", null: "null"
