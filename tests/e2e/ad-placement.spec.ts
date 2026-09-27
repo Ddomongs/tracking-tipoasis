@@ -80,3 +80,38 @@ test.describe("the showcase is home-only (S08)", () => {
     await expect(page.locator("[data-store-showcase]")).toHaveCount(0);
   });
 });
+
+test.describe("footer (S08)", () => {
+  for (const route of [
+    { name: "home", path: "/" },
+    { name: "privacy", path: "/privacy" }
+  ] as const) {
+    test(`${route.name}: the footer carries the note, '개인정보처리방침' and one 톡톡 link`, async ({ page }) => {
+      await page.goto(route.path);
+      const footer = page.getByRole("contentinfo");
+      await expect(footer).toHaveCount(1);
+      await expect(footer.getByText(resultCopy.footerNote)).toBeVisible();
+      await expect(footer.getByRole("link", { name: "개인정보처리방침" })).toHaveAttribute("href", "/privacy");
+      const talk = footer.getByRole("link", { name: `${channels.talk.labels.footer} 새 창으로 열기` });
+      await expect(talk).toHaveAttribute("href", channels.talk.url);
+      await expect(talk).toHaveAttribute("data-link-placement", "footer");
+      await expect(footer.locator(`a[href="${channels.talk.url}"]`)).toHaveCount(1);
+    });
+  }
+
+  test("톡톡 appears at most three times on a result screen: header, one state place, footer", async ({ page }) => {
+    await mockTrack(page, trackData("pending", { trackingNumber: FAKE.domestic }));
+    await page.goto(`/${FAKE.domestic}`);
+    await expect(page.locator("[data-result-view] h2")).toBeVisible();
+    const talkLinks = page.locator(`a[href="${channels.talk.url}"]`);
+    expect(await talkLinks.count()).toBeLessThanOrEqual(3);
+    await expect(page.getByRole("contentinfo").locator(`a[href="${channels.talk.url}"]`)).toHaveCount(1);
+  });
+
+  test("톡톡 appears at most three times on an error screen", async ({ page }) => {
+    await mockTrack(page, "notFound404");
+    await page.goto(`/${FAKE.domestic}`);
+    await expect(page.locator('[data-result-view="error"]')).toBeVisible();
+    expect(await page.locator(`a[href="${channels.talk.url}"]`).count()).toBeLessThanOrEqual(3);
+  });
+});
