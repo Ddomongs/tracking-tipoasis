@@ -5,55 +5,34 @@
 /* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS layer directive. */
 @tailwind utilities;
 
+/*
+ * 전역 바탕 — 색·글꼴·크기는 app/styles/tokens.css 의 --tt-* 토큰만 씁니다(DESIGN.md).
+ * 격자 배경, 흐림 장식, 무한 애니메이션, 부드러운 스크롤은 쓰지 않습니다(spec §12 2.2.2, §13).
+ */
 :root {
-  color-scheme: dark;
-  --background-base: #050b17;
-  --background-mid: #0a1324;
-  --background-deep: #121f31;
-  --accent-info: #67e8f9;
-  --accent-action: #6ee7b7;
-}
-
-html {
-  scroll-behavior: smooth;
-  scroll-padding-top: 6rem;
+  color-scheme: light;
 }
 
 body {
-  font-family: var(--font-body), sans-serif;
-  background:
-    radial-gradient(circle at 8% 0%, rgba(14, 165, 233, 0.2), transparent 32rem),
-    radial-gradient(circle at 92% 18%, rgba(45, 212, 191, 0.14), transparent 34rem),
-    linear-gradient(180deg, var(--background-base) 0%, #07111f 100%);
-  background-attachment: fixed;
-  color: hsl(210, 40%, 98%);
   min-height: 100dvh;
+  background: var(--tt-ground);
+  color: var(--tt-ink);
+  /* 과도기: 옛 결과 상세(S07이 지움)가 좁은 화면에서 넘치지 않게 막던 규칙을 유지합니다. */
   overflow-x: hidden;
   text-rendering: optimizeLegibility;
 }
 
-body::before {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background-image:
-    linear-gradient(rgba(148, 163, 184, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.035) 1px, transparent 1px);
-  background-size: 4rem 4rem;
-  content: "";
-  mask-image: linear-gradient(to bottom, black, transparent 72%);
-  pointer-events: none;
+/*
+ * 과도기 띠(S06 → S07·S08): 옛 어두운 부품(옛 푸터, 옛 결과 상세와 S04 상태 슬롯, 옛 스토어 쇼케이스,
+ * 개인정보처리방침 본문)을 토큰 바탕 위에서도 읽을 수 있게 감쌉니다. S07·S08이 마지막 사용처를 지우면서 함께 지웁니다.
+ */
+.tt-legacy-dark {
+  color-scheme: dark;
+  background: linear-gradient(180deg, #050b17 0%, #07111f 100%);
+  color: hsl(210, 40%, 98%);
 }
 
-h1,
-h2,
-h3,
-h4 {
-  /* Space Grotesk was dropped in R0 (PERF-01); headings fall back to the body font. */
-  font-family: var(--font-display, var(--font-body)), sans-serif;
-  letter-spacing: -0.02em;
-}
-
+/* 옛 부품 전용 글자·패널 모양 — 과도기 띠 안에서만 쓰입니다. 사용하는 부품을 지우는 단계가 함께 지웁니다. */
 .section-kicker {
   color: rgb(165 243 252);
   font-size: 0.75rem;
@@ -80,8 +59,6 @@ h4 {
   border: 1px solid rgba(51, 65, 85, 0.7);
   border-radius: 1rem;
   background: rgba(15, 23, 42, 0.55);
-  box-shadow: 0 18px 50px rgba(2, 8, 23, 0.5);
-  backdrop-filter: blur(12px);
 }
 
 .brand-icon-tile {
@@ -96,420 +73,9 @@ h4 {
   color: rgb(207 250 254);
 }
 
-.store-quick-link {
-  display: inline-flex;
-  min-height: 3rem;
-  min-width: 0;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border: 1px solid rgba(51, 65, 85, 0.8);
-  border-radius: 0.75rem;
-  background: rgba(15, 23, 42, 0.8);
-  color: rgb(241 245 249);
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1rem;
-  padding-inline: 0.75rem;
-  transition-property: border-color, background-color, color;
-  transition-duration: 200ms;
-}
-
-.store-quick-link:hover {
-  border-color: rgba(165, 243, 252, 0.45);
-  background: rgb(30 41 59);
-}
-
-.store-quick-link:focus-visible {
-  outline: 2px solid rgba(165, 243, 252, 0.8);
-  outline-offset: 2px;
-}
-
 @media (min-width: 640px) {
-  .section-kicker,
-  .store-quick-link {
+  .section-kicker {
     font-size: 0.875rem;
     line-height: 1.25rem;
   }
-}
-
-.contact-popup-position {
-  bottom: max(0.75rem, env(safe-area-inset-bottom));
-}
-
-@keyframes cue-right {
-  0%,
-  52%,
-  100% {
-    transform: translateX(0);
-  }
-  64% {
-    transform: translateX(0.3rem);
-  }
-  76% {
-    transform: translateX(0);
-  }
-  86% {
-    transform: translateX(0.2rem);
-  }
-}
-
-@keyframes cue-diagonal {
-  0%,
-  54%,
-  100% {
-    transform: translate(0, 0);
-  }
-  68% {
-    transform: translate(0.2rem, -0.2rem);
-  }
-  82% {
-    transform: translate(0, 0);
-  }
-}
-
-@keyframes cue-flow {
-  0%,
-  50%,
-  100% {
-    opacity: 0.55;
-    transform: translateX(0);
-  }
-  66% {
-    opacity: 1;
-    transform: translateX(0.25rem);
-  }
-  80% {
-    opacity: 0.7;
-    transform: translateX(0);
-  }
-}
-
-@keyframes input-pointer {
-  0%,
-  100% {
-    transform: translateY(-0.1rem) scale(1);
-  }
-  38% {
-    transform: translateY(0.55rem) scale(1.28);
-  }
-  62% {
-    transform: translateY(0.08rem) scale(1.08);
-  }
-}
-
-@keyframes input-shake {
-  0%,
-  58%,
-  100% {
-    transform: translateX(0);
-  }
-  64% {
-    transform: translateX(-0.55rem);
-  }
-  69% {
-    transform: translateX(0.5rem);
-  }
-  74% {
-    transform: translateX(-0.38rem);
-  }
-  79% {
-    transform: translateX(0.28rem);
-  }
-  84% {
-    transform: translateX(-0.14rem);
-  }
-  89% {
-    transform: translateX(0);
-  }
-}
-
-@keyframes cue-pop {
-  0%,
-  100% {
-    transform: rotate(-1deg) scale(1);
-  }
-  50% {
-    transform: rotate(1deg) scale(1.045);
-  }
-}
-
-.motion-cue-right {
-  animation: cue-right 2.8s ease-in-out infinite;
-}
-
-.motion-cue-diagonal {
-  animation: cue-diagonal 3.1s ease-in-out infinite;
-}
-
-.motion-cue-flow {
-  animation: cue-flow 2.6s ease-in-out infinite;
-}
-
-.motion-input-pointer {
-  animation: input-pointer 1.05s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
-}
-
-.motion-input-attention {
-  border-color: rgb(34 211 238);
-  box-shadow: 0 0 0 0.3rem rgba(34, 211, 238, 0.14), 0 14px 30px rgba(8, 145, 178, 0.16);
-  animation: input-shake 2.8s ease-in-out infinite;
-  transform-origin: center;
-  will-change: transform;
-}
-
-.motion-input-attention:focus {
-  animation: none;
-}
-
-.motion-cue-pop {
-  animation: cue-pop 1.55s ease-in-out infinite;
-  transform-origin: center;
-}
-
-.motion-visual {
-  position: relative;
-  display: inline-flex;
-  isolation: isolate;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border: 1px solid rgba(103, 232, 249, 0.28);
-  background:
-    radial-gradient(circle at 30% 20%, rgba(103, 232, 249, 0.22), transparent 52%),
-    linear-gradient(145deg, rgba(8, 47, 73, 0.9), rgba(15, 23, 42, 0.96));
-  color: rgb(207 250 254);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 24px rgba(2, 8, 23, 0.22);
-}
-
-.motion-visual-icon {
-  transform-box: fill-box;
-  transform-origin: center;
-}
-
-.motion-visual-route {
-  animation: visual-route 1.7s ease-in-out 2 both;
-}
-
-.motion-visual-scan,
-.motion-visual-search {
-  animation: visual-scan 1.6s ease-in-out 2 both;
-}
-
-.motion-visual-message {
-  animation: visual-message 1.5s ease-in-out 2 both;
-}
-
-.motion-visual-customs {
-  animation: visual-customs 1.9s ease-in-out 2 both;
-}
-
-.motion-visual-delivery {
-  animation: visual-delivery 1.65s ease-in-out 2 both;
-}
-
-.motion-visual-sparkle {
-  animation: visual-sparkle 1.8s ease-in-out 2 both;
-}
-
-.motion-visual-store,
-.motion-visual-shopping {
-  animation: none;
-}
-
-.motion-visual:hover .motion-visual-store {
-  animation: visual-store 550ms ease-out 1 both;
-}
-
-.motion-visual:hover .motion-visual-shopping {
-  animation: visual-shopping 550ms ease-out 1 both;
-}
-
-.motion-visual-delay-short .motion-visual-icon {
-  animation-delay: 180ms;
-}
-
-.motion-visual-delay-long .motion-visual-icon {
-  animation-delay: 360ms;
-}
-
-.motion-logistics-packet {
-  animation: logistics-packet 4.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-  will-change: transform, opacity;
-}
-
-.motion-logistics-packet::after {
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: 0.75rem;
-  width: 0.75rem;
-  border: 1px solid rgba(207, 250, 254, 0.9);
-  border-radius: 9999px;
-  background: rgb(103 232 249);
-  box-shadow: 0 0 1rem rgba(103, 232, 249, 0.9);
-  content: "";
-}
-
-.motion-loading-bar {
-  animation: loading-route 1.7s ease-in-out infinite;
-  will-change: transform, opacity;
-}
-
-@keyframes visual-route {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  50% {
-    transform: translateX(0.16rem);
-  }
-}
-
-@keyframes visual-scan {
-  0%,
-  100% {
-    transform: rotate(0) scale(1);
-  }
-  50% {
-    transform: rotate(3deg) scale(1.06);
-  }
-}
-
-@keyframes visual-message {
-  0%,
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: translateY(-0.12rem) scale(1.05);
-  }
-}
-
-@keyframes visual-customs {
-  0%,
-  100% {
-    transform: rotate(0);
-  }
-  50% {
-    transform: rotate(2deg);
-  }
-}
-
-@keyframes visual-delivery {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  45% {
-    transform: translateX(0.18rem);
-  }
-  58% {
-    transform: translateX(0.1rem);
-  }
-}
-
-@keyframes visual-sparkle {
-  0%,
-  100% {
-    opacity: 1;
-    transform: rotate(0) scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: rotate(5deg) scale(1.08);
-  }
-}
-
-@keyframes visual-store {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-0.14rem);
-  }
-}
-
-@keyframes visual-shopping {
-  0%,
-  100% {
-    transform: rotate(0) scale(1);
-  }
-  45% {
-    transform: rotate(-5deg) scale(1.06);
-  }
-  70% {
-    transform: rotate(3deg) scale(1.03);
-  }
-}
-
-@keyframes logistics-packet {
-  0% {
-    opacity: 0;
-    transform: translateX(0) scale(0.7);
-  }
-  10% {
-    opacity: 1;
-  }
-  85% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(200%) scale(1);
-  }
-}
-
-@keyframes loading-route {
-  0% {
-    opacity: 0.45;
-    transform: translateX(-100%);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(300%);
-  }
-}
-
-::selection {
-  background: color-mix(in srgb, var(--accent-info) 35%, transparent);
-  color: white;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
-  .motion-cue-right,
-  .motion-cue-diagonal,
-  .motion-cue-flow,
-  .motion-input-pointer,
-  .motion-input-attention,
-  .motion-cue-pop,
-  .motion-visual-icon,
-  .motion-logistics-packet,
-  .motion-loading-bar {
-    animation: none;
-  }
-}
-
-@media (max-width: 639px) {
-  body::before {
-    background-size: 3rem 3rem;
-  }
-}
-
-
-/*
- * 과도기 띠(S06 → S07·S08): 옛 어두운 부품(옛 푸터, 옛 결과 상세와 S04 상태 슬롯, 옛 스토어 쇼케이스,
- * 개인정보처리방침 본문)을 토큰 바탕 위에서도 읽을 수 있게 감쌉니다. S07·S08이 마지막 사용처를 지우면서 함께 지웁니다.
- */
-.tt-legacy-dark {
-  color-scheme: dark;
-  background: linear-gradient(180deg, #050b17 0%, #07111f 100%);
-  color: hsl(210, 40%, 98%);
 }

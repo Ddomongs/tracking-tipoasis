@@ -337,7 +337,7 @@
 
 /* ---------- 한 번만 움직이는 모션 ----------
  * 결과가 오면 색면이 한 번 칠해지고(--tt-motion-base, 200ms) 척추의 지금 칸이 한 번 자랍니다(journey 절의 tt-grow, 250ms).
- * framer-motion 의 결과 등장 모션(opacity·y 이동)을 대신합니다. opacity:0 으로 시작하지 않고, 무한 반복이 없고,
+ * 옛 애니메이션 라이브러리의 결과 등장 모션(opacity·y 이동)을 대신합니다. opacity:0 으로 시작하지 않고, 무한 반복이 없고,
  * 줄인 모션이면 토큰이 0ms 가 되어 바로 끝납니다. */
 [data-slot="status-head"] {
   animation: tt-paint var(--tt-motion-base) var(--tt-ease) 1;

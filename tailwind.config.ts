@@ -45,15 +45,6 @@ const config: Config = {
       },
       transitionTimingFunction: {
         tt: "var(--tt-ease)"
-      },
-      keyframes: {
-        "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 0 0 rgba(16, 185, 129, 0.4)" },
-          "50%": { boxShadow: "0 0 0 8px rgba(16, 185, 129, 0)" }
-        }
-      },
-      animation: {
-        "pulse-glow": "pulse-glow 2s ease-in-out infinite"
       }
     }
   },

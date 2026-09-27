@@ -85,7 +85,7 @@ const sections = [
 
 export default function PrivacyPolicyPage() {
   return (
-    <main id="main-content" className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
+    <main id="main-content" className="tt-legacy-dark mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
       <Link
         href="/"
         className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80"

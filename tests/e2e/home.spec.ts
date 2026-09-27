@@ -266,3 +266,39 @@ test.describe("below the form (S06)", () => {
     await expect(page.locator("[data-notice-kind]")).toHaveCount(0);
   });
 });
+
+test.describe("style tokens on the page (S06)", () => {
+  test("the page ground and text colors come from the style tokens", async ({ page }) => {
+    await page.goto("/");
+    const colors = await page.evaluate(() => {
+      const probe = (value: string): string => {
+        const element = document.createElement("span");
+        element.style.color = value;
+        document.body.append(element);
+        const rgb = getComputedStyle(element).color;
+        element.remove();
+        return rgb;
+      };
+      const root = getComputedStyle(document.documentElement);
+      const body = getComputedStyle(document.body);
+      return {
+        ground: probe(root.getPropertyValue("--tt-ground").trim()),
+        ink: probe(root.getPropertyValue("--tt-ink").trim()),
+        background: body.backgroundColor,
+        color: body.color
+      };
+    });
+    expect(colors.background).toBe(colors.ground);
+    expect(colors.color).toBe(colors.ink);
+  });
+
+  test("a settled result runs no infinite animation", async ({ page }) => {
+    await mockTrack(page, trackData("inTransit", { trackingNumber: FAKE.hbl }));
+    await page.goto(`/${FAKE.hbl}`);
+    await expect(page.getByRole("button", RESULT_READY)).toBeVisible();
+    const infinite = await page.evaluate(
+      () => document.getAnimations().filter((animation) => animation.effect?.getTiming().iterations === Number.POSITIVE_INFINITY).length
+    );
+    expect(infinite).toBe(0);
+  });
+});
