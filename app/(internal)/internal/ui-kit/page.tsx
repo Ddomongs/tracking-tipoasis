@@ -12,6 +12,7 @@ import { JourneySpine } from "@/components/primitives/JourneySpine";
 import { ButtonLink } from "@/components/primitives/ButtonLink";
 import { StatusChip } from "@/components/primitives/StatusChip";
 import { ManualAdSlot } from "@/components/ads/ManualAdSlot";
+import { StylePicker } from "@/components/shell/StylePicker";
 import { DEFAULT_STYLE_ID, STYLE_LABELS } from "@/lib/style/styles";
 import { COLOR_TOKENS, CONTRAST_REQUIREMENTS, STYLE_COLOR_TOKENS, contrastRatio } from "@/lib/style/tokens";
 import type {
@@ -153,6 +154,7 @@ export default function UiKitPage(): React.JSX.Element {
         <NoticeSection />
         <CopySection />
         <AdSlotSection />
+        <StyleSection />
       </div>
     </main>
   );
@@ -555,6 +557,17 @@ function AdSlotSection(): React.JSX.Element {
     <Section id="ad-slot" title="수동 광고 자리">
       <div data-demo="manual-ad-slot" className="border-2 border-dashed border-tt-rule">
         <ManualAdSlot allowed slotId={DEMO_AD_SLOT_ID} />
+      </div>
+    </Section>
+  );
+}
+
+/** The real picker: choosing a style here restyles the whole gallery (this browser remembers it, as on the public pages). */
+function StyleSection(): React.JSX.Element {
+  return (
+    <Section id="style-picker" title="화면 스타일 고르기">
+      <div data-demo="style-picker">
+        <StylePicker />
       </div>
     </Section>
   );

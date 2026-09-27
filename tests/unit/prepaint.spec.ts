@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
 import { runInNewContext } from "node:vm";
 import { expect, test } from "@playwright/test";
 import nextConfig from "@/next.config";
@@ -85,4 +87,27 @@ test("next.config puts the hash into the Report-Only script-src and keeps the en
     .find((part) => part.startsWith("script-src"));
   expect(scriptSrc).toContain(PREPAINT_CSP_SOURCE);
   expect(valueOf("Content-Security-Policy")).not.toContain("script-src");
+});
+
+test("only the root layout, the style modules and the picker read or write the style (style-independent DOM, S08)", () => {
+  const ROOT = process.cwd();
+  const ALLOWED = new Set([
+    "app/layout.tsx",
+    "lib/style/styles.ts",
+    "lib/style/prepaint.ts",
+    "lib/style/style-choice.ts",
+    "components/shell/StylePicker.tsx"
+  ]);
+  const STYLE_ACCESS = /data-style|dataset\.style|STYLE_STORAGE_KEY|tt:style|applyStyleChoice|readAppliedStyle/;
+  const stripComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
+  const walk = (dir: string): string[] =>
+    readdirSync(path.join(ROOT, dir)).flatMap((name) => {
+      const relative = `${dir}/${name}`;
+      if (statSync(path.join(ROOT, relative)).isDirectory()) return walk(relative);
+      return /\.(ts|tsx)$/.test(name) ? [relative] : [];
+    });
+  const offenders = ["app", "components", "lib", "config"]
+    .flatMap(walk)
+    .filter((file) => !ALLOWED.has(file) && STYLE_ACCESS.test(stripComments(readFileSync(path.join(ROOT, file), "utf8"))));
+  expect(offenders).toEqual([]);
 });
