@@ -1,17 +1,31 @@
 import { expect, test } from "@playwright/test";
-import { guideKeyForData, isOverdue, worryDateKey } from "@/lib/tracking/derive-view";
-import type { GuideKey } from "@/lib/tracking/types";
+import { buildReturnLink } from "@/lib/site";
+import { deriveTrackingView, guideKeyForData, isOverdue, worryDateKey } from "@/lib/tracking/derive-view";
+import type { ActionView, FailureCause, GuideKey, RevenueView } from "@/lib/tracking/types";
 import type { TrackResponseData } from "@/lib/types";
 import { FIXTURE_CONFIG } from "../fixtures/config-fixtures";
 import {
-  MOVED_NOW, OCTOBER_NOW, PICKUP_NOW, ambiguousData, carrierCutData, customsArrivedData, customsClearedData, customsReviewData,
-  customsWaitingData, deliveredData, handedToCarrierData, inTransitData, lookupUnavailableData, movedEstimateData, pendingData,
-  pickedUpData, staleData
+  CJ_URL, MOVED_NOW, OCTOBER_NOW, PICKUP_NOW, ambiguousData, carrierCutData, customsArrivedData, customsClearedData,
+  customsReviewData, customsWaitingData, deliveredData, ev, failure, handedToCarrierData, inTransitData, lookupUnavailableData,
+  movedEstimateData, pendingData, pickedUpData, staleData, success
 } from "../fixtures/derive-scenarios";
-import { FIXTURE_NOW } from "../fixtures/tracking-fixtures";
+import { FAKE, FAKE_GROUPED, FIXTURE_NOW } from "../fixtures/tracking-fixtures";
 
 const CONFIG = FIXTURE_CONFIG;
 const at = (iso: string): Date => new Date(iso);
+const TALK_TEXT: ActionView = {
+  kind: "talk", label: "톡톡으로 문의하기", weight: "text", href: CONFIG.channels.talk.url, external: true, cooldownSeconds: null
+};
+const COPY_AND_TALK: ActionView = {
+  kind: "copyAndTalk", label: "문의 내용 복사하고 톡톡 열기", weight: "primary", href: CONFIG.channels.talk.url, external: true, cooldownSeconds: null
+};
+const NO_REVENUE: RevenueView = { tier: "none", stores: "none", recommendations: "none", recommendationContext: null, adsAllowed: false };
+const ALL_CAUSES: readonly FailureCause[] = [
+  "invalidNumber", "notFound", "rateLimited", "upstreamTimeout", "badGateway", "network", "offline", "clientTimeout", "serverError", "contractViolation"
+];
+const BASELINE_WAITING = deriveTrackingView(success(customsWaitingData()), FIXTURE_NOW, CONFIG);
+const BASELINE_IN_TRANSIT = deriveTrackingView(success(inTransitData()), OCTOBER_NOW, CONFIG);
+const BASELINE_OVERDUE = deriveTrackingView(success(customsWaitingData()), at("2026-09-29T00:00:00+09:00"), CONFIG);
 
 interface KeyRow { readonly name: string; readonly data: TrackResponseData; readonly now: Date; readonly key: GuideKey }
 
@@ -125,4 +139,311 @@ test.describe("state keys and dates in America/New_York", () => {
   });
 
   overdueBoundaryRows();
+});
+
+test.describe("result view models", () => {
+  test("customs waiting: calm progress, holiday badge instead of D-n, worry line bound to 톡톡", () => {
+    const view = BASELINE_WAITING;
+    expect(view.guideKey).toBe("customsWaiting");
+    expect(view.mode).toBe("settled");
+    expect(view.tone).toBe("progress");
+    expect(view.overdue).toBe(false);
+    expect(view.number).toEqual({ raw: FAKE.hbl, grouped: FAKE_GROUPED.hbl });
+    expect(view.carrier).toEqual({ code: "AUTO", name: null, barLabel: "택배사 배정 전", officialUrl: null });
+    expect(view.chip).toBe("통관 대기 · 2/4");
+    expect(view.title).toBe("통관 순서를 기다리고 있어요");
+    expect(view.reason).toBe("세관 접수가 끝났고 순서대로 심사가 진행돼요.");
+    expect(view.spine).toEqual({ current: "customs", issue: null, handoffPending: false, positionLabel: "2/4" });
+    expect(view.eta).toEqual({
+      kind: "holidayAffected", label: "도착 예상",
+      date: { key: "2026-09-29", label: "9월 29일 (화)", month: 9, day: 29, weekday: "화" },
+      badge: "추석 연휴 영향 · 1~2일 늦어질 수 있어요", holidayName: "추석 연휴", caption: "통관 완료 예상 9월 26일 (토)"
+    });
+    expect(view.nextAction).toEqual({
+      heading: "지금 할 일",
+      sentence: "지금은 하실 일이 없어요. 통관이 끝나면 택배사로 넘어가요.",
+      primary: null,
+      secondary: [{ kind: "copyReturnLink", label: "다시 볼 링크 복사", weight: "secondary", href: null, external: false, cooldownSeconds: null }],
+      worry: { dateKey: "2026-09-28", text: "9월 28일(월)까지 그대로면 알려 주세요", talk: TALK_TEXT },
+      stores: null, carrierChoices: null, note: null
+    });
+    expect(view.notice?.id).toBe("fx-holiday");
+    expect(view.lastEvent).toEqual({
+      at: "2026-09-23T05:10:00.000Z", label: "통관 접수", original: "통관목록접수", place: "인천공항세관", text: "9월 23일 (수) 14:10 · 통관 접수"
+    });
+    expect(view.history.count).toBe(2);
+    expect(view.history.summaryText).toBe("처리 내역 2건 보기 · 마지막 9월 23일 14:10");
+    expect(view.history.emptyText).toBeNull();
+    expect(view.history.segments.map((segment) => [segment.station, segment.title, segment.events.length])).toEqual([["customs", "입항·통관", 2]]);
+    expect(view.history.recent.map((item) => item.label)).toEqual(["통관 접수", "입항"]);
+    expect(view.ctaState).toBe("customsWaiting");
+    expect(view.inquiryLevel).toBe("worryLink");
+    expect(view.revenue).toEqual({ tier: "quiet", stores: "none", recommendations: "optional", recommendationContext: "customsWaiting", adsAllowed: true });
+    expect(view.retry).toBeNull();
+    expect(view.auxiliaryLine).toBeNull();
+    expect(view.help.map((item) => [item.id, item.defaultOpen])).toEqual([["customs-delay", false]]);
+    expect(view.inquiryCopy).toBeNull();
+    expect(view.returnLink).toBe(buildReturnLink(FAKE.hbl, "AUTO"));
+    expect(view.documentTitle).toBe("통관 대기 중 · 배송 조회");
+    expect(view.liveMessage).toBe("통관 순서를 기다리고 있어요 · 도착 예상 9월 29일 (화)");
+  });
+
+  test("customs waiting turns overdue at KST midnight after the worry date", () => {
+    expect(deriveTrackingView(success(customsWaitingData()), at("2026-09-28T23:59:59+09:00"), CONFIG).overdue).toBe(false);
+    const view = BASELINE_OVERDUE;
+    expect(view.overdue).toBe(true);
+    expect(view.guideKey).toBe("customsWaiting");
+    expect(view.tone).toBe("attention");
+    expect(view.chip).toBe("확인 필요 · 2/4");
+    expect(view.title).toBe("9월 28일(월)이 지났는데 아직 통관이 끝나지 않았어요");
+    expect(view.eta).toEqual({
+      kind: "overdue", label: "예상했던 날짜", date: { key: "2026-09-29", label: "9월 29일 (화)", month: 9, day: 29, weekday: "화" }
+    });
+    expect(view.nextAction.primary).toEqual(COPY_AND_TALK);
+    expect(view.nextAction.secondary).toEqual([]);
+    expect(view.nextAction.worry).toBeNull();
+    expect(view.nextAction.sentence).toBe("확인이 필요해요. 문의 내용을 복사해 톡톡으로 보내 주세요.");
+    expect(view.nextAction.note).toBe("개인통관고유부호와 수취인 이름이 주문 정보와 같은지도 확인해 주세요");
+    expect(view.inquiryCopy).toBe(`[배송 문의] 조회번호 ${FAKE_GROUPED.hbl} / 마지막 단계 통관 대기 / 마지막 처리 9월 23일 14:10`);
+    expect(view.inquiryLevel).toBe("primary");
+    expect(view.ctaState).toBe("customsWaiting");
+    expect(view.revenue).toEqual(NO_REVENUE);
+    expect(view.notice).toBeNull();
+  });
+
+  test("overdue rows: the day before, the day of and the day after the worry date", () => {
+    const data = customsWaitingData();
+    expect(deriveTrackingView(success(data), at("2026-09-27T12:00:00+09:00"), CONFIG).overdue).toBe(false);
+    expect(deriveTrackingView(success(data), at("2026-09-28T12:00:00+09:00"), CONFIG).overdue).toBe(false);
+    expect(deriveTrackingView(success(data), at("2026-09-29T09:00:00+09:00"), CONFIG).overdue).toBe(true);
+  });
+
+  test("customs cleared: handoff pending on the customs station, spec worry date 9/29", () => {
+    const view = deriveTrackingView(success(customsClearedData()), FIXTURE_NOW, CONFIG);
+    expect(view.guideKey).toBe("customsCleared");
+    expect(view.chip).toBe("통관 완료 · 2/4");
+    expect(view.title).toBe("통관이 끝났어요");
+    expect(view.spine).toEqual({ current: "customs", issue: null, handoffPending: true, positionLabel: "2/4" });
+    expect(view.eta).toMatchObject({ kind: "holidayAffected", date: { key: "2026-09-26" }, caption: "통관 완료 9월 23일 (수)" });
+    expect(view.nextAction.worry?.text).toBe("9월 29일(화)까지 소식이 없으면 알려 주세요");
+    expect(view.nextAction.primary).toBeNull();
+    expect(view.lastEvent?.text).toBe("9월 23일 (수) 10:05 · 통관 완료");
+    expect(view.lastEvent?.original).toBe("수입신고수리");
+    expect(view.carrier.barLabel).toBe("택배사 배정 전");
+    expect(view.ctaState).toBe("customsCleared");
+    expect(view.revenue.recommendationContext).toBe("customsCleared");
+    expect(view.help.map((item) => item.id)).toEqual(["handoff"]);
+  });
+
+  test("in transit: today's estimate, live carrier link as primary, driver call, no stores", () => {
+    const view = BASELINE_IN_TRANSIT;
+    expect(view.guideKey).toBe("inTransit");
+    expect(view.chip).toBe("국내 배송 · 3/4");
+    expect(view.title).toBe("국내 배송 중");
+    expect(view.carrier).toEqual({ code: "CJ", name: "CJ대한통운", barLabel: "CJ대한통운", officialUrl: CJ_URL });
+    expect(view.eta).toEqual({
+      kind: "today", label: "오늘 예상", date: { key: "2026-10-14", label: "10월 14일 (수)", month: 10, day: 14, weekday: "수" }, caption: null
+    });
+    expect(view.nextAction.heading).toBe("배송이 진행 중이에요");
+    expect(view.nextAction.primary).toEqual({
+      kind: "carrierOfficial", label: "CJ대한통운에서 실시간 위치 보기", weight: "primary", href: CJ_URL, external: true, cooldownSeconds: null
+    });
+    expect(view.nextAction.secondary).toEqual([
+      { kind: "callDriver", label: "기사님께 전화", weight: "secondary", href: `tel:${FAKE.phone.replace(/-/g, "")}`, external: false, cooldownSeconds: null },
+      TALK_TEXT
+    ]);
+    expect(view.nextAction.worry).toEqual({ dateKey: "2026-10-15", text: "10월 15일(목)까지 안 오면 알려 주세요", talk: TALK_TEXT });
+    expect(view.nextAction.stores).toBeNull();
+    expect(view.revenue).toEqual({ tier: "quiet", stores: "none", recommendations: "inline", recommendationContext: "inTransit", adsAllowed: true });
+    expect(view.inquiryLevel).toBe("textLink");
+    expect(view.history.count).toBe(4);
+    expect(view.history.segments.map((segment) => segment.station)).toEqual(["customs", "domestic"]);
+    expect(view.history.summaryText).toBe("처리 내역 4건 보기 · 마지막 10월 12일 08:15");
+    expect(view.returnLink).toBe(buildReturnLink(FAKE.domestic, "CJ"));
+    expect(view.liveMessage).toBe("국내 배송 중 · 오늘 예상 10월 14일 (수)");
+  });
+
+  test("in transit turns overdue after 10/15 and keeps the official lookup as the only secondary", () => {
+    const view = deriveTrackingView(success(inTransitData()), at("2026-10-16T00:00:00+09:00"), CONFIG);
+    expect(view.overdue).toBe(true);
+    expect(view.title).toBe("10월 15일(목)이 지났는데 아직 배송이 끝나지 않았어요");
+    expect(view.nextAction.primary).toEqual(COPY_AND_TALK);
+    expect(view.nextAction.secondary).toEqual([
+      { kind: "carrierOfficial", label: "CJ대한통운 공식 배송조회", weight: "secondary", href: CJ_URL, external: true, cooldownSeconds: null }
+    ]);
+    expect(view.nextAction.note).toBeNull();
+    expect(view.revenue).toEqual(NO_REVENUE);
+  });
+
+  test("pending: number check first, 톡톡 button, purchase choices after the disclosure, recheck note", () => {
+    const view = deriveTrackingView(success(pendingData()), FIXTURE_NOW, CONFIG);
+    expect(view.guideKey).toBe("pending");
+    expect(view.tone).toBe("waiting");
+    expect(view.chip).toBe("국내 도착 전");
+    expect(view.title).toBe("통관 정보 등록 전");
+    expect(view.spine).toEqual({ current: null, issue: null, handoffPending: false, positionLabel: null });
+    expect(view.eta).toEqual({ kind: "pendingInfo", label: "도착 예상", text: "정보 등록 후 안내" });
+    expect(view.nextAction.heading).toBe("아직 국내 배송 정보가 없어요");
+    expect(view.nextAction.primary).toEqual({ kind: "fixNumber", label: "번호 수정", weight: "primary", href: null, external: false, cooldownSeconds: null });
+    expect(view.nextAction.secondary.map((item) => [item.kind, item.weight])).toEqual([["talk", "secondary"], ["copyReturnLink", "text"]]);
+    expect(view.nextAction.worry).toEqual({ dateKey: null, text: "출고 안내 후 10일이 지나도 이 화면이면 알려 주세요", talk: TALK_TEXT });
+    expect(view.nextAction.stores).toEqual({
+      placement: "pending", intro: "주문하신 곳에서도 배송 안내를 볼 수 있어요", disclosure: CONFIG.disclosures.coupang,
+      links: [
+        { channel: "naver", label: "네이버 스토어 보기", href: CONFIG.channels.naver.urls.pending, isAffiliate: false, weight: "secondary" },
+        { channel: "coupang", label: "쿠팡 스토어 보기", href: CONFIG.channels.coupang.urls.pending, isAffiliate: true, weight: "secondary" }
+      ]
+    });
+    expect(view.nextAction.note).toBe(CONFIG.durations.pendingRecheck);
+    expect(view.revenue).toEqual({ tier: "quiet", stores: "purchaseChoices", recommendations: "inline", recommendationContext: "pending", adsAllowed: true });
+    expect(view.ctaState).toBe("pending");
+    expect(view.inquiryLevel).toBe("ctaButton");
+    expect(view.history).toEqual({ count: 0, summaryText: "처리 내역 0건 보기", emptyText: "아직 처리 내역이 없어요", segments: [], recent: [] });
+    expect(view.lastEvent).toBeNull();
+    expect(view.help.map((item) => item.id)).toEqual(["pre-arrival", "order-check"]);
+  });
+
+  test("delivered: done tone, delivered-on date, stores lead with the disclosure first", () => {
+    const view = deriveTrackingView(success(deliveredData()), FIXTURE_NOW, CONFIG);
+    expect(view.guideKey).toBe("delivered");
+    expect(view.tone).toBe("done");
+    expect(view.chip).toBe("도착 · 4/4");
+    expect(view.spine.current).toBe("arrived");
+    expect(view.eta).toEqual({
+      kind: "deliveredOn", label: "배송 완료일", date: { key: "2026-09-25", label: "9월 25일 (금)", month: 9, day: 25, weekday: "금" }
+    });
+    expect(view.lastEvent).toMatchObject({ place: "문 앞", text: "9월 25일 (금) 14:32 · 배송 완료" });
+    expect(view.nextAction.primary).toBeNull();
+    expect(view.nextAction.stores?.placement).toBe("deliveredLead");
+    expect(view.nextAction.stores?.disclosure).toBe(CONFIG.disclosures.coupang);
+    expect(view.nextAction.stores?.links.map((link) => [link.channel, link.weight])).toEqual([["naver", "primary"], ["coupang", "secondary"]]);
+    expect(view.nextAction.secondary.map((item) => [item.kind, item.label])).toEqual([["talk", "톡톡으로 문의하기"], ["undeliveredHelp", "받지 못하셨나요?"]]);
+    expect(view.revenue).toEqual({ tier: "lead", stores: "ctaLead", recommendations: "inline", recommendationContext: "delivered", adsAllowed: true });
+    expect(view.inquiryLevel).toBe("afterStores");
+  });
+
+  test("stale: attention tone, stopped mark, estimate withheld, copy-and-talk first", () => {
+    const view = deriveTrackingView(success(staleData()), FIXTURE_NOW, CONFIG);
+    expect(view.guideKey).toBe("stale");
+    expect(view.tone).toBe("attention");
+    expect(view.chip).toBe("확인 필요 · 2/4");
+    expect(view.title).toBe("14일 넘게 새 소식이 없어요");
+    expect(view.reason).toBe("마지막 처리는 9월 6일(일)이에요. 보통은 1~2일 안에 다음 단계로 넘어가요.");
+    expect(view.spine).toEqual({ current: "customs", issue: { at: "customs", kind: "stopped", label: "멈춤" }, handoffPending: false, positionLabel: "2/4" });
+    expect(view.eta).toEqual({ kind: "withheld", label: "도착 예상", text: "지금은 도착 예상일을 안내하기 어려워요" });
+    expect(view.nextAction.primary).toEqual(COPY_AND_TALK);
+    expect(view.nextAction.secondary).toEqual([]);
+    expect(view.nextAction.note).toBe("개인통관고유부호와 수취인 이름이 주문 정보와 같은지도 확인해 주세요");
+    expect(view.inquiryCopy).toBe(`[배송 문의] 조회번호 ${FAKE_GROUPED.domestic} / 마지막 단계 통관 대기 / 마지막 처리 9월 6일 10:00`);
+    expect(view.revenue).toEqual(NO_REVENUE);
+    expect(view.ctaState).toBe("stale");
+    expect(view.help.map((item) => [item.id, item.defaultOpen])).toEqual([["customs-delay", true], ["stale-causes", false]]);
+  });
+
+  test("carrier lookup delay without a carrier: cut mark and carrier chips for an instant re-lookup", () => {
+    const view = deriveTrackingView(success(lookupUnavailableData("AUTO")), FIXTURE_NOW, CONFIG);
+    expect(view.guideKey).toBe("lookupUnavailable");
+    expect(view.carrier.barLabel).toBe("택배사");
+    expect(view.spine).toEqual({ current: "domestic", issue: { at: "domestic", kind: "cut", label: "끊김" }, handoffPending: false, positionLabel: "3/4" });
+    expect(view.eta).toEqual({ kind: "none" });
+    expect(view.nextAction.primary).toBeNull();
+    expect(view.nextAction.sentence).toBe("택배사를 고르시면 같은 번호로 바로 다시 조회해요.");
+    expect(view.nextAction.carrierChoices?.map((choice) => choice.name)).toEqual(["CJ대한통운", "우체국택배", "한진택배", "롯데택배", "로젠택배"]);
+    expect(view.nextAction.secondary.map((item) => [item.kind, item.weight])).toEqual([["retry", "secondary"], ["talk", "text"]]);
+    expect(view.revenue).toEqual(NO_REVENUE);
+  });
+
+  test("carrier lookup delay with a known carrier: the official lookup is the primary action", () => {
+    const view = deriveTrackingView(success(lookupUnavailableData("CJ")), FIXTURE_NOW, CONFIG);
+    expect(view.nextAction.primary).toEqual({
+      kind: "carrierOfficial", label: "CJ대한통운 공식 배송조회", weight: "primary", href: CJ_URL, external: true, cooldownSeconds: null
+    });
+    expect(view.nextAction.sentence).toBe("CJ대한통운 공식 조회에서 바로 확인할 수 있어요.");
+    expect(view.nextAction.carrierChoices).toBeNull();
+  });
+
+  test("several carriers: branch mark and carrier chips", () => {
+    const view = deriveTrackingView(success(ambiguousData()), FIXTURE_NOW, CONFIG);
+    expect(view.guideKey).toBe("ambiguous");
+    expect(view.spine.issue).toEqual({ at: "domestic", kind: "branch", label: "갈림" });
+    expect(view.nextAction.carrierChoices).toHaveLength(5);
+    expect(view.nextAction.primary).toBeNull();
+    expect(view.nextAction.secondary.map((item) => item.kind)).toEqual(["talk"]);
+    expect(view.ctaState).toBe("ambiguous");
+  });
+
+  test("customs events with a carrier lookup delay: code-based state, cut mark and a retry line", () => {
+    const view = deriveTrackingView(success(carrierCutData()), FIXTURE_NOW, CONFIG);
+    expect(view.guideKey).toBe("customsCleared");
+    expect(view.spine).toEqual({ current: "customs", issue: { at: "domestic", kind: "cut", label: "끊김" }, handoffPending: true, positionLabel: "2/4" });
+    expect(view.auxiliaryLine).toEqual({
+      text: "택배사 조회가 잠시 늦어요", action: { kind: "retry", label: "다시 조회", weight: "text", href: null, external: false, cooldownSeconds: null }
+    });
+    expect(view.carrier.name).toBe("CJ대한통운");
+  });
+
+  test("picked up: the E2E title with the carrier name and the official lookup as primary", () => {
+    const view = deriveTrackingView(success(pickedUpData()), PICKUP_NOW, CONFIG);
+    expect(view.title).toBe("CJ대한통운 기사님 픽업 완료!");
+    expect(view.reason).toBe("CJ대한통운 기사님이 상품을 인수해 배송 출발을 준비하고 있어요.");
+    expect(view.chip).toBe("국내 배송 · 3/4");
+    expect(view.nextAction.primary?.label).toBe("CJ대한통운 공식 배송조회");
+    expect(view.nextAction.worry?.dateKey).toBe("2026-10-13");
+    expect(view.ctaState).toBe("customsCleared");
+  });
+
+  test("handed to carrier without a pickup event", () => {
+    const view = deriveTrackingView(success(handedToCarrierData()), PICKUP_NOW, CONFIG);
+    expect(view.title).toBe("택배사에 넘어갔어요");
+    expect(view.reason).toBe("CJ대한통운에서 배송을 준비하고 있어요.");
+  });
+
+  test("errors: inquiry first, no stores, no ETA, no spine marker, number-free document title", () => {
+    for (const cause of ALL_CAUSES) {
+      const view = deriveTrackingView(failure(cause), FIXTURE_NOW, CONFIG);
+      expect(view.mode, cause).toBe("error");
+      expect(view.ctaState, cause).toBe("error");
+      expect(view.spine.current, cause).toBeNull();
+      expect(view.eta, cause).toEqual({ kind: "none" });
+      expect(view.nextAction.stores, cause).toBeNull();
+      expect(view.revenue, cause).toEqual(NO_REVENUE);
+      const firstLink = [view.nextAction.primary, ...view.nextAction.secondary].find((item) => item !== null && item.href !== null);
+      expect(firstLink?.href, cause).toBe(CONFIG.channels.talk.url);
+      expect(/\d/.test(view.documentTitle), cause).toBe(false);
+      expect(view.documentTitle.endsWith(" · 배송 조회"), cause).toBe(true);
+    }
+  });
+
+  test("broken event times never leak into the view", () => {
+    const data = customsWaitingData();
+    const broken: TrackResponseData = {
+      ...data,
+      customs: { events: [ev("알 수 없음", 2, "not-a-date"), ...[...data.customs.events].reverse(), ev("빈 시각", 1, "")] }
+    };
+    const view = deriveTrackingView(success(broken), FIXTURE_NOW, CONFIG);
+    expect(JSON.stringify(view)).not.toMatch(/Invalid Date|NaN|undefined/);
+    expect(view.history.count).toBe(2);
+    expect(view.lastEvent?.label).toBe("통관 접수");
+    expect(view.nextAction.worry?.dateKey).toBe("2026-09-28");
+  });
+});
+
+test.describe("result views in America/New_York", () => {
+  let previousTz: string | undefined;
+
+  test.beforeAll(() => {
+    previousTz = process.env.TZ;
+    process.env.TZ = "America/New_York";
+  });
+
+  test.afterAll(() => {
+    if (previousTz === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTz;
+  });
+
+  test("the whole view model equals the one computed in the default time zone", () => {
+    expect(deriveTrackingView(success(customsWaitingData()), FIXTURE_NOW, CONFIG)).toEqual(BASELINE_WAITING);
+    expect(deriveTrackingView(success(inTransitData()), OCTOBER_NOW, CONFIG)).toEqual(BASELINE_IN_TRANSIT);
+    expect(deriveTrackingView(success(customsWaitingData()), at("2026-09-29T00:00:00+09:00"), CONFIG)).toEqual(BASELINE_OVERDUE);
+  });
 });
