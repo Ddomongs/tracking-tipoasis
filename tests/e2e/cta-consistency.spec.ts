@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { deriveStatusView } from "@/components/status-slot/status-view";
+import { deriveResultView } from "@/components/result/approvals";
 import { channels, disclosures } from "@/config/site.config";
 import { PROBLEM_GUIDE_KEYS } from "@/lib/tracking/types";
 import type { ActionView, FailureCause, GuideKey, StoreLinkView } from "@/lib/tracking/types";
@@ -48,7 +48,7 @@ test("the idle page keeps its store shortcuts", async ({ page }) => {
 for (const state of GAP3_06_VARIANTS) {
   test(`${state}: status, 지금 할 일, stores and recommendations tell the same story`, async ({ page }) => {
     const data = trackData(state);
-    const view = deriveStatusView({ kind: "success", request: manualRequest(data.trackingNumber), data }, FIXTURE_NOW);
+    const view = deriveResultView({ kind: "success", request: manualRequest(data.trackingNumber), data }, FIXTURE_NOW);
     await mockTrack(page, data);
     await page.goto("/");
     await lookUp(page, data.trackingNumber);
@@ -89,7 +89,7 @@ for (const state of GAP3_06_VARIANTS) {
 
 for (const [fixture, cause] of ERROR_FIXTURES) {
   test(`${fixture}: no store, showcase, popup, recommendation or sponsored link anywhere on the page`, async ({ page }) => {
-    const view = deriveStatusView({ kind: "failure", request: manualRequest(FAKE.domestic), cause, consecutiveFailures: 1 }, FIXTURE_NOW);
+    const view = deriveResultView({ kind: "failure", request: manualRequest(FAKE.domestic), cause, consecutiveFailures: 1 }, FIXTURE_NOW);
     expect(view.revenue).toMatchObject({ stores: "none", recommendations: "none", adsAllowed: false });
     await mockTrack(page, fixture);
     await page.goto("/");

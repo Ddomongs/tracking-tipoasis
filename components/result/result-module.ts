@@ -2,3 +2,4 @@
 export { ResultView } from "./ResultView";
 export { deriveTrackingView } from "@/lib/tracking/derive-view";
 export { siteConfig } from "@/config/site.config";
+export { deriveResultView } from "./approvals";

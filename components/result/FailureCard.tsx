@@ -23,7 +23,7 @@ export interface FailureCardProps {
  * Error rows of spec §7: NOT_FOUND, 일시 지연 (429 countdown, 503/504, non-JSON), 오프라인, 응답 없음, SERVER_ERROR and
  * 계약 위반 — and the INVALID view for the CS preview. The status card carries the cause's recovery steps ([번호 수정],
  * [다시 조회]); the error block's first link is 톡톡 or [문의 내용 복사하고 톡톡 열기], and it holds no store link (spec §8).
- * Weights come from the view, so the approval-3 fallback is a config change only.
+ * Weights come from the view; the approval-3 fallback is applied to that view by deriveResultView (approvals.ts).
  */
 export function FailureCard({ view, titleId, ctaHeadingId, onAction, headingRef, failureCause }: FailureCardProps): React.JSX.Element {
   const next = view.nextAction;

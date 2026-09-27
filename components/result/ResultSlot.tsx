@@ -160,7 +160,7 @@ export function ResultSlot({
     const now = new Date();
     loadResultModule().then(
       (module) => {
-        if (active) setShown({ state, view: module.deriveTrackingView(state.outcome, now, module.siteConfig), module });
+        if (active) setShown({ state, view: module.deriveResultView(state.outcome, now), module });
       },
       () => {
         if (active) setFailed(state);

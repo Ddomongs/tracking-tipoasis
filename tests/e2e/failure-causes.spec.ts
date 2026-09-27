@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { STATUS_SLOT_APPROVALS, deriveStatusView } from "@/components/status-slot/status-view";
+import { RESULT_APPROVALS, deriveResultView } from "@/components/result/approvals";
 import { INVALID_NUMBER_ERROR_ID } from "@/components/lookup/LookupForm";
 import { lookup, siteConfig } from "@/config/site.config";
 import type { ActionKind, FailureCause, TrackingViewModel } from "@/lib/tracking/types";
@@ -33,7 +33,7 @@ const CAUSE_BY_FIXTURE: Readonly<Record<FailureFixture, FailureCause>> = {
 const SETTLE_MS = 500;
 
 function expectedFailure(cause: FailureCause, number: string, now: Date = FIXTURE_NOW, consecutiveFailures = 1): TrackingViewModel {
-  return deriveStatusView({ kind: "failure", request: manualRequest(number), cause, consecutiveFailures }, now);
+  return deriveResultView({ kind: "failure", request: manualRequest(number), cause, consecutiveFailures }, now);
 }
 
 /** The server's own sentence in a failure fixture (never shown to customers), or null when the body has none. */
@@ -156,7 +156,7 @@ test("the filled primary on an error follows the approval-3 ledger", async ({ pa
   await page.goto("/");
   await lookUp(page, FAKE.domestic);
   const view = expectedFailure("notFound", FAKE.domestic);
-  expect(view.nextAction.primary?.kind).toBe(STATUS_SLOT_APPROVALS.approval3 ? "fixNumber" : "talk");
+  expect(view.nextAction.primary?.kind).toBe(RESULT_APPROVALS.approval3 ? "fixNumber" : "talk");
   await expect(statusSlot(page).locator('[data-slot="button"][data-variant="primary"]')).toHaveAccessibleName(
     actionName(view, view.nextAction.primary?.kind ?? "none")
   );
@@ -266,7 +266,7 @@ test("a second failure in a row makes [문의 내용 복사하고 톡톡 열기]
   const slot = statusSlot(page);
   await expect(slot.locator('[data-failure-cause="upstreamTimeout"]')).toBeVisible();
   await actionControl(slot, expectedFailure("upstreamTimeout", FAKE.domestic), "retry").click();
-  const view = deriveStatusView(
+  const view = deriveResultView(
     { kind: "failure", request: { ...manualRequest(FAKE.domestic), entry: "retry" }, cause: "upstreamTimeout", consecutiveFailures: 2 },
     FIXTURE_NOW
   );

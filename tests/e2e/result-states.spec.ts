@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page, type Route } from "@playwright/test";
+import { RESULT_APPROVALS } from "@/components/result/approvals";
 import { channels, disclosures, lookup, siteConfig } from "@/config/site.config";
 import { getDeliveryCarrier } from "@/lib/delivery-carriers";
 import { deriveTrackingView } from "@/lib/tracking/derive-view";
@@ -458,4 +459,30 @@ test.describe("a browser in America/New_York", () => {
     await openDeepLink(page, customsWaitingData(), { now: new Date("2026-09-29T00:00:30+09:00") });
     await expect(resultCard(page)).toHaveAttribute("data-overdue", "true");
   });
+});
+
+test.describe("approval 3 on the live page (ledger decision)", () => {
+  for (const fixture of ["notFound404", "upstreamTimeout504"] as const) {
+    test(`${fixture}: the error screen follows the approval-3 decision in the ledger`, async ({ page }) => {
+      await openDeepLink(page, fixture);
+      const card = resultCard(page);
+      await expect(card).toHaveAttribute("data-failure-cause", /\w+/);
+      const firstLink = page.locator('[data-cta-state="error"] a[href]').first();
+      await expect(firstLink).toHaveAttribute("href", TALK_URL);
+      const recovery = card.locator('[data-recovery] [data-slot="button"]');
+      await expect(recovery.first()).toBeVisible();
+      if (RESULT_APPROVALS.approval3) {
+        // Spec §16 item 3 proposal: the cause's recovery action leads the card; 톡톡 stays the error block's first link.
+        await expect(recovery.first()).toHaveAttribute("data-variant", "primary");
+        await expect(firstLink).not.toHaveAttribute("data-variant", "primary");
+      } else {
+        // Roadmap §4 row 3 fallback: 톡톡 is the filled primary; [번호 수정]/[다시 조회] are secondary.
+        await expect(firstLink).toHaveAccessibleName(TALK_NAME);
+        await expect(firstLink).toHaveAttribute("data-variant", "primary");
+        await expect(card.locator('[data-slot="button"][data-variant="primary"]')).toHaveCount(1);
+        const variants = await recovery.evaluateAll((buttons) => buttons.map((button) => button.getAttribute("data-variant")));
+        expect(variants.every((variant) => variant === "secondary")).toBe(true);
+      }
+    });
+  }
 });

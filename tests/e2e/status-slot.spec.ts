@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { LEGACY_RESULT_COPY, deriveStatusView } from "@/components/status-slot/status-view";
+import { deriveResultView } from "@/components/result/approvals";
 import { resultCopy, siteConfig } from "@/config/site.config";
 import { deriveTrackingView } from "@/lib/tracking/derive-view";
 import type { LookupEntry, TrackingViewModel } from "@/lib/tracking/types";
@@ -22,7 +22,7 @@ import {
 const OVERDUE_NOW = new Date("2026-09-30T10:00:00+09:00");
 
 function expectedResult(data: TrackResponseData, now: Date = FIXTURE_NOW, entry: LookupEntry = "manual"): TrackingViewModel {
-  return deriveStatusView({ kind: "success", request: { number: data.trackingNumber, carrier: "AUTO", entry }, data }, now);
+  return deriveResultView({ kind: "success", request: { number: data.trackingNumber, carrier: "AUTO", entry }, data }, now);
 }
 
 async function showResult(page: Page, data: TrackResponseData, now: Date): Promise<void> {
@@ -203,11 +203,11 @@ test("approval 2: results show the configured wording, with no pre-renewal overl
     FIXTURE_NOW,
     siteConfig
   );
-  expect(configured.title).not.toBe(LEGACY_RESULT_COPY.customsWaitingTitle);
+  expect(configured.title).not.toBe("통관대기");
   await showResult(page, data, FIXTURE_NOW);
   const slot = statusSlot(page);
   await expect(slot.locator("[data-guide-key]").getByRole("heading", { level: 2 })).toHaveText(configured.title);
   await expect(slot.getByText(configured.nextAction.sentence, { exact: true })).toBeVisible();
-  await expect(slot.getByText(LEGACY_RESULT_COPY.sentences.customsWaiting, { exact: true })).toHaveCount(0);
+  await expect(slot.getByText("정상 통관 대기 상태입니다. 지금은 별도 문의 없이 조금만 기다려 주세요.", { exact: true })).toHaveCount(0);
   await expect(liveRegion(page)).toHaveText(configured.liveMessage);
 });
