@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { Button } from "@/components/primitives/Button";
+import { JourneySpine } from "@/components/primitives/JourneySpine";
 import { ButtonLink } from "@/components/primitives/ButtonLink";
 import { StatusChip } from "@/components/primitives/StatusChip";
 import { DEFAULT_STYLE_ID, STYLE_LABELS } from "@/lib/style/styles";
 import { COLOR_TOKENS, CONTRAST_REQUIREMENTS, STYLE_COLOR_TOKENS, contrastRatio } from "@/lib/style/tokens";
-import type { Tone } from "@/lib/tracking/types";
+import type { SpineView, Tone } from "@/lib/tracking/types";
 
 export const metadata: Metadata = {
   title: "화면 부품 모음"
@@ -122,6 +123,7 @@ export default function UiKitPage(): React.JSX.Element {
         <TypeSection />
         <ButtonSection />
         <ToneSection />
+        <JourneySection />
       </div>
     </main>
   );
@@ -157,6 +159,7 @@ function StatusHeadDemo(): React.JSX.Element {
           <p className="m-0 text-tt-sm font-medium">세관 접수가 끝났고 순서대로 심사가 진행돼요.</p>
         </div>
       </div>
+      <JourneySpine spine={CUSTOMS_SPINE} />
     </Field>
   );
 }
@@ -182,6 +185,81 @@ function ToneSection(): React.JSX.Element {
         ))}
       </div>
       <StatusHeadDemo />
+    </Section>
+  );
+}
+
+const CUSTOMS_SPINE: SpineView = { current: "customs", issue: null, handoffPending: false, positionLabel: "2/4" };
+
+const SPINE_DEMOS: ReadonlyArray<{ readonly demo: string; readonly caption: string; readonly tone: Tone; readonly spine: SpineView }> = [
+  { demo: "spine-customs", caption: "정상 진행 · 통관 대기 2/4", tone: "progress", spine: CUSTOMS_SPINE },
+  {
+    demo: "spine-handoff",
+    caption: "통관 완료 · 인계 대기 2/4",
+    tone: "progress",
+    spine: { current: "customs", issue: null, handoffPending: true, positionLabel: "2/4" }
+  },
+  {
+    demo: "spine-domestic",
+    caption: "국내 배송 3/4",
+    tone: "progress",
+    spine: { current: "domestic", issue: null, handoffPending: false, positionLabel: "3/4" }
+  },
+  {
+    demo: "spine-arrived",
+    caption: "도착 4/4",
+    tone: "done",
+    spine: { current: "arrived", issue: null, handoffPending: false, positionLabel: "4/4" }
+  },
+  {
+    demo: "spine-stopped",
+    caption: "멈춤 · 장기 정체",
+    tone: "attention",
+    spine: { current: "customs", issue: { at: "customs", kind: "stopped", label: "멈춤" }, handoffPending: false, positionLabel: "2/4" }
+  },
+  {
+    demo: "spine-cut",
+    caption: "끊김 · 택배사 조회 지연",
+    tone: "attention",
+    spine: { current: "domestic", issue: { at: "domestic", kind: "cut", label: "끊김" }, handoffPending: false, positionLabel: "3/4" }
+  },
+  {
+    demo: "spine-cut-ahead",
+    caption: "끊김 · 통관 중 택배사 조회 지연",
+    tone: "progress",
+    spine: { current: "customs", issue: { at: "domestic", kind: "cut", label: "끊김" }, handoffPending: true, positionLabel: "2/4" }
+  },
+  {
+    demo: "spine-branch",
+    caption: "갈림 · 여러 택배사",
+    tone: "attention",
+    spine: { current: "domestic", issue: { at: "domestic", kind: "branch", label: "갈림" }, handoffPending: false, positionLabel: "3/4" }
+  },
+  {
+    demo: "spine-unknown",
+    caption: "위치 확인 전 · 국내 도착 전",
+    tone: "waiting",
+    spine: { current: null, issue: null, handoffPending: false, positionLabel: null }
+  }
+];
+
+function JourneySection(): React.JSX.Element {
+  return (
+    <Section id="journey" title="4구간 여정 척추">
+      <p className="m-0 text-tt-sm text-tt-muted">
+        지금 구간 표식은 정확히 하나, 위치 확인 전에는 없어요. 멈춤·끊김·갈림은 색·아이콘·글자를 함께 써요.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {SPINE_DEMOS.map((item) => (
+          <Field key={item.demo} tone={item.tone} demo={item.demo}>
+            <p className="m-0 text-tt-sm font-bold">{item.caption}</p>
+            <JourneySpine spine={item.spine} />
+          </Field>
+        ))}
+      </div>
+      <div data-demo="spine-surface" className="bg-tt-surface p-4">
+        <JourneySpine spine={CUSTOMS_SPINE} />
+      </div>
     </Section>
   );
 }

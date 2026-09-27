@@ -30,6 +30,14 @@ async function openKit(page: Page, width = 1280, height = 900): Promise<void> {
   await page.setViewportSize({ width, height });
   await page.goto(UI_KIT_PATH);
   await expect(page.locator("main[data-ui-kit]")).toBeVisible();
+  await settleAnimations(page);
+}
+
+/** Waits for the one-shot entrance motion (spine grow, field paint) so colors and boxes are final. */
+async function settleAnimations(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => animation)));
+  });
 }
 
 interface TextSample {
@@ -255,5 +263,165 @@ test.describe("ToneIcon, StatusChip and the status-head field", () => {
       .first()
       .evaluate((element) => getComputedStyle(element).borderTopWidth);
     expect(Number.parseFloat(width)).toBeGreaterThanOrEqual(1);
+  });
+});
+
+const STATION_IDS = ["departed", "customs", "domestic", "arrived"] as const;
+const STATION_NAMES = ["해외 출발", "입항·통관", "국내 배송", "도착"] as const;
+
+interface SpineSnapshot {
+  readonly current: string | null;
+  readonly stations: ReadonlyArray<{
+    readonly id: string | null;
+    readonly state: string | null;
+    readonly issue: string | null;
+    readonly currentStep: boolean;
+    readonly text: string;
+  }>;
+  readonly unknownText: string | null;
+}
+
+async function readSpine(page: Page, demo: string): Promise<SpineSnapshot> {
+  return page.locator(`[data-demo="${demo}"] [data-slot="journey"]`).evaluate((root) => ({
+    current: root.querySelector("ol")?.getAttribute("data-spine-current") ?? null,
+    stations: Array.from(root.querySelectorAll("ol > li"), (item) => ({
+      id: item.getAttribute("data-station"),
+      state: item.getAttribute("data-station-state"),
+      issue: item.getAttribute("data-issue"),
+      currentStep: item.getAttribute("aria-current") === "step",
+      text: (item.textContent ?? "").replace(/\s+/g, " ").trim()
+    })),
+    unknownText: root.querySelector('[data-spine-part="unknown"]')?.textContent ?? null
+  }));
+}
+
+test.describe("JourneySpine", () => {
+  test("every spine is one labelled ol of the four stations in order", async ({ page }) => {
+    await openKit(page);
+    const lists = page.locator('main[data-ui-kit] [data-slot="journey"] > ol');
+    const count = await lists.count();
+    expect(count).toBeGreaterThanOrEqual(11);
+    for (let index = 0; index < count; index += 1) {
+      const list = lists.nth(index);
+      await expect(list).toHaveAttribute("aria-label", "배송 여정 4구간");
+      const ids = await list.locator(":scope > li").evaluateAll((items) => items.map((item) => item.getAttribute("data-station")));
+      expect(ids).toEqual([...STATION_IDS]);
+    }
+  });
+
+  test("exactly one aria-current=step on a located spine and none before the location is known", async ({ page }) => {
+    await openKit(page);
+    let located = 0;
+    for (const list of await page.locator('main[data-ui-kit] [data-slot="journey"] > ol').all()) {
+      const current = await list.getAttribute("data-spine-current");
+      const marked = list.locator(':scope > li[aria-current="step"]');
+      if (current === "none") {
+        await expect(marked).toHaveCount(0);
+        continue;
+      }
+      located += 1;
+      await expect(marked).toHaveCount(1);
+      await expect(marked).toHaveAttribute("data-station", current ?? "");
+      await expect(marked).toHaveAttribute("data-station-state", "current");
+    }
+    expect(located).toBeGreaterThanOrEqual(10);
+    await expect(page.locator('main[data-ui-kit] [aria-current="step"]')).toHaveCount(located);
+  });
+
+  test("stations before the current one are done and the rest are todo", async ({ page }) => {
+    await openKit(page);
+    const expected: Readonly<Record<string, readonly string[]>> = {
+      "spine-customs": ["done", "current", "todo", "todo"],
+      "spine-domestic": ["done", "done", "current", "todo"],
+      "spine-arrived": ["done", "done", "done", "current"],
+      "spine-unknown": ["todo", "todo", "todo", "todo"]
+    };
+    for (const [demo, states] of Object.entries(expected)) {
+      const spine = await readSpine(page, demo);
+      expect(spine.stations.map((station) => station.state), demo).toEqual(states);
+      expect(spine.stations.map((station) => station.text), demo).toEqual([...STATION_NAMES]);
+    }
+  });
+
+  test("unknown location: no marker, every station todo and the words '위치 확인 전'", async ({ page }) => {
+    await openKit(page);
+    const spine = await readSpine(page, "spine-unknown");
+    expect(spine.current).toBe("none");
+    expect(spine.stations.filter((station) => station.currentStep)).toEqual([]);
+    expect(spine.unknownText).toBe("위치 확인 전");
+    await expect(page.locator('[data-demo="spine-unknown"] [data-spine-part="unknown"]')).toBeVisible();
+  });
+
+  test("issue marks combine color, an icon and the word", async ({ page }) => {
+    await openKit(page);
+    for (const [demo, station, kind, word] of [
+      ["spine-stopped", "customs", "stopped", "멈춤"],
+      ["spine-cut", "domestic", "cut", "끊김"],
+      ["spine-branch", "domestic", "branch", "갈림"],
+      ["spine-cut-ahead", "domestic", "cut", "끊김"]
+    ] as const) {
+      const item = page.locator(`[data-demo="${demo}"] li[data-station="${station}"]`);
+      await expect(item, demo).toHaveAttribute("data-issue", kind);
+      await expect(item.locator('[data-spine-part="issue"]'), demo).toHaveText(word);
+      await expect(item.locator(`svg[data-tone-icon="${kind}"][aria-hidden="true"]`), demo).toHaveCount(1);
+      const bar = await item.locator('[data-spine-part="bar"]').evaluate((element) => ({
+        height: element.getBoundingClientRect().height,
+        background: getComputedStyle(element).backgroundColor
+      }));
+      expect(bar.height, demo).toBe(20);
+      expect(bar.background, demo).not.toBe("rgba(0, 0, 0, 0)");
+    }
+    // A carrier delay while customs is still current marks ③ and keeps ② as the current station.
+    await expect(page.locator('[data-demo="spine-cut-ahead"] li[data-station="domestic"]')).toHaveAttribute("data-station-state", "todo");
+    await expect(page.locator('[data-demo="spine-cut-ahead"] li[aria-current="step"]')).toHaveAttribute("data-station", "customs");
+  });
+
+  test("code 4 keeps ② current with a check mark and '인계 대기'", async ({ page }) => {
+    await openKit(page);
+    const current = page.locator('[data-demo="spine-handoff"] li[aria-current="step"]');
+    await expect(current).toHaveAttribute("data-station", "customs");
+    await expect(current.locator('[data-spine-part="sub"]')).toHaveText("인계 대기");
+    await expect(current.locator('svg[data-tone-icon="done"]')).toHaveCount(1);
+  });
+
+  test("inside a field every bar uses the field's text color", async ({ page }) => {
+    await openKit(page);
+    const colors = await page.locator('[data-demo="spine-customs"]').evaluate((field) => {
+      const bar = (station: string) => {
+        const element = field.querySelector(`li[data-station="${station}"] [data-spine-part="bar"]`);
+        return element ? getComputedStyle(element) : null;
+      };
+      return {
+        fieldFg: getComputedStyle(field).color,
+        done: bar("departed")?.backgroundColor,
+        current: bar("customs")?.backgroundColor,
+        todoBorder: bar("domestic")?.borderTopColor,
+        todoWidth: bar("domestic")?.borderTopWidth
+      };
+    });
+    expect(colors.done).toBe(colors.fieldFg);
+    expect(colors.current).toBe(colors.fieldFg);
+    expect(colors.todoBorder).toBe(colors.fieldFg);
+    expect(colors.todoWidth).toBe("2px");
+  });
+
+  test("forced colors: done and current bars keep a CanvasText fill", async ({ page }) => {
+    await page.emulateMedia({ forcedColors: "active" });
+    await openKit(page);
+    const result = await page.locator('[data-demo="spine-customs"]').evaluate((field) => {
+      const probe = document.createElement("div");
+      probe.style.forcedColorAdjust = "none";
+      probe.style.backgroundColor = "CanvasText";
+      document.body.append(probe);
+      const canvasText = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      const background = (station: string) => {
+        const element = field.querySelector(`li[data-station="${station}"] [data-spine-part="bar"]`);
+        return element ? getComputedStyle(element).backgroundColor : "missing";
+      };
+      return { canvasText, done: background("departed"), current: background("customs") };
+    });
+    expect(result.done).toBe(result.canvasText);
+    expect(result.current).toBe(result.canvasText);
   });
 });

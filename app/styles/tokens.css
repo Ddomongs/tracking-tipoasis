@@ -136,3 +136,101 @@
 @media (forced-colors: active) {
   [data-status-chip] { border: 1px solid CanvasText; }
 }
+
+
+/* ---------- 변형 슬롯 journey — signal: 4구간 막대 ----------
+ * 지난 구간 8px 채움, 지금 구간 20px 채움(한 번 자람), 남은 구간 8px 외곽선.
+ * 멈춤·끊김·갈림은 20px 막대 속 아이콘 + 굵은 단어. 색면 안에서는 색면 글자색(currentColor) 한 가지로만 그립니다. */
+[data-slot="journey"] {
+  --journey-fill: currentColor;
+  --journey-todo: currentColor;
+  --journey-on-fill: var(--field-bg, var(--tt-surface));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+[data-slot="journey"] > ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+[data-slot="journey"] li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+[data-slot="journey"] [data-spine-part="track"] {
+  display: flex;
+  align-items: flex-end;
+  height: 20px;
+}
+[data-slot="journey"] [data-spine-part="bar"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 8px;
+}
+[data-slot="journey"] [data-station-state="done"] [data-spine-part="bar"] {
+  background-color: var(--journey-fill);
+}
+[data-slot="journey"] [data-station-state="todo"] [data-spine-part="bar"] {
+  border: 2px solid var(--journey-todo);
+}
+[data-slot="journey"] [data-station-state="current"] [data-spine-part="bar"],
+[data-slot="journey"] li[data-issue] [data-spine-part="bar"] {
+  height: 20px;
+  border: 0;
+  background-color: var(--journey-fill);
+  font-size: 14px;
+}
+/* 막대 속 아이콘만 막대 반대색. 막대 자신의 color를 바꾸면 currentColor 채움까지 바뀌어 막대가 색면에 묻힙니다. */
+[data-slot="journey"] [data-spine-part="bar"] > [data-tone-icon] { color: var(--journey-on-fill); }
+[data-slot="journey"] [data-station-state="current"] [data-spine-part="bar"] {
+  transform-origin: left center;
+  animation: tt-grow var(--tt-motion-slow) var(--tt-ease) 1 both;
+}
+[data-slot="journey"] [data-spine-part="label"] {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--tt-text-xs);
+  line-height: 18px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+[data-slot="journey"] [data-spine-part="name"] {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+[data-slot="journey"] [data-station-state="current"] [data-spine-part="name"],
+[data-slot="journey"] [data-spine-part="issue"] {
+  font-weight: var(--tt-weight-display);
+}
+[data-slot="journey"] [data-spine-part="unknown"] {
+  margin: 0;
+  font-size: var(--tt-text-xs);
+  line-height: 18px;
+  font-weight: 700;
+}
+@keyframes tt-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+/* 고대비(강제 색) 모드: 배경색이 지워지므로 막대를 시스템 글자색으로 칠합니다. */
+@media (forced-colors: active) {
+  [data-slot="journey"] [data-spine-part="bar"] { forced-color-adjust: none; }
+  [data-slot="journey"] [data-station-state="done"] [data-spine-part="bar"],
+  [data-slot="journey"] [data-station-state="current"] [data-spine-part="bar"],
+  [data-slot="journey"] li[data-issue] [data-spine-part="bar"] {
+    background-color: CanvasText;
+    color: Canvas;
+  }
+  [data-slot="journey"] [data-station-state="todo"] [data-spine-part="bar"] { border-color: CanvasText; }
+  [data-slot="journey"] [data-spine-part="bar"] > [data-tone-icon] { color: Canvas; }
+}
