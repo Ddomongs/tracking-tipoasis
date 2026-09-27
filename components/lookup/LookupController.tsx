@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { disclosures, featuredProducts, lookup as lookupConfig, notices, stateGuide } from "@/config/site.config";
+import { ads, disclosures, featuredProducts, lookup as lookupConfig, notices, stateGuide } from "@/config/site.config";
 import { InputAssist } from "@/components/lookup/InputAssist";
 import { LookupForm } from "@/components/lookup/LookupForm";
 import { computeDisplay, stillActiveHomeNotice, viewModeOf, type InvalidInput, type LookupDisplay } from "@/components/lookup/lookup-display";
@@ -14,7 +14,10 @@ import { useAnnounce } from "@/components/primitives/LiveAnnouncer";
 import { NumberBar } from "@/components/primitives/NumberBar";
 import { NoticeBanner } from "@/components/primitives/NoticeBanner";
 import { ResultSlot } from "@/components/result/ResultSlot";
+import { ManualAdSlot } from "@/components/ads/ManualAdSlot";
+import { useAdGateState } from "@/components/ads/useAdGateState";
 import { setAdSignals } from "@/lib/ads/ad-signals";
+import { manualSlotMode } from "@/lib/ads/ad-gate";
 import type { LoadingConfig } from "@/lib/config/types";
 import type { LookupState } from "@/lib/tracking/lookup-state";
 import { saveRestoreEntry, type RestoreEntry } from "@/lib/privacy/session-restore";
@@ -162,6 +165,9 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
     settledView.settledAt === shownState.settledAt
       ? settledView.view
       : null;
+  // The one manual slot before the footer (spec §8): home and allowed results only, never while loading or in a problem state.
+  const adGate = useAdGateState(entry.kind === "home" ? "home" : "deepLink");
+  const manualSlot = manualSlotMode({ viewMode, resultAdsAllowed: currentView?.revenue.adsAllowed ?? null, gate: adGate });
 
   // Spans and price dates are judged at the customer's clock snapshot (S06 session.ts), never with a clock read in render.
   const renderRecommendations = (view: TrackingViewModel): React.ReactNode => {
@@ -431,6 +437,7 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
         </section>
       </div>
       {viewMode === "idle" ? idleExtras : null}
+      <ManualAdSlot allowed={manualSlot !== "none"} slotId={ads.manualSlotId} />
     </>
   );
 }

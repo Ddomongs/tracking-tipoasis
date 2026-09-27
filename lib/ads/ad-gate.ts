@@ -1,6 +1,7 @@
 import { containsTrackingLikeValue } from "@/lib/privacy/number-patterns";
 import { isNumberPath } from "@/lib/privacy/url-scrub";
 import type { ScrubStatus } from "@/lib/privacy/url-scrub";
+import type { ViewMode } from "@/lib/tracking/types";
 
 /**
  * When the AdSense loader may be inserted (spec §3, §8, §16 items 6–7). Pure and fail-closed.
@@ -46,4 +47,39 @@ export function shouldInsertAdLoader(input: AdGateInput): boolean {
     case "afterAllowedResult":
       return false;
   }
+}
+
+/**
+ * The ad gate of one document (spec §8): "open" — the loader may go in and the manual slot may fill now; "waiting" — not
+ * yet, but a confirmed scrub, an allowed result or a scroll to the showcase can still open it in this document;
+ * "closed" — never in this document (number or internal path, failed scrub, or a policy that excludes it).
+ */
+export type AdGateState = "open" | "waiting" | "closed";
+
+export function adGateState(input: AdGateInput): AdGateState {
+  if (shouldInsertAdLoader(input)) return "open";
+  const best: AdGateInput = {
+    ...input,
+    scrub: input.scrub === "pending" ? "scrubbed" : input.scrub,
+    resultAdsAllowed: true,
+    scrolledPastLookup: true
+  };
+  return shouldInsertAdLoader(best) ? "waiting" : "closed";
+}
+
+export type ManualSlotMode = "none" | "reserved" | "filled";
+
+/**
+ * The one manual slot before the footer (spec §8): on the home (idle) and on a result whose view allows ads; reserved
+ * while the gate may still open, filled while it is open, absent while loading and in every problem state
+ * ("문제 상태 광고 0" = manual slot 0 + no new loader).
+ */
+export function manualSlotMode(input: {
+  readonly viewMode: ViewMode;
+  readonly resultAdsAllowed: boolean | null;
+  readonly gate: AdGateState;
+}): ManualSlotMode {
+  const allowedHere = input.viewMode === "idle" || (input.viewMode === "settled" && input.resultAdsAllowed === true);
+  if (!allowedHere || input.gate === "closed") return "none";
+  return input.gate === "open" ? "filled" : "reserved";
 }

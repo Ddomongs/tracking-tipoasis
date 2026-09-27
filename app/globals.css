@@ -21,3 +21,9 @@ body {
   overflow-x: hidden;
   text-rendering: optimizeLegibility;
 }
+
+
+/* 모바일 하단 광고(앵커)에 가린 마지막 줄도 스크롤해서 꺼낼 수 있게 합니다(spec §8, GAP4-07). 값은 config ads.anchorReservePx와 같습니다. */
+html {
+  scroll-padding-bottom: var(--tt-anchor-reserve);
+}

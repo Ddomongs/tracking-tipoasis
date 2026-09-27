@@ -11,6 +11,7 @@ import { EtaDisplay } from "@/components/primitives/EtaDisplay";
 import { JourneySpine } from "@/components/primitives/JourneySpine";
 import { ButtonLink } from "@/components/primitives/ButtonLink";
 import { StatusChip } from "@/components/primitives/StatusChip";
+import { ManualAdSlot } from "@/components/ads/ManualAdSlot";
 import { DEFAULT_STYLE_ID, STYLE_LABELS } from "@/lib/style/styles";
 import { COLOR_TOKENS, CONTRAST_REQUIREMENTS, STYLE_COLOR_TOKENS, contrastRatio } from "@/lib/style/tokens";
 import type {
@@ -151,6 +152,7 @@ export default function UiKitPage(): React.JSX.Element {
         <LinkSection />
         <NoticeSection />
         <CopySection />
+        <AdSlotSection />
       </div>
     </main>
   );
@@ -541,6 +543,19 @@ function CopySection(): React.JSX.Element {
         talkUrl={channels.talk.url}
         talkLabel={channels.talk.labels.copyAndTalk}
       />
+    </Section>
+  );
+}
+
+/** A fake ad unit id (0000 series): /internal never loads ads, so the gallery shows only the reserved box. */
+const DEMO_AD_SLOT_ID = "0000000000";
+
+function AdSlotSection(): React.JSX.Element {
+  return (
+    <Section id="ad-slot" title="수동 광고 자리">
+      <div data-demo="manual-ad-slot" className="border-2 border-dashed border-tt-rule">
+        <ManualAdSlot allowed slotId={DEMO_AD_SLOT_ID} />
+      </div>
     </Section>
   );
 }

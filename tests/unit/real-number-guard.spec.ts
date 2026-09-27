@@ -11,6 +11,7 @@ import {
 } from "@/lib/privacy/number-patterns";
 import { ADSENSE_CLIENT_ID, ADSENSE_LOADER_URL, ADSENSE_PUBLISHER_DIGITS } from "@/lib/site";
 import { FAKE, FAKE_GROUPED } from "../fixtures/tracking-fixtures";
+import { ads } from "@/config/site.config";
 
 // Non-fixture values are assembled at runtime so that this file never contains a disallowed run itself.
 const NINES_12 = "9".repeat(12);
@@ -89,8 +90,8 @@ const SCAN_DIRS = ["app", "components", "lib", "config", "tests", "docs", "desig
 const TEXT_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".css", ".html", ".md", ".json", ".yml", ".yaml", ".txt"]);
 const SKIPPED_DIRS = new Set(["node_modules", ".next", "test-results", "playwright-report", "test-artifacts"]);
 const SKIPPED_FILES = new Set(["package-lock.json"]);
-/** S08 adds the manual ad slot id from config/site.config.ts (roadmap §10.4). */
-const EXTRA_ALLOWED: readonly string[] = [];
+/** The manual ad unit id from config/site.config.ts (approval 15) is the one real 10-digit value the repo may hold (S08). */
+const EXTRA_ALLOWED: readonly string[] = ads.manualSlotId === null ? [] : [ads.manualSlotId];
 
 const toRepoPath = (file: string): string => path.relative(REPO_ROOT, file).split(path.sep).join("/");
 
@@ -152,4 +153,11 @@ test.describe("repository scan (spec §14 item 5)", () => {
     const findings = guardTargets().flatMap(findingsIn);
     expect(findings, "Replace each run with a value from tests/fixtures/tracking-fixtures.ts (roadmap §11.4)").toEqual([]);
   });
+});
+
+test("the configured manual ad unit id is the one extra allowed run (S08)", () => {
+  const sample = "9".repeat(10);
+  expect(findDisallowedDigitRuns(`data-ad-slot="${sample}"`)).toEqual([sample]);
+  expect(findDisallowedDigitRuns(`data-ad-slot="${sample}"`, [sample])).toEqual([]);
+  expect(EXTRA_ALLOWED).toEqual(ads.manualSlotId === null ? [] : [ads.manualSlotId]);
 });

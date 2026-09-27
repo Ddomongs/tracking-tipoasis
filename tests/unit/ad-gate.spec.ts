@@ -1,11 +1,12 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import { AD_TIMING_POLICY, shouldInsertAdLoader } from "@/lib/ads/ad-gate";
+import { AD_TIMING_POLICY, adGateState, manualSlotMode, shouldInsertAdLoader } from "@/lib/ads/ad-gate";
 import type { AdGateInput, AdTimingPolicy } from "@/lib/ads/ad-gate";
 import { getAdSignals, setAdSignals, subscribeAdSignals } from "@/lib/ads/ad-signals";
 import type { ScrubStatus } from "@/lib/privacy/url-scrub";
 import { FAKE } from "../fixtures/tracking-fixtures";
+import { ads } from "@/config/site.config";
 
 const POLICIES: readonly AdTimingPolicy[] = ["afterScrub", "afterAllowedResult", "neverOnNumberRoutes"];
 const SCRUBS: ReadonlyArray<ScrubStatus | "pending"> = ["pending", "scrubbed", "notNeeded", "failed"];
@@ -122,4 +123,56 @@ test("ad signals: per-document entry, change-only notifications, sticky failed s
   unsubscribe();
   setAdSignals({ scrolledPastLookup: true });
   expect(notified).toBe(3);
+});
+
+test.describe("adGateState and manualSlotMode (S08)", () => {
+  const HOME: AdGateInput = {
+    pathname: "/",
+    entry: "home",
+    scrub: "pending",
+    resultAdsAllowed: null,
+    scrolledPastLookup: false,
+    policy: "afterScrub"
+  };
+
+  test("afterScrub: home is open at once; a deep link waits for its scrub, then opens; a failed scrub closes it", () => {
+    expect(adGateState(HOME)).toBe("open");
+    expect(adGateState({ ...HOME, entry: "deepLink" })).toBe("waiting");
+    expect(adGateState({ ...HOME, entry: "deepLink", scrub: "scrubbed" })).toBe("open");
+    expect(adGateState({ ...HOME, entry: "deepLink", scrub: "failed" })).toBe("closed");
+  });
+
+  test("neverOnNumberRoutes keeps deep-link documents closed; number and internal paths are always closed", () => {
+    expect(adGateState({ ...HOME, policy: "neverOnNumberRoutes" })).toBe("open");
+    expect(adGateState({ ...HOME, entry: "deepLink", scrub: "scrubbed", policy: "neverOnNumberRoutes" })).toBe("closed");
+    expect(adGateState({ ...HOME, pathname: `/${FAKE.domestic}` })).toBe("closed");
+    expect(adGateState({ ...HOME, pathname: "/internal/ui-kit" })).toBe("closed");
+  });
+
+  test("manualSlotMode: home and allowed results only; reserved while the gate waits, filled while it is open", () => {
+    expect(manualSlotMode({ viewMode: "idle", resultAdsAllowed: null, gate: "open" })).toBe("filled");
+    expect(manualSlotMode({ viewMode: "idle", resultAdsAllowed: null, gate: "waiting" })).toBe("reserved");
+    expect(manualSlotMode({ viewMode: "idle", resultAdsAllowed: null, gate: "closed" })).toBe("none");
+    expect(manualSlotMode({ viewMode: "settled", resultAdsAllowed: true, gate: "open" })).toBe("filled");
+    expect(manualSlotMode({ viewMode: "settled", resultAdsAllowed: true, gate: "waiting" })).toBe("reserved");
+    expect(manualSlotMode({ viewMode: "settled", resultAdsAllowed: false, gate: "open" })).toBe("none");
+    expect(manualSlotMode({ viewMode: "settled", resultAdsAllowed: null, gate: "open" })).toBe("none");
+    expect(manualSlotMode({ viewMode: "loading", resultAdsAllowed: true, gate: "open" })).toBe("none");
+    expect(manualSlotMode({ viewMode: "error", resultAdsAllowed: null, gate: "open" })).toBe("none");
+  });
+
+  test("every style's --tt-anchor-reserve equals config.ads.anchorReservePx, and html keeps that scroll padding", () => {
+    const stylesDir = path.join(process.cwd(), "app/styles");
+    const files = readdirSync(stylesDir).filter((name) => name.endsWith(".css"));
+    expect(files).toContain("tokens.css");
+    for (const name of files) {
+      const values = Array.from(readFileSync(path.join(stylesDir, name), "utf8").matchAll(/--tt-anchor-reserve\s*:\s*([^;]+);/g), (match) =>
+        match[1].trim()
+      );
+      expect(values.length, name).toBeGreaterThan(0);
+      for (const value of values) expect(value, name).toBe(`${ads.anchorReservePx}px`);
+    }
+    const globals = readFileSync(path.join(process.cwd(), "app/globals.css"), "utf8");
+    expect(globals).toMatch(/html\s*\{[^}]*scroll-padding-bottom:\s*var\(--tt-anchor-reserve\)/);
+  });
 });

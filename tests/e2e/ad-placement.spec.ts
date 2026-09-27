@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { channels, disclosures, lookup, resultCopy } from "@/config/site.config";
+import { ads, channels, disclosures, lookup, resultCopy } from "@/config/site.config";
 import { FAKE, FIXTURE_NOW, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+import { INTERNAL_TEST_CREDENTIALS } from "../internal-auth";
 
 async function blockThirdParty(page: Page): Promise<void> {
   await page.route(/^https?:\/\/(?!127\.0\.0\.1[:/]|localhost[:/])/, (route) => route.abort());
@@ -113,5 +114,98 @@ test.describe("footer (S08)", () => {
     await page.goto(`/${FAKE.domestic}`);
     await expect(page.locator('[data-result-view="error"]')).toBeVisible();
     expect(await page.locator(`a[href="${channels.talk.url}"]`).count()).toBeLessThanOrEqual(3);
+  });
+});
+
+const INPUT_LABEL = "조회번호 (HBL 또는 운송장)";
+const LOOKUP_ANOTHER_LABEL = "다른 번호 조회";
+
+async function lookUp(page: Page, number: string): Promise<void> {
+  const input = page.getByLabel(INPUT_LABEL, { exact: true });
+  await input.fill(number);
+  await input.press("Enter");
+}
+
+test.describe("manual ad slot (S08)", () => {
+  test("html keeps scroll room for a bottom anchor equal to config.ads.anchorReservePx", async ({ page }) => {
+    await page.goto("/");
+    const padding = await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom);
+    expect(padding).toBe(`${ads.anchorReservePx}px`);
+  });
+
+  test("without an ad unit id no page renders a slot", async ({ page }) => {
+    test.skip(ads.manualSlotId !== null, "an ad unit id is configured: the approval-15 rows below cover the live slot");
+    await page.goto("/");
+    await expect(page.locator("[data-store-showcase]")).toBeVisible();
+    await expect(page.locator("[data-ad-slot]")).toHaveCount(0);
+    await mockTrack(page, trackData("inTransit", { trackingNumber: FAKE.domestic }));
+    await page.goto(`/${FAKE.domestic}`);
+    await expect(page.locator("[data-result-view] h2")).toBeVisible();
+    await expect(page.locator("[data-ad-slot]")).toHaveCount(0);
+  });
+});
+
+test.describe("manual ad slot with an ad unit id (S08, approval 15)", () => {
+  test.skip(ads.manualSlotId === null, "approval 15: config.ads.manualSlotId is not set yet");
+
+  test("home: one slot after the showcase and before the footer, reserving the configured height", async ({ page }) => {
+    for (const [width, reserved] of [
+      [375, ads.minHeightMobilePx],
+      [1280, ads.minHeightDesktopPx]
+    ] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/");
+      const slot = page.locator('aside[data-ad-slot="manual"]');
+      await expect(slot).toHaveCount(1);
+      await expect(slot).toHaveAccessibleName(resultCopy.adSlotLabel);
+      expect(await isBefore(page.locator("[data-store-showcase]"), slot)).toBe(true);
+      expect(await isBefore(slot, page.getByRole("contentinfo"))).toBe(true);
+      expect(Math.round((await slot.boundingBox())?.height ?? 0)).toBeGreaterThanOrEqual(reserved);
+    }
+  });
+
+  test("an allowed result gets one slot after the result area; loading and a problem result get none", async ({ page }) => {
+    await page.goto("/");
+    await mockTrack(page, trackData("delivered", { trackingNumber: FAKE.domestic }), { delayMs: 2_000 });
+    await lookUp(page, FAKE.domestic);
+    await expect(page.locator("[data-loading-stage]")).toBeVisible();
+    await expect(page.locator("[data-ad-slot]")).toHaveCount(0);
+    await expect(page.locator("[data-result-view] h2")).toBeVisible();
+    const slot = page.locator('aside[data-ad-slot="manual"]');
+    await expect(slot).toHaveCount(1);
+    expect(await isBefore(page.locator("[data-result-view]"), slot)).toBe(true);
+
+    await mockTrack(page, "notFound404");
+    await page.getByRole("button", { name: LOOKUP_ANOTHER_LABEL }).click();
+    await lookUp(page, FAKE.domesticAlt);
+    await expect(page.locator('[data-result-view="error"]')).toBeVisible();
+    await expect(page.locator("[data-ad-slot]")).toHaveCount(0);
+  });
+});
+
+test.describe("manual ad slot in the gallery (S08)", () => {
+  test.use({ httpCredentials: INTERNAL_TEST_CREDENTIALS });
+
+  test("the reserved box keeps its height when an ad fills it, and /internal never fills it", async ({ page }) => {
+    for (const [width, reserved] of [
+      [375, ads.minHeightMobilePx],
+      [1280, ads.minHeightDesktopPx]
+    ] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/internal/ui-kit");
+      const slot = page.locator('[data-demo="manual-ad-slot"] aside[data-ad-slot="manual"]');
+      await expect(slot).toHaveAccessibleName(resultCopy.adSlotLabel);
+      await expect(slot.locator("ins")).toHaveCount(0);
+      const before = (await slot.boundingBox())?.height ?? 0;
+      expect(Math.round(before)).toBe(reserved);
+      await slot.evaluate((box, height) => {
+        const filler = document.createElement("div");
+        filler.style.height = `${height}px`;
+        box.append(filler);
+      }, ads.minHeightDesktopPx);
+      const after = (await slot.boundingBox())?.height ?? 0;
+      console.info(`[budget] manual slot fill at ${width}px: ${Math.round(before)} -> ${Math.round(after)} px (reserved ${reserved} px, shift 0 expected)`);
+      expect(after).toBe(before);
+    }
   });
 });
