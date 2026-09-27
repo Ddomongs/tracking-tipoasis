@@ -19,6 +19,7 @@ import {
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import tailwindConfig from "@/tailwind.config";
+import { disclosures } from "@/config/site.config";
 
 const HEX_COLOR = /^#[0-9A-F]{6}$/;
 const TONES = ["progress", "waiting", "attention", "problem", "done"] as const;
@@ -273,5 +274,68 @@ test.describe("tailwind mapping", () => {
       "tt-slow": "var(--tt-motion-slow)"
     });
     expect(extend.transitionTimingFunction).toEqual({ tt: "var(--tt-ease)" });
+  });
+});
+
+test.describe("DESIGN.md is the single source", () => {
+  const design = (): string => readRepoFile("DESIGN.md");
+
+  test("lists every signal color token with its value", () => {
+    const text = design();
+    const signal = signalColors();
+    const missing = COLOR_TOKENS.filter((token) => !new RegExp(`\\|\\s*\`${token}\`\\s*\\|\\s*\`${signal[token]}\`\\s*\\|`).test(text));
+    expect(missing).toEqual([]);
+  });
+
+  test("names every non-color token, variant slot, S05 hook and the two motions", () => {
+    const text = design();
+    const names = [
+      ...NON_COLOR_TOKENS,
+      'data-slot="status-head"',
+      'data-slot="eta"',
+      'data-slot="journey"',
+      'data-slot="button"',
+      "data-tone",
+      "data-status-chip",
+      "data-station",
+      "data-station-state",
+      "data-issue",
+      "data-spine-current",
+      "data-eta-kind",
+      "data-number-bar",
+      "data-affiliate-group",
+      "data-affiliate-disclosure",
+      "data-link-placement",
+      "data-notice-kind",
+      "tt-paint",
+      "tt-grow"
+    ];
+    expect(names.filter((name) => !text.includes(`\`${name}\``))).toEqual([]);
+  });
+
+  test("its contrast table matches the computed ratios", () => {
+    const text = design();
+    const signal = signalColors();
+    const wrong = CONTRAST_REQUIREMENTS.filter(({ fg, bg, min }) => {
+      const ratio = contrastRatio(signal[fg], signal[bg]).toFixed(2);
+      return !text.includes(`| \`${fg}\` / \`${bg}\` | ${ratio}:1 | ${min}:1 |`);
+    }).map(({ fg, bg }) => `${fg} / ${bg}`);
+    expect(wrong).toEqual([]);
+  });
+
+  test("documents every primitive and the configured disclosure wording", () => {
+    const text = design();
+    const primitives = [
+      "Button", "ButtonLink", "ToneIcon", "StatusChip", "JourneySpine", "EtaDisplay",
+      "NumberBar", "CopyButton", "AffiliateLinkGroup", "NoticeBanner", "TalkLink", "LiveAnnouncer"
+    ];
+    expect(primitives.filter((name) => !text.includes(`\`${name}\``))).toEqual([]);
+    expect(text).toContain(disclosures.coupang);
+  });
+
+  test("carries no legacy tokens or fonts", () => {
+    const text = design();
+    const legacy = ["background-base", "accent-info", "accent-action", "surface-luminous", "IBM Plex", "Space Grotesk", "4.8s loop"];
+    expect(legacy.filter((word) => text.includes(word))).toEqual([]);
   });
 });
