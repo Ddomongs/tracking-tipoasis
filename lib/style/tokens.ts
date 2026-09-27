@@ -61,8 +61,84 @@ const SIGNAL_COLORS: ColorTokenSet = {
   "--tt-tone-done-ink": "#0B6B3E"
 };
 
+/**
+ * Style A "세관 서류" (Phase 3 canvas A, Main.dc.html): cold paper, ink rules, one rubber stamp for the state.
+ * Links are ink + underline (apart from the stamp blue). Keep in sync with app/styles/style-manifest.css.
+ */
+const MANIFEST_COLORS: ColorTokenSet = {
+  "--tt-ground": "#ECEFF3",
+  "--tt-surface": "#FAFBFC",
+  "--tt-raised": "#FAFBFC",
+  "--tt-ink": "#14213A",
+  "--tt-muted": "#4A566B",
+  "--tt-rule": "#C4CCD7",
+  "--tt-control": "#6B7689",
+  "--tt-route": "#7D8899",
+  "--tt-primary": "#1B4A9A",
+  "--tt-on-primary": "#FFFFFF",
+  "--tt-accent": "#1B4A9A",
+  "--tt-link": "#14213A",
+  "--tt-focus": "#14213A",
+  "--tt-tile": "#FAFBFC",
+  "--tt-board": "#14213A",
+  "--tt-tone-progress": "#1B4A9A",
+  "--tt-tone-progress-on": "#FFFFFF",
+  "--tt-tone-progress-ink": "#1B4A9A",
+  "--tt-tone-waiting": "#56627A",
+  "--tt-tone-waiting-on": "#FFFFFF",
+  "--tt-tone-waiting-ink": "#56627A",
+  "--tt-tone-attention": "#9A5A00",
+  "--tt-tone-attention-on": "#FFFFFF",
+  "--tt-tone-attention-ink": "#9A5A00",
+  "--tt-tone-problem": "#B3261E",
+  "--tt-tone-problem-on": "#FFFFFF",
+  "--tt-tone-problem-ink": "#B3261E",
+  "--tt-tone-done": "#185C36",
+  "--tt-tone-done-on": "#FFFFFF",
+  "--tt-tone-done-ink": "#185C36"
+};
+
+/**
+ * Style C "야간 관제" (Phase 3 canvas C, Main.dc.html): desaturated dark ground, metro-line journey, flat lamps,
+ * digit tiles (tile/board). Links are ink + underline (apart from the lamp blue). Keep in sync with app/styles/style-night.css.
+ */
+const NIGHT_COLORS: ColorTokenSet = {
+  "--tt-ground": "#0C1214",
+  "--tt-surface": "#131B1E",
+  "--tt-raised": "#1A2428",
+  "--tt-ink": "#E6ECE9",
+  "--tt-muted": "#9AA8AC",
+  "--tt-rule": "#27343A",
+  "--tt-control": "#62757C",
+  "--tt-route": "#6E8288",
+  "--tt-primary": "#8FB3F0",
+  "--tt-on-primary": "#0C1214",
+  "--tt-accent": "#8FB3F0",
+  "--tt-link": "#E6ECE9",
+  "--tt-focus": "#E6ECE9",
+  "--tt-tile": "#080C0E",
+  "--tt-board": "#F1E8D4",
+  "--tt-tone-progress": "#8FB3F0",
+  "--tt-tone-progress-on": "#0C1214",
+  "--tt-tone-progress-ink": "#8FB3F0",
+  "--tt-tone-waiting": "#A3AFB3",
+  "--tt-tone-waiting-on": "#0C1214",
+  "--tt-tone-waiting-ink": "#A3AFB3",
+  "--tt-tone-attention": "#E8A847",
+  "--tt-tone-attention-on": "#0C1214",
+  "--tt-tone-attention-ink": "#E8A847",
+  "--tt-tone-problem": "#EF7C71",
+  "--tt-tone-problem-on": "#0C1214",
+  "--tt-tone-problem-ink": "#EF7C71",
+  "--tt-tone-done": "#74CB9B",
+  "--tt-tone-done-on": "#0C1214",
+  "--tt-tone-done-ink": "#74CB9B"
+};
+
 export const STYLE_COLOR_TOKENS: Readonly<Partial<Record<StyleId, ColorTokenSet>>> = {
-  signal: SIGNAL_COLORS
+  signal: SIGNAL_COLORS,
+  manifest: MANIFEST_COLORS,
+  night: NIGHT_COLORS
 };
 
 export interface ContrastRequirement {

@@ -70,8 +70,8 @@ test.describe("style ids", () => {
     expect(STYLE_STORAGE_KEY).toBe("tt:style");
   });
 
-  test("implements only signal in S05", () => {
-    expect(IMPLEMENTED_STYLE_IDS).toEqual(["signal"]);
+  test("implements all three styles (S08)", () => {
+    expect(IMPLEMENTED_STYLE_IDS).toEqual(["signal", "manifest", "night"]);
   });
 
   test("isStyleId accepts exactly the three ids", () => {
@@ -420,5 +420,79 @@ test.describe("design-system bundle", () => {
       }
     }
     expect(groups).toBeGreaterThanOrEqual(3);
+  });
+});
+
+const STYLE_FILES = { manifest: "app/styles/style-manifest.css", night: "app/styles/style-night.css" } as const;
+type ExtraStyleId = keyof typeof STYLE_FILES;
+
+function styleBlock(id: ExtraStyleId): Map<string, string> {
+  const match = readRepoFile(STYLE_FILES[id]).match(new RegExp(`\\[data-style="${id}"\\]\\s*\\{([^}]*)\\}`));
+  if (!match) throw new Error(`${STYLE_FILES[id]} has no [data-style="${id}"] token block`);
+  return declarations(match[1]);
+}
+
+function styleColors(id: ExtraStyleId): ColorTokenSet {
+  const set = STYLE_COLOR_TOKENS[id];
+  if (!set) throw new Error(`${id} color tokens are missing`);
+  return set;
+}
+
+test.describe("manifest and night tokens (S08)", () => {
+  for (const id of ["manifest", "night"] as const) {
+    test(`${id}: the style file declares every contract token with the TypeScript colors and nothing else`, () => {
+      const block = styleBlock(id);
+      const colors = styleColors(id);
+      for (const token of COLOR_TOKENS) expect(block.get(token)?.toUpperCase(), `${id} ${token}`).toBe(colors[token]);
+      for (const token of NON_COLOR_TOKENS) expect(block.has(token), `${id} ${token}`).toBe(true);
+      const known = new Set<string>([...COLOR_TOKENS, ...NON_COLOR_TOKENS]);
+      expect([...block.keys()].filter((name) => !known.has(name))).toEqual([]);
+    });
+
+    test(`${id}: type, focus, motion and layout values follow the shared budgets`, () => {
+      const block = styleBlock(id);
+      const sizes = ["--tt-text-xs", "--tt-text-sm", "--tt-text-md", "--tt-text-lg", "--tt-text-xl"].map((token) => pixels(block.get(token)));
+      expect(sizes).toEqual([12, 14, 16, 20, 24]);
+      const eta = pixels(block.get("--tt-text-eta"));
+      expect(eta).toBeGreaterThanOrEqual(32);
+      expect(eta).toBeLessThanOrEqual(40);
+      expect(pixels(block.get("--tt-focus-width"))).toBeGreaterThanOrEqual(3);
+      expect(pixels(block.get("--tt-focus-offset"))).toBe(2);
+      for (const token of ["--tt-motion-fast", "--tt-motion-base", "--tt-motion-slow"]) {
+        const ms = milliseconds(block.get(token));
+        expect(ms, token).toBeGreaterThanOrEqual(150);
+        expect(ms, token).toBeLessThanOrEqual(300);
+      }
+      expect(pixels(block.get("--tt-header-h"))).toBe(48);
+      expect(pixels(block.get("--tt-column"))).toBe(560);
+      expect(pixels(block.get("--tt-side"))).toBe(320);
+      expect(pixels(block.get("--tt-status-field-max"))).toBe(300);
+      expect(pixels(block.get("--tt-anchor-reserve"))).toBe(64);
+      expect(pixels(block.get("--tt-radius-button"))).toBeLessThanOrEqual(8);
+      expect(pixels(block.get("--tt-border-button"))).toBeGreaterThanOrEqual(1);
+      expect(block.get("--tt-font-body")).toBe(signalBlock(readRepoFile("app/styles/tokens.css")).get("--tt-font-body"));
+      expect(block.get("--tt-font-mono")).toContain(id === "manifest" ? "var(--font-plex-mono" : "var(--font-jetbrains-mono");
+    });
+
+    test(`${id}: red only for '문제', amber for '확인 필요', links apart from '정상 진행' and the accent, five distinct fills`, () => {
+      const colors = styleColors(id);
+      expect(COLOR_TOKENS.filter((token) => isRed(colors[token]))).toEqual(["--tt-tone-problem", "--tt-tone-problem-ink"]);
+      const { hue } = hsl(colors["--tt-tone-attention"]);
+      expect(hue).toBeGreaterThanOrEqual(25);
+      expect(hue).toBeLessThanOrEqual(55);
+      expect(colors["--tt-link"]).not.toBe(colors["--tt-tone-progress"]);
+      expect(colors["--tt-link"]).not.toBe(colors["--tt-accent"]);
+      expect(new Set(TONES.map((tone) => colors[`--tt-tone-${tone}`])).size).toBe(5);
+    });
+  }
+
+  test("the root layout loads both style files after tokens.css", () => {
+    const layout = readRepoFile("app/layout.tsx");
+    const tokens = layout.indexOf('import "./styles/tokens.css";');
+    const manifest = layout.indexOf('import "./styles/style-manifest.css";');
+    const night = layout.indexOf('import "./styles/style-night.css";');
+    expect(tokens).toBeGreaterThan(-1);
+    expect(manifest).toBeGreaterThan(tokens);
+    expect(night).toBeGreaterThan(manifest);
   });
 });

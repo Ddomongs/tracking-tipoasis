@@ -1,6 +1,6 @@
 /**
  * Screen styles the customer can pick (spec §13). S05 implements only the default,
- * "signal" (B 색면 신호); S08 adds "manifest" and "night" and widens IMPLEMENTED_STYLE_IDS.
+ * "signal" (B 색면 신호, the default), "manifest" (A 세관 서류) and "night" (C 야간 관제) — all three implemented since S08.
  */
 export const STYLE_IDS = ["signal", "manifest", "night"] as const;
 export type StyleId = (typeof STYLE_IDS)[number];
@@ -17,7 +17,7 @@ export const STYLE_LABELS: Readonly<Record<StyleId, string>> = {
   night: "어두운 화면"
 };
 
-export const IMPLEMENTED_STYLE_IDS: readonly StyleId[] = ["signal"];
+export const IMPLEMENTED_STYLE_IDS: readonly StyleId[] = ["signal", "manifest", "night"];
 
 export function isStyleId(value: unknown): value is StyleId {
   return typeof value === "string" && (STYLE_IDS as readonly string[]).includes(value);

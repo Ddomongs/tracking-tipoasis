@@ -4,6 +4,8 @@ import { DM_Mono } from "next/font/google";
 import { DEFAULT_STYLE_ID } from "@/lib/style/styles";
 import "./globals.css";
 import "./styles/tokens.css";
+import "./styles/style-manifest.css";
+import "./styles/style-night.css";
 
 // Signal (기본) keeps body and display text on the system Korean gothic (0 KB). The only web font is
 // DM Mono 500, latin subset, for tracking-number digits: one preloaded file (spec §12 and §13 font budget).

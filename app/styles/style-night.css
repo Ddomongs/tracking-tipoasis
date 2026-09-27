@@ -1,0 +1,68 @@
+/*
+ * 화면 스타일 토큰 — night(어두운 화면, C 야간 관제)
+ * - 기준 문서: DESIGN.md 15장. 색 값은 lib/style/tokens.ts 의 NIGHT_COLORS 와 같아야 하고 tests/unit/tokens.spec.ts 가 검사합니다.
+ * - 이 파일은 [data-style="night"] 범위에만 규칙을 겁니다. 부품의 DOM·data-* 훅·문구는 바꾸지 않습니다.
+ * - 한글은 시스템 고딕, 숫자만 JetBrains Mono(이 스타일을 고를 때만 내려받음)를 씁니다. 층은 흐림 없이 밝기 단계로만 나눕니다.
+ * - 기기 어두운 모드면 첫 방문에 이 스타일로 시작합니다(config style.followSystemDark, lib/style/prepaint.ts).
+ */
+[data-style="night"] {
+  color-scheme: dark;
+  --tt-ground: #0C1214;
+  --tt-surface: #131B1E;
+  --tt-raised: #1A2428;
+  --tt-ink: #E6ECE9;
+  --tt-muted: #9AA8AC;
+  --tt-rule: #27343A;
+  --tt-control: #62757C;
+  --tt-route: #6E8288;
+  --tt-primary: #8FB3F0;
+  --tt-on-primary: #0C1214;
+  --tt-accent: #8FB3F0;
+  --tt-link: #E6ECE9;
+  --tt-focus: #E6ECE9;
+  --tt-tile: #080C0E;
+  --tt-board: #F1E8D4;
+  --tt-tone-progress: #8FB3F0;
+  --tt-tone-progress-on: #0C1214;
+  --tt-tone-progress-ink: #8FB3F0;
+  --tt-tone-waiting: #A3AFB3;
+  --tt-tone-waiting-on: #0C1214;
+  --tt-tone-waiting-ink: #A3AFB3;
+  --tt-tone-attention: #E8A847;
+  --tt-tone-attention-on: #0C1214;
+  --tt-tone-attention-ink: #E8A847;
+  --tt-tone-problem: #EF7C71;
+  --tt-tone-problem-on: #0C1214;
+  --tt-tone-problem-ink: #EF7C71;
+  --tt-tone-done: #74CB9B;
+  --tt-tone-done-on: #0C1214;
+  --tt-tone-done-ink: #74CB9B;
+
+  --tt-font-body: "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Noto Sans CJK KR", system-ui, -apple-system, sans-serif;
+  --tt-font-display: "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Noto Sans CJK KR", system-ui, -apple-system, sans-serif;
+  --tt-font-mono: var(--font-jetbrains-mono, "JetBrains Mono"), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --tt-weight-display: 700;
+  --tt-text-xs: 12px;
+  --tt-text-sm: 14px;
+  --tt-text-md: 16px;
+  --tt-text-lg: 20px;
+  --tt-text-xl: 24px;
+  --tt-text-eta: 36px;
+  --tt-leading-tight: 1.25;
+  --tt-leading-body: 1.5;
+  --tt-radius-button: 4px;
+  --tt-radius-card: 0px;
+  --tt-border-button: 1px;
+  --tt-focus-width: 3px;
+  --tt-focus-offset: 2px;
+  --tt-motion-fast: 150ms;
+  --tt-motion-base: 200ms;
+  --tt-motion-slow: 250ms;
+  --tt-ease: cubic-bezier(0.2, 0, 0, 1);
+  --tt-gutter: 20px;
+  --tt-header-h: 48px;
+  --tt-column: 560px;
+  --tt-side: 320px;
+  --tt-status-field-max: 300px;
+  --tt-anchor-reserve: 64px;
+}

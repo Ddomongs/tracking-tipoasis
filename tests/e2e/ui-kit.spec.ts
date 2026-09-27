@@ -877,3 +877,24 @@ test.describe("axe (approval 13)", () => {
     });
   }
 });
+
+test.describe("style token sets on the page (S08)", () => {
+  for (const id of ["signal", "manifest", "night"] as const) {
+    test(`html[data-style=${id}] applies the ${id} colors`, async ({ page }) => {
+      await openKit(page);
+      await page.evaluate((style) => document.documentElement.setAttribute("data-style", style), id);
+      const values = await page.evaluate(() => {
+        const root = getComputedStyle(document.documentElement);
+        const read = (token: string): string => root.getPropertyValue(token).trim().toUpperCase();
+        return { ground: read("--tt-ground"), ink: read("--tt-ink"), primary: read("--tt-primary"), problem: read("--tt-tone-problem") };
+      });
+      const set = STYLE_COLOR_TOKENS[id];
+      expect(values).toEqual({
+        ground: set?.["--tt-ground"],
+        ink: set?.["--tt-ink"],
+        primary: set?.["--tt-primary"],
+        problem: set?.["--tt-tone-problem"]
+      });
+    });
+  }
+});

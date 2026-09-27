@@ -1,0 +1,67 @@
+/*
+ * 화면 스타일 토큰 — manifest(서류형, A 세관 서류)
+ * - 기준 문서: DESIGN.md 14장. 색 값은 lib/style/tokens.ts 의 MANIFEST_COLORS 와 같아야 하고 tests/unit/tokens.spec.ts 가 검사합니다.
+ * - 이 파일은 [data-style="manifest"] 범위에만 규칙을 겁니다. 부품의 DOM·data-* 훅·문구는 바꾸지 않습니다.
+ * - 한글 제목은 설치된 명조 글꼴을 쓰고(웹 폰트 없음), 숫자만 IBM Plex Mono(이 스타일을 고를 때만 내려받음)를 씁니다.
+ * - app/layout.tsx 가 tokens.css 다음에 이 파일을 불러서, 같은 우선순위에서 :root 기본값보다 이 값이 이깁니다.
+ */
+[data-style="manifest"] {
+  --tt-ground: #ECEFF3;
+  --tt-surface: #FAFBFC;
+  --tt-raised: #FAFBFC;
+  --tt-ink: #14213A;
+  --tt-muted: #4A566B;
+  --tt-rule: #C4CCD7;
+  --tt-control: #6B7689;
+  --tt-route: #7D8899;
+  --tt-primary: #1B4A9A;
+  --tt-on-primary: #FFFFFF;
+  --tt-accent: #1B4A9A;
+  --tt-link: #14213A;
+  --tt-focus: #14213A;
+  --tt-tile: #FAFBFC;
+  --tt-board: #14213A;
+  --tt-tone-progress: #1B4A9A;
+  --tt-tone-progress-on: #FFFFFF;
+  --tt-tone-progress-ink: #1B4A9A;
+  --tt-tone-waiting: #56627A;
+  --tt-tone-waiting-on: #FFFFFF;
+  --tt-tone-waiting-ink: #56627A;
+  --tt-tone-attention: #9A5A00;
+  --tt-tone-attention-on: #FFFFFF;
+  --tt-tone-attention-ink: #9A5A00;
+  --tt-tone-problem: #B3261E;
+  --tt-tone-problem-on: #FFFFFF;
+  --tt-tone-problem-ink: #B3261E;
+  --tt-tone-done: #185C36;
+  --tt-tone-done-on: #FFFFFF;
+  --tt-tone-done-ink: #185C36;
+
+  --tt-font-body: "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Noto Sans CJK KR", system-ui, -apple-system, sans-serif;
+  --tt-font-display: "AppleMyungjo", "Nanum Myeongjo", "NanumMyeongjo", "Batang", "바탕", "Noto Serif KR", "Noto Serif CJK KR", serif;
+  --tt-font-mono: var(--font-plex-mono, "IBM Plex Mono"), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --tt-weight-display: 700;
+  --tt-text-xs: 12px;
+  --tt-text-sm: 14px;
+  --tt-text-md: 16px;
+  --tt-text-lg: 20px;
+  --tt-text-xl: 24px;
+  --tt-text-eta: 36px;
+  --tt-leading-tight: 1.25;
+  --tt-leading-body: 1.5;
+  --tt-radius-button: 2px;
+  --tt-radius-card: 0px;
+  --tt-border-button: 1px;
+  --tt-focus-width: 3px;
+  --tt-focus-offset: 2px;
+  --tt-motion-fast: 150ms;
+  --tt-motion-base: 200ms;
+  --tt-motion-slow: 250ms;
+  --tt-ease: cubic-bezier(0.2, 0, 0, 1);
+  --tt-gutter: 20px;
+  --tt-header-h: 48px;
+  --tt-column: 560px;
+  --tt-side: 320px;
+  --tt-status-field-max: 300px;
+  --tt-anchor-reserve: 64px;
+}
