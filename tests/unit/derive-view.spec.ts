@@ -1,15 +1,21 @@
 import { expect, test } from "@playwright/test";
 import { buildReturnLink } from "@/lib/site";
+import { carrierOfficialUrl } from "@/lib/tracking/carriers";
+import { classifyFailure } from "@/lib/tracking/classify-failure";
 import { deriveTrackingView, guideKeyForData, isOverdue, worryDateKey } from "@/lib/tracking/derive-view";
-import type { ActionView, FailureCause, GuideKey, RevenueView } from "@/lib/tracking/types";
+import { PROBLEM_GUIDE_KEYS } from "@/lib/tracking/types";
+import type {
+  ActionView, CtaState, FailureCause, FailureInput, GuideKey, RevenueView, TrackingViewModel
+} from "@/lib/tracking/types";
 import type { TrackResponseData } from "@/lib/types";
-import { FIXTURE_CONFIG } from "../fixtures/config-fixtures";
+import { FIXTURE_CONFIG, withConfig } from "../fixtures/config-fixtures";
 import {
   CJ_URL, MOVED_NOW, OCTOBER_NOW, PICKUP_NOW, ambiguousData, carrierCutData, customsArrivedData, customsClearedData,
   customsReviewData, customsWaitingData, deliveredData, ev, failure, handedToCarrierData, inTransitData, lookupUnavailableData,
   movedEstimateData, pendingData, pickedUpData, staleData, success
 } from "../fixtures/derive-scenarios";
-import { FAKE, FAKE_GROUPED, FIXTURE_NOW } from "../fixtures/tracking-fixtures";
+import { FAKE, FAKE_GROUPED, FIXTURE_NOW, GAP3_06_VARIANTS, trackData } from "../fixtures/tracking-fixtures";
+import type { FixtureState } from "../fixtures/tracking-fixtures";
 
 const CONFIG = FIXTURE_CONFIG;
 const at = (iso: string): Date => new Date(iso);
@@ -26,6 +32,68 @@ const ALL_CAUSES: readonly FailureCause[] = [
 const BASELINE_WAITING = deriveTrackingView(success(customsWaitingData()), FIXTURE_NOW, CONFIG);
 const BASELINE_IN_TRANSIT = deriveTrackingView(success(inTransitData()), OCTOBER_NOW, CONFIG);
 const BASELINE_OVERDUE = deriveTrackingView(success(customsWaitingData()), at("2026-09-29T00:00:00+09:00"), CONFIG);
+const TALK_SECONDARY: ActionView = { ...TALK_TEXT, weight: "secondary" };
+const RETRY_TEXT: ActionView = { kind: "retry", label: "다시 조회", weight: "text", href: null, external: false, cooldownSeconds: null };
+const RETRY_SECONDARY: ActionView = { ...RETRY_TEXT, weight: "secondary" };
+
+const GAP3_06_KEYS: Readonly<Partial<Record<FixtureState, GuideKey>>> = {
+  pending: "pending", customsArrived: "customsArrived", customsWaiting: "customsWaiting", customsReview: "customsWaiting",
+  customsCleared: "customsCleared", pickedUp: "pickedUp", inTransit: "inTransit", delivered: "delivered", stale: "stale",
+  lookupUnavailableAuto: "lookupUnavailable", lookupUnavailableCarrier: "lookupUnavailable", ambiguous: "ambiguous"
+};
+const ERROR_CODE_INPUTS: readonly FailureInput[] = [
+  { kind: "http", status: 400, code: "INVALID_NUMBER", isJson: true },
+  { kind: "http", status: 504, code: "API_TIMEOUT", isJson: true },
+  { kind: "http", status: 404, code: "NOT_FOUND", isJson: true },
+  { kind: "http", status: 500, code: "SERVER_ERROR", isJson: true },
+  { kind: "http", status: 429, code: "RATE_LIMITED", isJson: true }
+];
+const CTA_BY_KEY: Readonly<Partial<Record<GuideKey, CtaState>>> = {
+  pending: "pending", customsArrived: "customsWaiting", customsWaiting: "customsWaiting", customsCleared: "customsCleared",
+  handedToCarrier: "customsCleared", pickedUp: "customsCleared", inTransit: "inTransit", delivered: "delivered",
+  stale: "stale", lookupUnavailable: "lookupUnavailable", ambiguous: "ambiguous"
+};
+const PROBLEM_KEYS: ReadonlySet<GuideKey> = new Set<GuideKey>(PROBLEM_GUIDE_KEYS);
+const NORMAL_WAITING: ReadonlySet<GuideKey> = new Set<GuideKey>(["customsArrived", "customsWaiting", "customsCleared"]);
+const UNRESOLVED_TOKEN = /\{[A-Za-z]+\}/;
+
+/** The rules GAP3-06 found broken in 8 of 12 variants; returns one message per rule a view breaks. */
+function contradictions(view: TrackingViewModel): readonly string[] {
+  const actions = [view.nextAction.primary, ...view.nextAction.secondary].filter((item): item is ActionView => item !== null);
+  const firstLinkKind = actions.find((item) => item.href !== null)?.kind;
+  const stores = view.nextAction.stores;
+  const texts = [
+    view.title, view.reason ?? "", view.chip ?? "", view.nextAction.sentence, view.nextAction.worry?.text ?? "",
+    view.nextAction.note ?? "", view.documentTitle, view.liveMessage
+  ];
+  const problem = view.mode === "error" || PROBLEM_KEYS.has(view.guideKey) || view.overdue;
+  const rules: ReadonlyArray<readonly [string, boolean]> = [
+    ["CTA state matches the summary", view.ctaState !== (view.mode === "error" ? "error" : CTA_BY_KEY[view.guideKey])],
+    ["at most two secondary actions", view.nextAction.secondary.length > 2],
+    ["no unresolved tokens", texts.some((text) => UNRESOLVED_TOKEN.test(text))],
+    ["problem states carry no stores, recommendations or ads",
+      problem && (stores !== null || view.revenue.stores !== "none" || view.revenue.recommendations !== "none" || view.revenue.adsAllowed)],
+    ["in transit keeps stores out of the CTA", view.guideKey === "inTransit" && stores !== null],
+    ["delivered leads with the stores", view.guideKey === "delivered" && stores?.links[0]?.weight !== "primary"],
+    ["pending offers 톡톡 and purchase choices",
+      view.guideKey === "pending" && (stores?.placement !== "pending" || !actions.some((item) => item.kind === "talk"))],
+    ["stale withholds the estimate", view.guideKey === "stale" && view.eta.kind !== "withheld"],
+    ["pending shows '정보 등록 후 안내'", view.guideKey === "pending" && view.eta.kind !== "pendingInfo"],
+    ["carrier links only with the known official URL",
+      actions.some((item) => item.kind === "carrierOfficial" && (item.href === null || item.href !== view.carrier.officialUrl))],
+    ["'배송이 진행 중이에요' only while in transit", view.nextAction.heading === "배송이 진행 중이에요" && view.guideKey !== "inTransit"],
+    ["'아직 국내 배송 정보가 없어요' only while pending", view.nextAction.heading === "아직 국내 배송 정보가 없어요" && view.guideKey !== "pending"],
+    ["normal waiting has no filled button", NORMAL_WAITING.has(view.guideKey) && !view.overdue && view.nextAction.primary !== null],
+    ["red only for real errors", view.tone === "problem" && view.guideKey !== "serverError"],
+    ["overdue uses the attention tone and copy-and-talk", view.overdue && (view.tone !== "attention" || view.nextAction.primary?.kind !== "copyAndTalk")],
+    ["disclosure exactly when a link is affiliate",
+      stores !== null && (stores.disclosure !== null) !== stores.links.some((link) => link.isAffiliate)],
+    ["spine position only with a current station", (view.spine.current === null) !== (view.spine.positionLabel === null)],
+    ["errors lead with 톡톡", view.mode === "error" && firstLinkKind !== "talk" && firstLinkKind !== "copyAndTalk"],
+    ["copy actions carry the inquiry text", actions.some((item) => item.kind === "copyAndTalk") !== (view.inquiryCopy !== null)]
+  ];
+  return rules.filter(([, broken]) => broken).map(([rule]) => `${view.guideKey}${view.overdue ? " (overdue)" : ""}: ${rule}`);
+}
 
 interface KeyRow { readonly name: string; readonly data: TrackResponseData; readonly now: Date; readonly key: GuideKey }
 
@@ -445,5 +513,159 @@ test.describe("result views in America/New_York", () => {
     expect(deriveTrackingView(success(customsWaitingData()), FIXTURE_NOW, CONFIG)).toEqual(BASELINE_WAITING);
     expect(deriveTrackingView(success(inTransitData()), OCTOBER_NOW, CONFIG)).toEqual(BASELINE_IN_TRANSIT);
     expect(deriveTrackingView(success(customsWaitingData()), at("2026-09-29T00:00:00+09:00"), CONFIG)).toEqual(BASELINE_OVERDUE);
+  });
+});
+
+test.describe("error views by cause", () => {
+  const withCaveat = withConfig({ lookup: { notFoundServiceCaveat: true } });
+  const withoutCaveat = withConfig({ lookup: { notFoundServiceCaveat: false } });
+
+  test("NOT_FOUND: fix the number first, 톡톡 as the first link, 7-day worry line, caveat line before R4", () => {
+    const view = deriveTrackingView(failure("notFound"), FIXTURE_NOW, withCaveat);
+    expect(view.guideKey).toBe("notFound");
+    expect(view.tone).toBe("attention");
+    expect(view.chip).toBe("조회 결과 없음");
+    expect(view.title).toBe("아직 조회되는 정보가 없어요");
+    expect(view.nextAction.heading).toBe("조회가 잘되지 않나요?");
+    expect(view.nextAction.primary).toEqual({ kind: "fixNumber", label: "번호 수정", weight: "primary", href: null, external: false, cooldownSeconds: null });
+    expect(view.nextAction.secondary).toEqual([
+      TALK_SECONDARY, { kind: "copyReturnLink", label: "다시 볼 링크 복사", weight: "text", href: null, external: false, cooldownSeconds: null }
+    ]);
+    expect(view.nextAction.worry).toEqual({ dateKey: null, text: "출고 안내를 받은 지 7일이 지나도 조회되지 않으면 번호를 보내 주세요", talk: TALK_TEXT });
+    expect(view.auxiliaryLine).toEqual({ text: "조회 서비스 사정으로 결과가 없을 수도 있어요", action: RETRY_TEXT });
+    expect(view.retry).toEqual({ cooldownSeconds: null, autoRetryWhenOnline: false, escalated: false });
+    expect(view.help.map((item) => item.id)).toEqual(["pre-arrival", "order-check"]);
+    expect(view.inquiryCopy).toBeNull();
+  });
+
+  test("NOT_FOUND after the R4 server fix: no caveat line, 다시 조회 moves into the CTA block", () => {
+    const view = deriveTrackingView(failure("notFound"), FIXTURE_NOW, withoutCaveat);
+    expect(view.auxiliaryLine).toBeNull();
+    expect(view.nextAction.secondary).toEqual([TALK_SECONDARY, RETRY_TEXT]);
+  });
+
+  test("429: the reason becomes the countdown sentence and 다시 조회 waits 10 s", () => {
+    const view = deriveTrackingView(failure("rateLimited"), FIXTURE_NOW, withConfig({ lookup: { rateLimitCooldownSeconds: 10 } }));
+    expect(view.guideKey).toBe("temporaryDelay");
+    expect(view.title).toBe("조회가 잠시 지연되고 있어요");
+    expect(view.reason).toBe("조회가 몰려 10초 뒤 다시 조회할 수 있어요");
+    expect(view.nextAction.primary).toEqual({ kind: "retry", label: "다시 조회", weight: "primary", href: null, external: false, cooldownSeconds: 10 });
+    expect(view.retry).toEqual({ cooldownSeconds: 10, autoRetryWhenOnline: false, escalated: false });
+  });
+
+  test("503/504 with a chosen carrier: retry first, 톡톡, then the carrier's official lookup", () => {
+    const view = deriveTrackingView(failure("upstreamTimeout", { carrier: "CJ" }), FIXTURE_NOW, CONFIG);
+    expect(view.reason).toBe("번호 문제는 아니에요.");
+    expect(view.carrier.barLabel).toBe("CJ대한통운");
+    expect(view.nextAction.primary?.kind).toBe("retry");
+    expect(view.nextAction.secondary).toEqual([
+      TALK_SECONDARY,
+      { kind: "carrierOfficial", label: "CJ대한통운 공식 배송조회", weight: "text", href: carrierOfficialUrl("CJ", FAKE.domestic), external: true, cooldownSeconds: null }
+    ]);
+    expect(view.returnLink).toBe(buildReturnLink(FAKE.domestic, "CJ"));
+  });
+
+  test("offline: one automatic re-lookup when the connection returns", () => {
+    const view = deriveTrackingView(failure("offline"), FIXTURE_NOW, CONFIG);
+    expect(view.guideKey).toBe("offline");
+    expect(view.title).toBe("인터넷 연결이 끊겼어요");
+    expect(view.retry).toEqual({ cooldownSeconds: null, autoRetryWhenOnline: true, escalated: false });
+  });
+
+  test("client timeout: no '번호 문제는 아니에요'; retry first, 번호 수정 as a secondary", () => {
+    const view = deriveTrackingView(failure("clientTimeout"), FIXTURE_NOW, CONFIG);
+    expect(view.guideKey).toBe("noResponse");
+    expect(view.title).toBe("응답이 너무 오래 걸려 조회를 멈췄어요");
+    expect(view.reason).not.toContain("번호 문제는 아니에요");
+    expect(view.nextAction.primary?.kind).toBe("retry");
+    expect(view.nextAction.secondary).toEqual([
+      TALK_SECONDARY, { kind: "fixNumber", label: "번호 수정", weight: "secondary", href: null, external: false, cooldownSeconds: null }
+    ]);
+    // Spec §16 item 3 names [번호 수정] for 응답 없음: a fixNumber row swaps the two recovery actions, never duplicates one.
+    const fixFirst = deriveTrackingView(failure("clientTimeout"), FIXTURE_NOW, withConfig({ stateGuide: { noResponse: { primaryAction: "fixNumber" } } }));
+    expect(fixFirst.nextAction.primary?.kind).toBe("fixNumber");
+    expect(fixFirst.nextAction.secondary).toEqual([TALK_SECONDARY, RETRY_SECONDARY]);
+  });
+
+  test("500 and contract violation: red tone, copy-and-talk primary with a screen-error inquiry text", () => {
+    for (const cause of ["serverError", "contractViolation"] as const) {
+      const view = deriveTrackingView(failure(cause), FIXTURE_NOW, CONFIG);
+      expect(view.guideKey, cause).toBe("serverError");
+      expect(view.tone, cause).toBe("problem");
+      expect(view.nextAction.primary, cause).toEqual(COPY_AND_TALK);
+      expect(view.nextAction.secondary, cause).toEqual([RETRY_SECONDARY]);
+      expect(view.inquiryCopy, cause).toBe(`[배송 문의] 조회번호 ${FAKE_GROUPED.domestic} / 조회 화면 오류 / 9월 26일 14:05`);
+      expect(view.inquiryLevel, cause).toBe("primary");
+    }
+  });
+
+  test("two failures in a row raise 톡톡 to the primary button; invalid numbers never escalate", () => {
+    const delay = deriveTrackingView(failure("network", { consecutiveFailures: 2 }), FIXTURE_NOW, CONFIG);
+    expect(delay.nextAction.primary).toEqual(COPY_AND_TALK);
+    expect(delay.nextAction.secondary).toEqual([RETRY_SECONDARY]);
+    expect(delay.retry?.escalated).toBe(true);
+    expect(delay.inquiryLevel).toBe("primary");
+    expect(delay.inquiryCopy).toBe(`[배송 문의] 조회번호 ${FAKE_GROUPED.domestic} / 조회 화면 오류 / 9월 26일 14:05`);
+    const notFound = deriveTrackingView(failure("notFound", { consecutiveFailures: 2 }), FIXTURE_NOW, CONFIG);
+    expect(notFound.nextAction.secondary.map((item) => [item.kind, item.weight])).toEqual([["fixNumber", "secondary"]]);
+    const invalid = deriveTrackingView(failure("invalidNumber", { consecutiveFailures: 3 }), FIXTURE_NOW, CONFIG);
+    expect(invalid.retry?.escalated).toBe(false);
+    expect(invalid.nextAction.primary?.kind).toBe("fixNumber");
+  });
+
+  test("invalid number: the input error sentence and 톡톡 as the only link", () => {
+    const view = deriveTrackingView(failure("invalidNumber"), FIXTURE_NOW, CONFIG);
+    expect(view.title).toBe("번호 형식이 달라요. 숫자 10~14자리 또는 영문 3~4자+숫자예요.");
+    expect(view.chip).toBe("번호 확인");
+    expect(view.carrier.barLabel).toBe("택배사");
+    expect(view.nextAction.secondary).toEqual([TALK_SECONDARY]);
+  });
+
+  test("an outage notice explains a delay; holiday notices never show on error screens", () => {
+    expect(deriveTrackingView(failure("upstreamTimeout"), at("2026-09-26T22:30:00+09:00"), CONFIG).notice?.id).toBe("fx-outage");
+    expect(deriveTrackingView(failure("upstreamTimeout"), FIXTURE_NOW, CONFIG).notice).toBeNull();
+  });
+
+  test("a copyAndTalk error row makes 톡톡 the filled primary and the recovery action a secondary", () => {
+    const fallback = withConfig({ stateGuide: { notFound: { primaryAction: "copyAndTalk", inquiryLevel: "primary" } } });
+    const view = deriveTrackingView(failure("notFound"), FIXTURE_NOW, fallback);
+    expect(view.nextAction.primary).toEqual(COPY_AND_TALK);
+    expect(view.nextAction.secondary.map((item) => [item.kind, item.weight])).toEqual([["fixNumber", "secondary"]]);
+  });
+});
+
+test.describe("GAP3-06: 12 state variants and the 5 API error codes show 0 contradictions", () => {
+  test("each variant maps to its state", () => {
+    for (const state of GAP3_06_VARIANTS) {
+      expect(deriveTrackingView(success(trackData(state)), FIXTURE_NOW, CONFIG).guideKey, state).toBe(GAP3_06_KEYS[state]);
+    }
+  });
+
+  test("0 contradictions across the 12 variants and the 5 error codes", () => {
+    const views = [
+      ...GAP3_06_VARIANTS.map((state) => deriveTrackingView(success(trackData(state)), FIXTURE_NOW, CONFIG)),
+      ...ERROR_CODE_INPUTS.map((input) => deriveTrackingView(failure(classifyFailure(input)), FIXTURE_NOW, CONFIG))
+    ];
+    expect(views).toHaveLength(17);
+    expect(views.flatMap(contradictions)).toEqual([]);
+  });
+
+  test("0 contradictions for the explicit scenarios, their overdue forms and every failure cause", () => {
+    const septemberData = [
+      customsArrivedData(), customsWaitingData(), customsReviewData(), customsClearedData(), carrierCutData(), pendingData(),
+      deliveredData(), staleData(), lookupUnavailableData("AUTO"), lookupUnavailableData("CJ"), ambiguousData()
+    ];
+    const views = [
+      ...septemberData.map((data) => deriveTrackingView(success(data), FIXTURE_NOW, CONFIG)),
+      deriveTrackingView(success(pickedUpData()), PICKUP_NOW, CONFIG),
+      deriveTrackingView(success(handedToCarrierData()), PICKUP_NOW, CONFIG),
+      BASELINE_IN_TRANSIT,
+      BASELINE_OVERDUE,
+      deriveTrackingView(success(inTransitData()), at("2026-10-16T00:00:00+09:00"), CONFIG),
+      deriveTrackingView(success(customsClearedData()), at("2026-09-30T09:00:00+09:00"), CONFIG),
+      ...ALL_CAUSES.map((cause) => deriveTrackingView(failure(cause), FIXTURE_NOW, CONFIG)),
+      ...ALL_CAUSES.map((cause) => deriveTrackingView(failure(cause, { consecutiveFailures: 2 }), FIXTURE_NOW, CONFIG))
+    ];
+    expect(views.flatMap(contradictions)).toEqual([]);
   });
 });
