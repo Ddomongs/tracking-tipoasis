@@ -1,17 +1,6 @@
-import { redirect } from "next/navigation";
 import { HomePageClient } from "@/components/HomePageClient";
 
-type HomePageProps = {
-  searchParams: Promise<{
-    trackingNumber?: string | string[];
-  }>;
-};
-
-export default async function HomePage({ searchParams }: HomePageProps) {
-  const { trackingNumber: raw } = await searchParams;
-  if (typeof raw === "string" && raw.trim()) {
-    redirect(`/${encodeURIComponent(raw.trim())}`);
-  }
-
+// Static: never reads the query string. Legacy '/?trackingNumber=X' links are redirected by next.config.ts.
+export default function HomePage() {
   return <HomePageClient initialTrackingNumber="" />;
 }
