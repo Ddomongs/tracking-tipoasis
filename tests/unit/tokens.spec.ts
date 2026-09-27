@@ -16,7 +16,7 @@ import {
   contrastRatio,
   type ColorTokenSet
 } from "@/lib/style/tokens";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import tailwindConfig from "@/tailwind.config";
 import { disclosures } from "@/config/site.config";
@@ -337,5 +337,88 @@ test.describe("DESIGN.md is the single source", () => {
     const text = design();
     const legacy = ["background-base", "accent-info", "accent-action", "surface-luminous", "IBM Plex", "Space Grotesk", "4.8s loop"];
     expect(legacy.filter((word) => text.includes(word))).toEqual([]);
+  });
+});
+
+test.describe("design-system bundle", () => {
+  const DS_FILES = [
+    "README.md",
+    "_base.css",
+    "components/buttons.html",
+    "components/cards.html",
+    "components/customer-cta.html",
+    "components/journey-spine.html",
+    "components/status.html",
+    "components/tracking-form.html",
+    "foundations/colors.html",
+    "foundations/spacing.html",
+    "foundations/typography.html"
+  ] as const;
+  const HTML_FILES = DS_FILES.filter((file) => file.endsWith(".html"));
+  const normalize = (text: string): string => text.replace(/\r\n/g, "\n");
+
+  function listFiles(directory: string, prefix = ""): string[] {
+    return readdirSync(path.join(REPO_ROOT, directory), { withFileTypes: true }).flatMap((entry) =>
+      entry.isDirectory() ? listFiles(path.join(directory, entry.name), `${prefix}${entry.name}/`) : [`${prefix}${entry.name}`]
+    );
+  }
+
+  test("contains exactly the listed files and the README names every preview", () => {
+    expect(listFiles("design-system").sort()).toEqual([...DS_FILES].sort());
+    const readme = readRepoFile("design-system/README.md");
+    expect(HTML_FILES.filter((file) => !readme.includes(file))).toEqual([]);
+  });
+
+  test("_base.css embeds app/styles/tokens.css unchanged", () => {
+    const base = normalize(readRepoFile("design-system/_base.css"));
+    expect(base.startsWith('@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&display=swap");')).toBe(true);
+    expect(base).toContain(normalize(readRepoFile("app/styles/tokens.css")).trim());
+  });
+
+  test("previews use tokens only: card marker, base stylesheet, no color literals, no legacy fonts or effects", () => {
+    const problems: string[] = [];
+    for (const file of HTML_FILES) {
+      const html = readRepoFile(`design-system/${file}`);
+      if (!/^<!-- @dsCard group="(Foundations|Components)"/.test(html)) problems.push(`${file}: no @dsCard marker`);
+      if (!html.includes('<link rel="stylesheet" href="../_base.css">')) problems.push(`${file}: no ../_base.css`);
+      if (/#[0-9A-Fa-f]{3}(?:[0-9A-Fa-f]{3})?\b/.test(html)) problems.push(`${file}: color literal`);
+      if (/(?:rgb|hsl)a?\(/.test(html)) problems.push(`${file}: color function`);
+    }
+    for (const file of DS_FILES) {
+      const text = readRepoFile(`design-system/${file}`);
+      for (const legacy of ["IBM Plex", "Space Grotesk", "linear-gradient", "radial-gradient", "backdrop-filter", "blur(", "box-shadow"]) {
+        if (text.includes(legacy)) problems.push(`${file}: ${legacy}`);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+
+  test("every located spine preview marks exactly one current station", () => {
+    let lists = 0;
+    let unknown = 0;
+    let current = 0;
+    for (const file of HTML_FILES) {
+      const html = readRepoFile(`design-system/${file}`);
+      lists += (html.match(/<ol aria-label="배송 여정 4구간"/g) ?? []).length;
+      unknown += (html.match(/data-spine-current="none"/g) ?? []).length;
+      current += (html.match(/aria-current="step"/g) ?? []).length;
+    }
+    expect(lists).toBeGreaterThanOrEqual(8);
+    expect(unknown).toBeGreaterThanOrEqual(1);
+    expect(current).toBe(lists - unknown);
+  });
+
+  test("store previews put the configured disclosure first", () => {
+    let groups = 0;
+    for (const file of HTML_FILES) {
+      const html = readRepoFile(`design-system/${file}`);
+      const pattern = /<(?:div|section) data-(?:affiliate-group|shortcut-row)="[^"]*"[^>]*>\s*(<p data-affiliate-disclosure="coupang">([^<]*)<\/p>)?/g;
+      for (const match of html.matchAll(pattern)) {
+        groups += 1;
+        expect(match[1], `${file}: the disclosure must be the first child`).toBeDefined();
+        expect(match[2], file).toBe(disclosures.coupang);
+      }
+    }
+    expect(groups).toBeGreaterThanOrEqual(3);
   });
 });
