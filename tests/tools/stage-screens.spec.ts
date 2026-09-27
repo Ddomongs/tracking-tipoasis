@@ -1,5 +1,6 @@
 import { test, type Locator, type Page } from "@playwright/test";
 import { FAKE, FIXTURE_NOW, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+import { customsWaitingData } from "../fixtures/derive-scenarios";
 
 /**
  * Before/after screenshots for each stage (roadmap §6 Step 5, §7 G7).
@@ -35,7 +36,42 @@ const SCENARIOS: readonly StageScenario[] = [
   { name: "deeplink-stale", path: `/${FAKE.hbl}`, prepare: (page) => mockTrack(page, trackData("stale")) },
   { name: "deeplink-ambiguous", path: `/${FAKE.domestic}`, prepare: (page) => mockTrack(page, trackData("ambiguous")) },
   // S06: INVALID deep link — server-rendered form with the error, no API call
-  { name: "deeplink-invalid", path: `/${FAKE.deepLinkInvalid}` }
+  { name: "deeplink-invalid", path: `/${FAKE.deepLinkInvalid}` },
+  // S07: result rows the earlier scenarios do not show (the 1024 and 1440 px shots show the desktop two-column result).
+  {
+    name: "deeplink-customsCleared",
+    path: `/${trackData("customsCleared").trackingNumber}`,
+    prepare: (page) => mockTrack(page, trackData("customsCleared"))
+  },
+  {
+    name: "deeplink-pickedUp",
+    path: `/${trackData("pickedUp").trackingNumber}`,
+    prepare: (page) => mockTrack(page, trackData("pickedUp"))
+  },
+  {
+    name: "deeplink-lookupUnavailable",
+    path: `/${trackData("lookupUnavailableCarrier").trackingNumber}`,
+    prepare: (page) => mockTrack(page, trackData("lookupUnavailableCarrier"))
+  },
+  {
+    name: "deeplink-chooseCarrier",
+    path: `/${trackData("lookupUnavailableAuto").trackingNumber}`,
+    prepare: (page) => mockTrack(page, trackData("lookupUnavailableAuto"))
+  },
+  {
+    name: "deeplink-carrierCut",
+    path: `/${trackData("customsWithCarrierCut").trackingNumber}`,
+    prepare: (page) => mockTrack(page, trackData("customsWithCarrierCut"))
+  },
+  {
+    // Overdue: the tool pins FIXTURE_NOW first; this scenario moves the page clock past the worry date (9/29, KST).
+    name: "deeplink-overdue",
+    path: `/${FAKE.hbl}`,
+    prepare: async (page) => {
+      await page.clock.setFixedTime(new Date("2026-09-29T09:00:00+09:00"));
+      await mockTrack(page, customsWaitingData());
+    }
+  },
 ];
 
 /** The pre-S01 example buttons and help line showed real shipments; mask them so no real number reaches a screenshot. */
