@@ -9,6 +9,8 @@ import type { FailureFixture } from "../fixtures/tracking-fixtures";
 import {
   INPUT_LABEL,
   PAUSED_NOW,
+  actionControl,
+  actionName,
   blockThirdParty,
   holdTrack,
   lookUp,
@@ -72,7 +74,7 @@ for (const fixture of (Object.keys(CAUSE_BY_FIXTURE) as FailureFixture[]).filter
     await lookUp(page, FAKE.domestic);
 
     const slot = statusSlot(page);
-    await expect(slot).toHaveAttribute("data-status-slot", "error");
+    await expect(slot).toHaveAttribute("data-view-state", "error");
     const notice = slot.locator(`[data-failure-cause="${cause}"]`);
     await expect(notice).toHaveAttribute("data-guide-key", view.guideKey);
     if (view.guideKey === "invalidNumber") {
@@ -83,13 +85,14 @@ for (const fixture of (Object.keys(CAUSE_BY_FIXTURE) as FailureFixture[]).filter
       await expect(heading).toHaveText(view.title);
       await expect(heading).toBeFocused();
       await expect(heading).not.toHaveAttribute("role", "alert");
-      await expect(notice.getByRole("alert")).toHaveText(view.reason ?? "");
+      // S07: errors are announced through the live region, not role=alert (RULE-MAP S07-12)
+      await expect(notice.getByText(view.reason ?? "", { exact: true })).toHaveText(view.reason ?? "");
     }
 
     const cta = slot.locator('[data-cta-state="error"]');
     await expect(cta.getByRole("heading", { level: 3 })).toHaveText(view.nextAction.heading ?? "");
     await expect(cta.getByRole("link").first()).toHaveAttribute("href", siteConfig.channels.talk.url);
-    await expect(slot.locator('[data-action-weight="primary"]')).toHaveCount(1);
+    await expect(slot.locator('[data-slot="button"][data-variant="primary"]')).toHaveCount(1);
     await expect(page.locator('a[rel~="sponsored"]')).toHaveCount(0);
     await expect(page.locator("[data-affiliate-group], [data-recommended-products], [data-storefront-showcase]")).toHaveCount(0);
     const message = serverMessageOf(fixture);
@@ -138,7 +141,7 @@ test("[번호 수정] puts the cursor back in the number field with the number s
   await mockTrack(page, "notFound404");
   await page.goto("/");
   await lookUp(page, FAKE.domestic);
-  await statusSlot(page).locator('[data-action-kind="fixNumber"]').click();
+  await actionControl(statusSlot(page), expectedFailure("notFound", FAKE.domestic), "fixNumber").click();
   const input = page.getByLabel(INPUT_LABEL, { exact: true });
   await expect(input).toBeFocused();
   const selected = await input.evaluate((element) =>
@@ -154,9 +157,8 @@ test("the filled primary on an error follows the approval-3 ledger", async ({ pa
   await lookUp(page, FAKE.domestic);
   const view = expectedFailure("notFound", FAKE.domestic);
   expect(view.nextAction.primary?.kind).toBe(STATUS_SLOT_APPROVALS.approval3 ? "fixNumber" : "talk");
-  await expect(statusSlot(page).locator('[data-action-weight="primary"]')).toHaveAttribute(
-    "data-action-kind",
-    view.nextAction.primary?.kind ?? "none"
+  await expect(statusSlot(page).locator('[data-slot="button"][data-variant="primary"]')).toHaveAccessibleName(
+    actionName(view, view.nextAction.primary?.kind ?? "none")
   );
 });
 
@@ -176,8 +178,11 @@ test("429: [다시 조회] waits out the countdown, then looks up again; nothing
   await lookUp(page, FAKE.domestic);
   const slot = statusSlot(page);
   const view = expectedFailure("rateLimited", FAKE.domestic, PAUSED_NOW);
-  await expect(slot.locator('[data-failure-cause="rateLimited"]').getByRole("alert")).toHaveText(view.reason ?? "");
-  const retry = slot.locator('[data-action-kind="retry"]');
+  // S07: errors are announced through the live region, not role=alert (RULE-MAP S07-12)
+  await expect(slot.locator('[data-failure-cause="rateLimited"]').getByText(view.reason ?? "", { exact: true })).toHaveText(
+    view.reason ?? ""
+  );
+  const retry = actionControl(slot, view, "retry");
   await expect(retry).toHaveAttribute("aria-disabled", "true");
   await retry.click({ force: true });
   await page.clock.runFor(1_000);
@@ -195,7 +200,9 @@ test("a network error while online is a temporary delay, not a number problem", 
   await lookUp(page, FAKE.domestic);
   const notice = statusSlot(page).locator('[data-failure-cause="network"]');
   await expect(notice).toHaveAttribute("data-guide-key", "temporaryDelay");
-  await expect(notice.getByRole("alert")).toHaveText(expectedFailure("network", FAKE.domestic).reason ?? "");
+  const reason = expectedFailure("network", FAKE.domestic).reason ?? "";
+  // S07: errors are announced through the live region, not role=alert (RULE-MAP S07-12)
+  await expect(notice.getByText(reason, { exact: true })).toHaveText(reason);
 });
 
 test("offline: one automatic re-lookup when the connection returns", async ({ page }) => {
@@ -258,16 +265,16 @@ test("a second failure in a row makes [문의 내용 복사하고 톡톡 열기]
   await lookUp(page, FAKE.domestic);
   const slot = statusSlot(page);
   await expect(slot.locator('[data-failure-cause="upstreamTimeout"]')).toBeVisible();
-  await slot.locator('[data-action-kind="retry"]').click();
+  await actionControl(slot, expectedFailure("upstreamTimeout", FAKE.domestic), "retry").click();
   const view = deriveStatusView(
     { kind: "failure", request: { ...manualRequest(FAKE.domestic), entry: "retry" }, cause: "upstreamTimeout", consecutiveFailures: 2 },
     FIXTURE_NOW
   );
-  const primary = slot.locator('[data-action-weight="primary"]');
-  await expect(primary).toHaveAttribute("data-action-kind", "copyAndTalk");
+  const primary = slot.locator('[data-slot="button"][data-variant="primary"]');
+  await expect(primary).toHaveAccessibleName(actionName(view, "copyAndTalk"));
   await expect(primary).toHaveAccessibleName(`${view.nextAction.primary?.label ?? ""} 새 창으로 열기`);
   await expect(slot.locator("[data-inquiry-preview]")).toHaveText(view.inquiryCopy ?? "");
-  await expect(slot.locator('[data-cta-state="error"]').getByRole("link").first()).toHaveAttribute("data-action-kind", "copyAndTalk");
+  await expect(slot.locator('[data-cta-state="error"]').getByRole("link").first()).toHaveAccessibleName(actionName(view, "copyAndTalk"));
 });
 
 test("the client timeout stops the lookup and does not blame the number", async ({ page }) => {
@@ -282,8 +289,10 @@ test("the client timeout stops the lookup and does not blame the number", async 
   const heading = notice.getByRole("heading", { level: 2 });
   await expect(heading).toHaveText(view.title);
   await expect(heading).toBeFocused();
-  await expect(notice.getByRole("alert")).toHaveText(view.reason ?? "");
-  await expect(notice.getByRole("alert")).not.toContainText("번호 문제는 아니에요");
+  // S07: errors are announced through the live region, not role=alert (RULE-MAP S07-12)
+  const reason = notice.getByText(view.reason ?? "", { exact: true });
+  await expect(reason).toHaveText(view.reason ?? "");
+  await expect(reason).not.toContainText("번호 문제는 아니에요");
 });
 
 /** Spec §16 item 3 as approved, with the §7 rows: the failure card leads with the cause's own recovery action. */
@@ -302,27 +311,27 @@ for (const fixture of (Object.keys(APPROVED_PRIMARY) as FailureFixture[]).filter
   test(`${fixture} (approval 3): the recovery action leads and 톡톡 stays the first link of the block`, async ({ page }) => {
     const cause = CAUSE_BY_FIXTURE[fixture];
     const kind = APPROVED_PRIMARY[fixture];
-    expect(expectedFailure(cause, FAKE.domestic).nextAction.primary?.kind).toBe(kind);
+    const view = expectedFailure(cause, FAKE.domestic);
+    expect(view.nextAction.primary?.kind).toBe(kind);
     await page.clock.setFixedTime(FIXTURE_NOW);
     await mockTrack(page, fixture);
     await page.goto("/");
     await lookUp(page, FAKE.domestic);
 
     const slot = statusSlot(page);
-    const primary = slot.locator('[data-action-weight="primary"]');
+    const primary = slot.locator('[data-slot="button"][data-variant="primary"]');
     await expect(primary).toHaveCount(1);
-    await expect(primary).toHaveAttribute("data-action-kind", kind);
+    await expect(primary).toHaveAccessibleName(actionName(view, kind));
     const cta = slot.locator('[data-cta-state="error"]');
     const firstLink = cta.getByRole("link").first();
     await expect(firstLink).toHaveAttribute("href", siteConfig.channels.talk.url);
     if (kind === "copyAndTalk") {
-      await expect(cta.locator('[data-action-weight="primary"]')).toHaveAttribute("data-action-kind", "copyAndTalk");
+      await expect(cta.locator('[data-slot="button"][data-variant="primary"]')).toHaveAccessibleName(actionName(view, "copyAndTalk"));
     } else {
-      await expect(slot.locator(`[data-failure-cause="${cause}"] [data-action-weight="primary"]`)).toHaveAttribute(
-        "data-action-kind",
-        kind
+      await expect(slot.locator(`[data-failure-cause="${cause}"] [data-slot="button"][data-variant="primary"]`)).toHaveAccessibleName(
+        actionName(view, kind)
       );
-      await expect(firstLink).not.toHaveAttribute("data-action-weight", "primary");
+      await expect(firstLink).not.toHaveAttribute("data-variant", "primary");
     }
   });
 }
@@ -338,10 +347,11 @@ test("client timeout (approval 3): the row's recovery action leads the card, the
   await lookUp(page, FAKE.domestic);
   await held.waitForRequests(1);
   await page.clock.runFor(lookup.timeoutMs);
-  expect(expectedFailure("clientTimeout", FAKE.domestic, PAUSED_NOW).nextAction.primary?.kind).toBe(lead);
+  const view = expectedFailure("clientTimeout", FAKE.domestic, PAUSED_NOW);
+  expect(view.nextAction.primary?.kind).toBe(lead);
   const notice = statusSlot(page).locator('[data-failure-cause="clientTimeout"]');
-  await expect(notice.locator('[data-action-weight="primary"]')).toHaveAttribute("data-action-kind", lead);
-  await expect(notice.locator(`[data-action-kind="${follow}"]`)).toHaveAttribute("data-action-weight", "secondary");
+  await expect(notice.locator('[data-slot="button"][data-variant="primary"]')).toHaveAccessibleName(actionName(view, lead));
+  await expect(actionControl(notice, view, follow)).toHaveAttribute("data-variant", "secondary");
   await expect(statusSlot(page).locator('[data-cta-state="error"]').getByRole("link").first()).toHaveAttribute(
     "href",
     siteConfig.channels.talk.url

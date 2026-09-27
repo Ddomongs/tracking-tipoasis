@@ -82,7 +82,7 @@ for (const state of GAP3_06_VARIANTS) {
 
     const weighted: ReadonlyArray<ActionView | StoreLinkView | null> = [view.nextAction.primary, ...(stores?.links ?? [])];
     const filled = weighted.filter((item) => item !== null && item.weight === "primary").length;
-    await expect(slot.locator('[data-action-weight="primary"]')).toHaveCount(filled);
+    await expect(slot.locator('[data-slot="button"][data-variant="primary"]')).toHaveCount(filled);
     await expect(page.locator("[data-recommended-products]")).toHaveCount(view.revenue.recommendations === "inline" ? 1 : 0);
   });
 }

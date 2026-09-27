@@ -1,19 +1,12 @@
 /**
  * What the lookup island shows (spec §3 "화면 모드는 컴포넌트 상태", §5 시간축). Pure: the island passes its state in and
- * renders the display it gets back. Modes never live in the URL (GAP1-10).
+ * renders the display it gets back. Modes never live in the URL (GAP1-10). Since S07 the result area (loading card, result,
+ * failure card) is one display: ResultSlot derives the view itself when the lookup settles.
  */
-import type { LookupState } from "@/lib/tracking/lookup-state";
-import type {
-  LoadingViewModel,
-  LookupOutcome,
-  LookupRequest,
-  NoticeView,
-  TrackingEntry,
-  TrackingViewModel,
-  ViewMode
-} from "@/lib/tracking/types";
 import type { Notice } from "@/lib/config/types";
+import type { LookupState } from "@/lib/tracking/lookup-state";
 import { activeNotices } from "@/lib/tracking/notices";
+import type { LoadingViewModel, LookupRequest, NoticeView, TrackingEntry, ViewMode } from "@/lib/tracking/types";
 
 /** The error under the input: from the client pre-check, or a server INVALID answer (diagnosis null). */
 export interface InvalidInput {
@@ -22,17 +15,9 @@ export interface InvalidInput {
   readonly attempt: number;
 }
 
-/** The view model derived for one settled outcome; `view` is null when the result code could not be loaded. */
-export interface DerivedView {
-  readonly key: string;
-  readonly seq: number;
-  readonly view: TrackingViewModel | null;
-}
-
 export type LookupDisplay =
   | { readonly kind: "form"; readonly busy: boolean; readonly invalid: InvalidInput | null }
-  | { readonly kind: "pending"; readonly request: LookupRequest }
-  | { readonly kind: "slot"; readonly request: LookupRequest; readonly derived: DerivedView | null };
+  | { readonly kind: "result"; readonly request: LookupRequest };
 
 export interface DisplayInput {
   readonly state: LookupState;
@@ -41,46 +26,32 @@ export interface DisplayInput {
   /** False only for a deep link whose form the customer has not opened. */
   readonly formOpen: boolean;
   readonly localInvalid: InvalidInput | null;
-  readonly derived: DerivedView | null;
-}
-
-/** Identifies one settled outcome: result kind, request and failure cause. */
-export function outcomeKey(outcome: LookupOutcome): string {
-  const { number, carrier, entry } = outcome.request;
-  const cause = outcome.kind === "failure" ? outcome.cause : "";
-  return [outcome.kind, number, carrier, entry, cause].join("|");
-}
-
-function settledDisplay(outcome: LookupOutcome, derived: DerivedView | null): LookupDisplay {
-  if (derived === null || derived.key !== outcomeKey(outcome)) return { kind: "pending", request: outcome.request };
-  return { kind: "slot", request: outcome.request, derived };
 }
 
 /**
- * form    — idle, the INVALID screen, and a manual lookup's first 0.4 s (only the button label changes, spec §5);
- * pending — the static '조회하고 있어요' card: a deep link before its lookup starts, any non-manual lookup's first 0.4 s,
- *           and a settled lookup whose view is still being derived;
- * slot    — S04's status slot (loading from 0.4 s, errors, results).
+ * form   — idle, the INVALID screen, and a manual lookup's first 0.4 s (only the button label changes, spec §5);
+ * result — the number bar and the result area: a deep link before its lookup starts (first-paint loading card), any
+ *          non-manual lookup from its first moment, a manual lookup from 0.4 s, and every settled or failed lookup.
  */
 export function computeDisplay(input: DisplayInput): LookupDisplay {
-  const { state, loading, entry, formOpen, localInvalid, derived } = input;
+  const { state, loading, entry, formOpen, localInvalid } = input;
   if (localInvalid !== null) return { kind: "form", busy: false, invalid: localInvalid };
   switch (state.phase) {
     case "idle":
       if (!formOpen && entry.kind === "deepLink") {
-        return { kind: "pending", request: { number: entry.number, carrier: entry.carrier, entry: "deepLink" } };
+        return { kind: "result", request: { number: entry.number, carrier: entry.carrier, entry: "deepLink" } };
       }
       return { kind: "form", busy: false, invalid: null };
     case "loading":
-      if ((loading?.stage ?? "instant") !== "instant") return { kind: "slot", request: state.request, derived: null };
-      return state.request.entry === "manual"
-        ? { kind: "form", busy: true, invalid: null }
-        : { kind: "pending", request: state.request };
+      if ((loading?.stage ?? "instant") === "instant" && state.request.entry === "manual") {
+        return { kind: "form", busy: true, invalid: null };
+      }
+      return { kind: "result", request: state.request };
     case "error":
       if (state.outcome.cause === "invalidNumber") return { kind: "form", busy: false, invalid: { diagnosis: null, attempt: 0 } };
-      return settledDisplay(state.outcome, derived);
+      return { kind: "result", request: state.outcome.request };
     case "settled":
-      return settledDisplay(state.outcome, derived);
+      return { kind: "result", request: state.outcome.request };
   }
 }
 
@@ -89,7 +60,6 @@ export function viewModeOf(display: LookupDisplay, phase: LookupState["phase"]):
     if (display.invalid !== null) return "error";
     return display.busy ? "loading" : "idle";
   }
-  if (display.kind === "pending") return "loading";
   if (phase === "settled") return "settled";
   return phase === "error" ? "error" : "loading";
 }

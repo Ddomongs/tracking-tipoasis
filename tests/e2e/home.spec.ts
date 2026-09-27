@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { channels, disclosures, durations, lookup } from "@/config/site.config";
-import { FAKE, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+import { FAKE, FIXTURE_NOW, mockTrack, successBody, trackData } from "../fixtures/tracking-fixtures";
 
 test.describe("site header (S06)", () => {
   test("a 48 px header shows the site name on the left and 문의 on the right, and nothing else", async ({ page }) => {
@@ -122,6 +122,7 @@ test.describe("home first view (S06)", () => {
 
 test.describe("mode changes stay on '/' (S06)", () => {
   test("[다른 번호 조회] resets to the form without a navigation or a new lookup", async ({ page }) => {
+    await page.clock.setFixedTime(FIXTURE_NOW); // the fixture's dates: a plain in-transit result (S07 shows no return link on a stale one)
     const bodies: unknown[] = [];
     await mockTrack(page, trackData("inTransit", { trackingNumber: FAKE.hbl }), { onRequest: (body) => bodies.push(body) });
     const documents: string[] = [];
@@ -142,16 +143,25 @@ test.describe("mode changes stay on '/' (S06)", () => {
   });
 
   test("[번호 변경] during a slow lookup returns to the form and ignores the late answer", async ({ page }) => {
-    await mockTrack(page, trackData("inTransit", { trackingNumber: FAKE.domestic }), { delayMs: 2500 });
+    // The answer is held until after the click, so a slow machine cannot let it arrive first (it stays "late").
+    let answer: () => void = () => undefined;
+    const clicked = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    await page.route("**/api/track", async (route) => {
+      await clicked;
+      await route.fulfill({ contentType: "application/json", body: successBody(trackData("inTransit", { trackingNumber: FAKE.domestic })) }).catch(() => undefined);
+    });
     await page.goto("/");
     const input = page.getByRole("textbox", { name: INPUT_LABEL, exact: true });
     await input.fill(FAKE.domestic);
     await input.press("Enter");
     await expect(page.locator('[data-number-bar="true"]')).toBeVisible();
     await page.getByRole("button", { name: "번호 변경" }).click();
+    answer();
     await expect(input).toHaveValue(FAKE.domestic);
     await expect(input).toBeFocused();
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(1500);
     await expect(page.getByRole("button", RESULT_READY)).toHaveCount(0);
     await expect(page.locator('[data-view-state="idle"]')).toHaveCount(1);
   });
@@ -223,6 +233,7 @@ test.describe("상담·스토어 바로가기 row (S06, approval 1)", () => {
   });
 
   test("only 톡톡 stays while the number is invalid; the row is gone in loading and results", async ({ page }) => {
+    await page.clock.setFixedTime(FIXTURE_NOW); // the fixture's dates: a plain in-transit result (S07 shows no return link on a stale one)
     await mockTrack(page, trackData("inTransit", { trackingNumber: FAKE.domestic }), { delayMs: 1500 });
     await page.goto("/");
     const input = page.getByRole("textbox", { name: INPUT_LABEL, exact: true });
@@ -294,6 +305,7 @@ test.describe("style tokens on the page (S06)", () => {
   });
 
   test("a settled result runs no infinite animation", async ({ page }) => {
+    await page.clock.setFixedTime(FIXTURE_NOW); // the fixture's dates: a plain in-transit result (S07 shows no return link on a stale one)
     await mockTrack(page, trackData("inTransit", { trackingNumber: FAKE.hbl }));
     await page.goto(`/${FAKE.hbl}`);
     await expect(page.getByRole("button", RESULT_READY)).toBeVisible();
@@ -347,6 +359,7 @@ test.describe("history and the header after a lookup (S06 review)", () => {
   });
 
   test("the site name in the header brings a home result back to the lookup form", async ({ page }) => {
+    await page.clock.setFixedTime(FIXTURE_NOW); // the fixture's dates: a plain in-transit result (S07 shows no return link on a stale one)
     await mockTrack(page, trackData("inTransit", { trackingNumber: FAKE.domestic }));
     await page.goto("/");
     await page.getByRole("textbox", { name: INPUT_LABEL, exact: true }).fill(FAKE.domestic);

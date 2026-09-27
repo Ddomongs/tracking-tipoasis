@@ -7,6 +7,7 @@ import {
   APP_LIVE_REGIONS,
   CARRIER_LABEL,
   INPUT_LABEL,
+  RESULT_SLOT_CONTENT,
   blockThirdParty,
   holdTrack,
   liveRegion,
@@ -53,7 +54,7 @@ test("0–0.4 s: only the submit label changes; nothing is disabled and the form
   await expect(page.getByRole("combobox", { name: CARRIER_LABEL })).toBeEnabled();
   await expect(page.locator('#tracking-panel form[aria-busy="true"]')).toHaveCount(1);
   await page.clock.runFor(lookup.skeletonDelayMs - 1);
-  await expect(statusSlot(page)).toHaveCount(0);
+  await expect(page.locator(RESULT_SLOT_CONTENT)).toHaveCount(0);
 });
 
 test("0.4–3 s: the loading card under the form with the number and a static skeleton; '조회를 시작했어요' is read", async ({ page }) => {
@@ -62,14 +63,15 @@ test("0.4–3 s: the loading card under the form with the number and a static sk
   await lookUp(page, FAKE.domestic);
   await held.waitForRequests(1);
   await page.clock.runFor(lookup.skeletonDelayMs);
-  await expect(statusSlot(page)).toHaveAttribute("data-status-slot", "loading");
+  await expect(statusSlot(page)).toHaveAttribute("data-view-state", "loading");
   const card = statusSlot(page).locator("[data-loading-stage]");
   await expect(card).toHaveAttribute("data-loading-stage", "short");
   await expect(card.getByRole("heading", { level: 2 })).toHaveText(lookup.copy.title);
   await expect(card.getByText(lookup.copy.body)).toBeVisible();
-  await expect(card).toContainText(FAKE_GROUPED.domestic);
-  await expect(card).toContainText(lookup.copy.carrierAuto);
-  await expect(card.locator("[data-loading-skeleton]")).toBeVisible();
+  // S07: the number bar above the result area is the one place for the number and the carrier (RULE-MAP S07-12).
+  await expect(page.locator("[data-number-bar]")).toContainText(FAKE_GROUPED.domestic);
+  await expect(page.locator("[data-number-bar]")).toContainText(lookup.copy.carrierAuto);
+  await expect(card.locator('[data-loading-skeleton="journey"]')).toBeVisible();
   await expect(card.getByRole("button", { name: lookup.copy.cancel })).toHaveCount(0);
   await page.clock.runFor(ANNOUNCE_MS);
   await expect(liveRegion(page)).toHaveText(lookup.copy.started);
@@ -89,10 +91,10 @@ test("3 s, 5 s and 8 s: [조회 취소], the spinner stops, the very-long senten
   await expect(card.getByText(lookup.copy.longWait)).toBeVisible();
   await expect(card.getByText(lookup.copy.longWait)).not.toContainText("번호 문제는 아니에요");
   await expect(card.getByRole("button", { name: lookup.copy.cancel })).toBeVisible();
-  await expect(spinner).toHaveAttribute("data-spinner", "on");
+  await expect(spinner).toHaveCount(1);
 
   await page.clock.runFor(lookup.spinnerStopMs - LONG_WAIT_MS);
-  await expect(spinner).toHaveAttribute("data-spinner", "off");
+  await expect(spinner).toHaveCount(0);
 
   await page.clock.runFor(VERY_LONG_WAIT_MS - lookup.spinnerStopMs);
   await expect(card).toHaveAttribute("data-loading-stage", "veryLong");
@@ -103,7 +105,7 @@ test("3 s, 5 s and 8 s: [조회 취소], the spinner stops, the very-long senten
 
   await page.clock.runFor(lookup.elapsedStepSeconds * 1000);
   await expect(card.getByText(elapsedText(VERY_LONG_WAIT_MS + lookup.elapsedStepSeconds * 1000))).toBeVisible();
-  await expect(spinner).toHaveAttribute("data-spinner", "off");
+  await expect(spinner).toHaveCount(0);
   await expect(liveRegion(page)).toHaveText(lookup.copy.veryLongWait);
 });
 
@@ -114,7 +116,7 @@ test("reduced motion: the spinner never turns", async ({ page }) => {
   await lookUp(page, FAKE.domestic);
   await held.waitForRequests(1);
   await page.clock.runFor(lookup.skeletonDelayMs);
-  await expect(statusSlot(page).locator("[data-spinner]")).toHaveAttribute("data-spinner", "off");
+  await expect(statusSlot(page).locator("[data-spinner]")).toHaveCount(0);
 });
 
 test("a chosen carrier: '택배사 공식 조회로 먼저 보기' appears with the very-long sentence", async ({ page }) => {
@@ -138,14 +140,14 @@ test("[조회 취소] keeps the number, returns to the form and ignores the late
   await held.waitForRequests(1);
   await page.clock.runFor(LONG_WAIT_MS);
   await statusSlot(page).getByRole("button", { name: lookup.copy.cancel }).click();
-  await expect(statusSlot(page)).toHaveCount(0);
+  await expect(page.locator(RESULT_SLOT_CONTENT)).toHaveCount(0);
   const input = page.getByLabel(INPUT_LABEL, { exact: true });
   await expect(input).toHaveValue(FAKE.domestic);
   await expect(input).toBeFocused();
   await expect(submitButton(page)).toHaveText(lookup.copy.submit);
   await held.release(0, trackData("pending"));
   await page.waitForTimeout(SETTLE_MS);
-  await expect(statusSlot(page)).toHaveCount(0);
+  await expect(page.locator(RESULT_SLOT_CONTENT)).toHaveCount(0);
   await expect(statusSlot(page).locator('[data-guide-key="pending"]')).toHaveCount(0);
 });
 

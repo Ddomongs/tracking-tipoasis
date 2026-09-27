@@ -1,13 +1,11 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { lookup as lookupConfig, notices, stateGuide } from "@/config/site.config";
-import { FailureFallback } from "@/components/lookup/FailureFallback";
 import { InputAssist } from "@/components/lookup/InputAssist";
-import { getLoadedLegacyDeriver, LegacyRecommendations, LegacyResultSection, loadLegacyDeriver, type LegacyDeriver } from "@/components/lookup/LegacyResultSection";
 import { LookupForm } from "@/components/lookup/LookupForm";
-import { computeDisplay, outcomeKey, stillActiveHomeNotice, viewModeOf, type DerivedView, type InvalidInput, type LookupDisplay } from "@/components/lookup/lookup-display";
-import { PendingCard } from "@/components/lookup/PendingCard";
+import { computeDisplay, stillActiveHomeNotice, viewModeOf, type InvalidInput, type LookupDisplay } from "@/components/lookup/lookup-display";
 import { ShortcutRow } from "@/components/lookup/ShortcutRow";
 import { HOME_RESET_EVENT, getClientNowSnapshot, getRestoreSnapshot, getServerNowSnapshot, getServerRestoreSnapshot, isLookupHistoryEntry, markRestoreConsumed, pushLookupHistoryEntry, subscribeToNothing } from "@/components/lookup/session";
 import { useLookup } from "@/components/lookup/useLookup";
@@ -15,6 +13,7 @@ import { Button } from "@/components/primitives/Button";
 import { useAnnounce } from "@/components/primitives/LiveAnnouncer";
 import { NumberBar } from "@/components/primitives/NumberBar";
 import { NoticeBanner } from "@/components/primitives/NoticeBanner";
+import { ResultSlot } from "@/components/result/ResultSlot";
 import { setAdSignals } from "@/lib/ads/ad-signals";
 import type { LoadingConfig } from "@/lib/config/types";
 import type { LookupState } from "@/lib/tracking/lookup-state";
@@ -24,7 +23,6 @@ import { CARRIER_NAMES, requestCarrierView } from "@/lib/tracking/carriers";
 import { groupTrackingNumber } from "@/lib/tracking/number-format";
 import { detectConfusables, extractFromPastedText, normalizeInput, pasteCarrierNotice, precheckNumber } from "@/lib/tracking/number-input";
 import type {
-  LookupEntry,
   LookupOutcome,
   LookupRequest,
   NoticeView,
@@ -52,31 +50,23 @@ const TITLE_SUFFIX = " · 배송 조회";
 const HOME_DOCUMENT_TITLE = "통관·국내 배송 한 번에 조회";
 const LOADING_DOCUMENT_TITLE = `${stateGuide.loading.docTitle}${TITLE_SUFFIX}`;
 const INVALID_DOCUMENT_TITLE = `${stateGuide.invalidNumber.docTitle}${TITLE_SUFFIX}`;
-/** Deep links and restores move focus only if the customer has not interacted (spec §5). */
-const PASSIVE_ENTRIES: ReadonlySet<LookupEntry> = new Set<LookupEntry>(["deepLink", "restore"]);
-const INTERACTION_EVENTS = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
 
-/** The last settled screen, replayed by Forward without a new lookup. */
+/** The last settled screen, replayed by Forward without a new lookup (the result slot re-derives it from its state). */
 interface ReplayFrame {
   readonly state: Extract<LookupState, { readonly phase: "settled" | "error" }>;
-  readonly derived: DerivedView;
 }
 
-/** True when the customer already scrolled or moved focus before the listeners below were attached. */
-function interactedBeforeHydration(): boolean {
-  return window.scrollY > 0 || (document.activeElement !== null && document.activeElement !== document.body);
+/** The settled view that is on screen, keyed by the settle it belongs to, so the next lookup never shows its carrier label. */
+interface SettledViewRecord {
+  readonly settledAt: number;
+  readonly view: TrackingViewModel;
 }
 
-/**
- * The browser records the first press or tap even before hydration and reports it a moment later (buffered);
- * the listeners attached after hydration would miss it. Returns the cleanup, or null where the entry type is unknown.
- */
-function watchFirstInput(onInput: () => void): (() => void) | null {
-  if (typeof PerformanceObserver === "undefined" || !PerformanceObserver.supportedEntryTypes.includes("first-input")) return null;
-  const observer = new PerformanceObserver(onInput);
-  observer.observe({ type: "first-input", buffered: true });
-  return () => observer.disconnect();
-}
+/** The R2 recommendation component, kept until S08 replaces it; loaded only when a result allows recommendations. */
+const LegacyRecommendedProducts = dynamic(
+  () => import("@/components/RecommendedProducts").then((module) => module.RecommendedProducts),
+  { ssr: false }
+);
 
 /** Title writes live outside the component: the React Compiler treats `document` as an outer value it must not mutate in render scope. */
 function setDocumentTitle(title: string): void {
@@ -100,20 +90,12 @@ function numberViewOf(number: string): NumberView {
   return { raw: number, grouped: groupTrackingNumber(number) };
 }
 
-function deriveSafely(derive: LegacyDeriver, outcome: LookupOutcome, now: Date): TrackingViewModel | null {
-  try {
-    return derive(outcome, now);
-  } catch {
-    return null;
-  }
-}
-
 function pageTitleOf(display: LookupDisplay, loadingLike: boolean): string | null {
   if (display.kind === "form") {
     if (display.invalid !== null) return INVALID_DOCUMENT_TITLE;
     return display.busy ? LOADING_DOCUMENT_TITLE : HOME_DOCUMENT_TITLE;
   }
-  return loadingLike ? LOADING_DOCUMENT_TITLE : null; // settled titles come from the view model
+  return loadingLike ? LOADING_DOCUMENT_TITLE : null; // settled titles come from the view model (ResultSlot)
 }
 
 /**
@@ -126,9 +108,6 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const autoStartedRef = useRef(false);
   const focusInputRef = useRef(false);
-  const interactedRef = useRef(false);
-  const derivedSeqRef = useRef(0);
-  const handledSeqRef = useRef<number | null>(null);
   const manualPendingRef = useRef(false);
   const lastShownRef = useRef<ReplayFrame | null>(null);
 
@@ -138,37 +117,51 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
   const [carrier, setCarrier] = useState<DeliveryCarrierCode>(() => (entry.kind === "deepLink" ? entry.carrier : "AUTO"));
   const [formOpen, setFormOpen] = useState(entry.kind !== "deepLink");
   const [localInvalid, setLocalInvalid] = useState<InvalidInput | null>(() => initialInvalid(entry));
-  const [derived, setDerived] = useState<DerivedView | null>(null);
   const [pasted, setPasted] = useState<{ readonly carrierName: string; readonly previous: DeliveryCarrierCode } | null>(null);
   const [replay, setReplay] = useState<ReplayFrame | null>(null);
+  const [settledView, setSettledView] = useState<SettledViewRecord | null>(null);
 
-  // Overdue and every date are judged with the client clock at settle time (spec §6), never during render.
-  const handleSettled = useCallback((outcome: LookupOutcome, now: Date) => {
-    derivedSeqRef.current += 1;
-    const seq = derivedSeqRef.current;
-    const key = outcomeKey(outcome);
-    const loaded = getLoadedLegacyDeriver();
-    if (loaded !== null) {
-      setDerived({ key, seq, view: deriveSafely(loaded, outcome, now) });
-      return;
-    }
-    void loadLegacyDeriver().then(
-      (derive) => setDerived({ key, seq, view: deriveSafely(derive, outcome, now) }),
-      () => setDerived({ key, seq, view: null })
-    );
-  }, []);
-
-  const { state, loading, submit, retry, cancel, reset } = useLookup({ config: LOADING_CONFIG, onSettled: handleSettled });
+  const { state, loading, submit, retry, cancel, reset } = useLookup({ config: LOADING_CONFIG });
   const restoreEntry = useSyncExternalStore(subscribeToNothing, getRestoreSnapshot, getServerRestoreSnapshot);
   const clientNowMs = useSyncExternalStore(subscribeToNothing, getClientNowSnapshot, getServerNowSnapshot);
   const notice = stillActiveHomeNotice(homeNotice, notices, clientNowMs);
 
   const replaying = replay !== null && state.phase === "idle";
   const shownState: LookupState = replaying ? replay.state : state;
-  const display = computeDisplay({ state: shownState, loading, entry, formOpen, localInvalid, derived: replaying ? replay.derived : derived });
+  const display = computeDisplay({ state: shownState, loading, entry, formOpen, localInvalid });
   const viewMode = viewModeOf(display, state.phase);
   const activeRequest = display.kind === "form" ? null : display.request;
-  const loadingLike = display.kind === "pending" || state.phase === "loading";
+  // The first-paint card of a deep link (idle) and every loading stage keep the result area's reserved height (S06 CLS budget).
+  const loadingLike = display.kind === "result" && shownState.phase !== "settled" && shownState.phase !== "error";
+
+  // ResultSlot calls this once per settled view, after it is on screen: ad signals, the number bar's carrier label,
+  // and the same-address history entry for a manual lookup (S02) with the screen Forward replays.
+  const handleView = (view: TrackingViewModel): void => {
+    if (shownState.phase !== "settled" && shownState.phase !== "error") return;
+    setSettledView({ settledAt: shownState.settledAt, view });
+    setAdSignals({ resultAdsAllowed: view.revenue.adsAllowed });
+    if (!replaying) lastShownRef.current = { state: shownState };
+    if (manualPendingRef.current) {
+      manualPendingRef.current = false;
+      pushLookupHistoryEntry();
+    }
+  };
+
+  const currentView =
+    settledView !== null &&
+    (shownState.phase === "settled" || shownState.phase === "error") &&
+    settledView.settledAt === shownState.settledAt
+      ? settledView.view
+      : null;
+
+  const renderRecommendations = (view: TrackingViewModel, outcome: LookupOutcome): React.ReactNode =>
+    outcome.kind === "success" &&
+    view.revenue.recommendations === "inline" &&
+    (view.revenue.recommendationContext === "pending" ||
+      view.revenue.recommendationContext === "inTransit" ||
+      view.revenue.recommendationContext === "delivered") ? (
+      <LegacyRecommendedProducts context={view.revenue.recommendationContext} />
+    ) : null;
 
   const beginLookup = useCallback(
     (request: LookupRequest) => {
@@ -176,7 +169,6 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
       manualPendingRef.current = request.entry === "manual";
       // Every lookup start overwrites the tab's one restore entry; a deep link stashes it in the scrub instead (S02).
       if (request.entry !== "deepLink") saveRestoreEntry({ number: request.number, carrier: request.carrier, savedAt: Date.now() });
-      void loadLegacyDeriver().catch(() => undefined);
       submit(request);
     },
     [submit]
@@ -206,20 +198,6 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
       if (status === "scrubbed" || status === "failed") setAdSignals({ scrub: status });
     });
   }, [entry]);
-
-  useEffect(() => {
-    const mark = (): void => {
-      interactedRef.current = true;
-    };
-    // Input that arrived before hydration (a slow deep link) is not seen by these listeners (S04 deferred minor).
-    if (interactedBeforeHydration()) mark();
-    const stopWatching = watchFirstInput(mark);
-    for (const type of INTERACTION_EVENTS) document.addEventListener(type, mark, { capture: true, passive: true });
-    return () => {
-      stopWatching?.();
-      for (const type of INTERACTION_EVENTS) document.removeEventListener(type, mark, { capture: true });
-    };
-  }, []);
 
   // The header's site-name link on '/' (HomeLink): back to an empty lookup form.
   useEffect(() => {
@@ -256,27 +234,6 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, [reset]);
-
-  // A settled lookup: the document title, one live sentence for a result, and focus to the visible status h2 (spec §5).
-  // Errors are read through their own role="alert" sentence, so only results are announced (as S04's HomePageClient did).
-  // The loading sentences ('조회를 시작했어요', the 8 s sentence) are announced by S04's useLookup at its stage changes.
-  const settled = display.kind === "slot" && display.derived !== null ? display.derived : null;
-  const settledEntry = activeRequest?.entry ?? null;
-  useEffect(() => {
-    if (settled === null || handledSeqRef.current === settled.seq) return;
-    handledSeqRef.current = settled.seq;
-    if (!replaying && (state.phase === "settled" || state.phase === "error")) lastShownRef.current = { state, derived: settled };
-    if (manualPendingRef.current) {
-      manualPendingRef.current = false;
-      pushLookupHistoryEntry();
-    }
-    if (settled.view !== null) {
-      setDocumentTitle(settled.view.documentTitle);
-      if (settled.view.mode === "settled") announce(settled.view.liveMessage);
-    }
-    if (settledEntry !== null && PASSIVE_ENTRIES.has(settledEntry) && interactedRef.current) return;
-    headingRef.current?.focus();
-  }, [announce, replaying, settled, settledEntry, state]);
 
   const pageTitle = pageTitleOf(display, loadingLike);
   useEffect(() => {
@@ -400,7 +357,7 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
       </Button>
     );
   const carrierLabel =
-    settled?.view?.carrier.barLabel ??
+    currentView?.carrier.barLabel ??
     (activeRequest === null ? "" : requestCarrierView(activeRequest, lookupConfig.copy.carrierAuto).barLabel);
 
   return (
@@ -446,33 +403,25 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
             <NumberBar number={numberViewOf(display.request.number)} carrierLabel={carrierLabel} actions={numberBarAction} />
           )}
           {display.kind === "form" && !display.busy ? <ShortcutRow mode={display.invalid === null ? "full" : "talkOnly"} /> : null}
-          {display.kind === "form" ? null : (
-            <div aria-busy={loadingLike || undefined} className={loadingLike ? "min-h-[560px]" : undefined}>
-              {display.kind === "pending" ? <PendingCard title={lookupConfig.copy.title} body={lookupConfig.copy.body} /> : null}
-              {display.kind === "slot" && settled !== null && settled.view === null ? (
-                <div className="flex flex-col gap-3 pt-2">
-                  <h2 ref={headingRef} tabIndex={-1} className="m-0 px-[var(--tt-gutter)] text-tt-lg font-black text-tt-ink outline-none">
-                    {stateGuide.serverError.title}
-                  </h2>
-                  <FailureFallback guideKey="serverError" />
-                </div>
-              ) : null}
-              {display.kind === "slot" && (settled === null || settled.view !== null) ? (
-                <LegacyResultSection
-                  state={shownState}
-                  loading={loading}
-                  view={settled?.view ?? null}
-                  onAction={handleAction}
-                  headingRef={headingRef}
-                />
-              ) : null}
-            </div>
-          )}
+          {/* Always mounted: while the form shows it renders nothing, but focus in the form preloads the result module. */}
+          <div
+            data-result-area="true"
+            aria-busy={loadingLike || undefined}
+            className={display.kind === "form" ? "contents" : loadingLike ? "min-h-[560px]" : undefined}
+          >
+            <ResultSlot
+              entry={entry}
+              loadingConfig={LOADING_CONFIG}
+              state={shownState}
+              loading={loading}
+              onAction={handleAction}
+              headingRef={headingRef}
+              onView={handleView}
+              renderRecommendations={renderRecommendations}
+            />
+          </div>
         </section>
       </div>
-      {display.kind === "slot" && settled !== null && settled.view !== null ? (
-        <LegacyRecommendations state={shownState} view={settled.view} />
-      ) : null}
       {viewMode === "idle" ? idleExtras : null}
     </>
   );

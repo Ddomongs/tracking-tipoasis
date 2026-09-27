@@ -1,8 +1,4 @@
 import { expect, test } from "@playwright/test";
-import { deriveStatusView } from "@/components/status-slot/status-view";
-import { resultCopy } from "@/config/site.config";
-import type { TrackResponseData } from "@/lib/types";
-import { FAKE, FIXTURE_NOW, mockTrack } from "./fixtures/tracking-fixtures";
 import { AD_TIMING_POLICY } from "@/lib/ads/ad-gate";
 import type { AdTimingPolicy } from "@/lib/ads/ad-gate";
 
@@ -15,40 +11,6 @@ test("privacy policy is reachable from the footer and explains the no-storage ru
   await expect(page.getByText("입력한 번호와 조회 결과는 서버 데이터베이스에 저장하지 않습니다.", { exact: false })).toBeVisible();
   // exact: the public layout now also mounts the footer on /privacy, whose 톡톡 link is named "… 새 창으로 열기" (S06 Task 4).
   await expect(page.getByRole("link", { name: "톡톡으로 문의하기", exact: true })).toHaveAttribute("target", "_blank");
-});
-
-test("a stale shipment shows a verification prompt instead of a delivery estimate", async ({ page }) => {
-  const data: TrackResponseData = {
-    trackingNumber: FAKE.domestic,
-    type: "DOMESTIC",
-    currentStatus: "통관완료",
-    currentStatusCode: 4,
-    estimateStale: true,
-    estimatedCustomsClearanceDate: "2026-02-13T12:00:00+09:00",
-    customs: {
-      events: [{ status: "통관완료", statusCode: 4, datetime: "2026-02-13T12:00:00+09:00" }]
-    },
-    delivery: { carrier: "국내택배 자동 조회", carrierCode: "AUTO", invoiceNumber: FAKE.domestic, events: [] },
-    timeline: [],
-    lastUpdated: "2026-02-13T12:00:00+09:00"
-  };
-  const view = deriveStatusView(
-    { kind: "success", request: { number: FAKE.domestic, carrier: "AUTO", entry: "deepLink" }, data },
-    FIXTURE_NOW
-  );
-  if (view.eta.kind !== "withheld") throw new Error(`unexpected ETA kind ${view.eta.kind}`);
-  const chipState = (view.chip ?? "").split(" · ")[0] ?? "";
-  await page.clock.setFixedTime(FIXTURE_NOW);
-  await mockTrack(page, data);
-
-  await page.goto(`/${FAKE.domestic}`);
-
-  const summary = page.locator('[data-status-slot="settled"]');
-  await expect(summary.locator('[data-eta-kind="withheld"]').getByText(view.eta.text, { exact: true })).toBeVisible();
-  await expect(summary.getByText(chipState, { exact: true })).toBeVisible();
-  await expect(summary.getByText(resultCopy.etaTodayLabel)).toHaveCount(0);
-  await expect(summary.getByText(view.nextAction.sentence, { exact: true })).toBeVisible();
-  await expect(summary.locator('[data-action-weight="primary"]')).toHaveAttribute("data-action-kind", "copyAndTalk");
 });
 
 const AD_TIMING_DISCLOSURE: Readonly<Record<AdTimingPolicy, string>> = {

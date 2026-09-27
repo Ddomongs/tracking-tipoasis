@@ -1,5 +1,5 @@
 import type { Locator, Page, Route } from "@playwright/test";
-import type { LookupRequest } from "@/lib/tracking/types";
+import type { ActionView, LookupRequest, TrackingViewModel } from "@/lib/tracking/types";
 import type { DeliveryCarrierCode, TrackResponseData } from "@/lib/types";
 import { FAILURE_RESPONSES, FIXTURE_NOW, successBody } from "../fixtures/tracking-fixtures";
 import type { FailureFixture } from "../fixtures/tracking-fixtures";
@@ -14,9 +14,38 @@ export const PAUSED_NOW = new Date(FIXTURE_NOW.getTime() + PAUSE_OFFSET_MS);
 /** Live regions the application renders. Next.js adds its own route announcer (shadow DOM, id below) for route changes only. */
 export const APP_LIVE_REGIONS = "[aria-live]:not(#__next-route-announcer__)";
 
-export const statusSlot = (page: Page): Locator => page.locator("#tracking-panel [data-status-slot]");
+export const statusSlot = (page: Page): Locator => page.locator("#tracking-panel [data-view-state]");
+/** Every root ResultSlot can render (S07): an empty slot shows none of them. */
+export const RESULT_SLOT_CONTENT = "[data-loading-stage], [data-result-view], [data-result-pending], [data-result-module-failure]";
 export const liveRegion = (page: Page): Locator => page.locator('[data-live-region="polite"]');
 export const submitButton = (page: Page): Locator => page.locator('#tracking-panel form button[type="submit"]');
+
+/** The view's action of kind K (S07: `[data-action-kind]` is gone; the control is found by the name the view gives it). */
+function actionOfKind(view: TrackingViewModel, kind: string): ActionView {
+  const candidates = [
+    view.nextAction.primary,
+    ...view.nextAction.secondary,
+    view.nextAction.worry?.talk ?? null,
+    view.auxiliaryLine?.action ?? null
+  ];
+  const found = candidates.find((item): item is ActionView => item !== null && item.kind === kind);
+  if (found === undefined) throw new Error(`the view has no action of kind "${kind}"`);
+  return found;
+}
+
+/** The accessible name of the control that performs the view's action of kind K. */
+export function actionName(view: TrackingViewModel, kind: string): string {
+  const action = actionOfKind(view, kind);
+  return action.href !== null && action.external ? `${action.label} 새 창으로 열기` : action.label;
+}
+
+/** The control of the view's action of kind K inside `scope` (replaces S04's `[data-action-kind="K"]`). */
+export function actionControl(scope: Page | Locator, view: TrackingViewModel, kind: string): Locator {
+  const action = actionOfKind(view, kind);
+  return action.href === null
+    ? scope.getByRole("button", { name: action.label, exact: true })
+    : scope.getByRole("link", { name: actionName(view, kind), exact: true });
+}
 
 export function manualRequest(number: string, carrier: DeliveryCarrierCode = "AUTO"): LookupRequest {
   return { number, carrier, entry: "manual" };

@@ -9,6 +9,8 @@ import { FAKE, FIXTURE_NOW, mockTrack, trackData } from "../fixtures/tracking-fi
 import {
   APP_LIVE_REGIONS,
   CARRIER_LABEL,
+  actionControl,
+  actionName,
   blockThirdParty,
   holdTrack,
   liveRegion,
@@ -28,7 +30,7 @@ async function showResult(page: Page, data: TrackResponseData, now: Date): Promi
   await mockTrack(page, data);
   await page.goto("/");
   await lookUp(page, data.trackingNumber);
-  await expect(statusSlot(page)).toHaveAttribute("data-status-slot", "settled");
+  await expect(statusSlot(page)).toHaveAttribute("data-view-state", "settled");
 }
 
 test.beforeEach(async ({ page }) => {
@@ -53,8 +55,8 @@ test("a manual result fills the slot under the form: status card, spine and esti
   await expect(card.locator("[data-eta-kind]")).toHaveAttribute("data-eta-kind", view.eta.kind);
   await expect(slot.locator("[data-cta-state]")).toHaveAttribute("data-cta-state", view.ctaState);
   const cardBeforeCta = await page.evaluate(() => {
-    const status = document.querySelector("#tracking-panel [data-status-slot] [data-guide-key]");
-    const cta = document.querySelector("#tracking-panel [data-status-slot] [data-cta-state]");
+    const status = document.querySelector("#tracking-panel [data-view-state] [data-guide-key]");
+    const cta = document.querySelector("#tracking-panel [data-view-state] [data-cta-state]");
     return status !== null && cta !== null && (status.compareDocumentPosition(cta) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
   });
   expect(cardBeforeCta).toBe(true);
@@ -68,7 +70,7 @@ test("normal waiting: no filled button, the worry date is bound to the 톡톡 li
   const view = expectedResult(data);
   await showResult(page, data, FIXTURE_NOW);
   const slot = statusSlot(page);
-  await expect(slot.locator('[data-action-weight="primary"]')).toHaveCount(0);
+  await expect(slot.locator('[data-slot="button"][data-variant="primary"]')).toHaveCount(0);
   const worry = slot.locator("[data-worry-line]");
   await expect(worry).toContainText(view.nextAction.worry?.text ?? "");
   await expect(worry.getByRole("link", { name: `${siteConfig.channels.talk.labels.cta} 새 창으로 열기` })).toHaveAttribute(
@@ -88,9 +90,9 @@ test("overdue: the same state turns to '확인 필요' with copy-and-talk first 
   await expect(card).toHaveAttribute("data-overdue", "true");
   await expect(card).toHaveAttribute("data-tone", "attention");
   await expect(card.getByRole("heading", { level: 2 })).toHaveText(view.title);
-  const primary = slot.locator('[data-action-weight="primary"]');
+  const primary = slot.locator('[data-slot="button"][data-variant="primary"]');
   await expect(primary).toHaveCount(1);
-  await expect(primary).toHaveAttribute("data-action-kind", "copyAndTalk");
+  await expect(primary).toHaveAccessibleName(actionName(view, "copyAndTalk"));
   await expect(slot.locator("[data-inquiry-preview]")).toHaveText(view.inquiryCopy ?? "");
   await expect(page.locator("[data-recommended-products]")).toHaveCount(0);
   await expect(page.locator('a[rel~="sponsored"]')).toHaveCount(0);
@@ -103,7 +105,7 @@ test.describe("copying the inquiry", () => {
     const data = trackData("customsWaiting");
     const view = expectedResult(data, OVERDUE_NOW);
     await showResult(page, data, OVERDUE_NOW);
-    const link = statusSlot(page).locator('[data-action-kind="copyAndTalk"]');
+    const link = actionControl(statusSlot(page), view, "copyAndTalk");
     await expect(link).toHaveAttribute("href", siteConfig.channels.talk.url);
     await expect(link).toHaveAttribute("target", "_blank");
     const popup = page.waitForEvent("popup");
@@ -125,7 +127,7 @@ test("blocked clipboard shows the inquiry in a read-only, pre-selected box", asy
   const view = expectedResult(data, OVERDUE_NOW);
   await showResult(page, data, OVERDUE_NOW);
   const popup = page.waitForEvent("popup");
-  await statusSlot(page).locator('[data-action-kind="copyAndTalk"]').click();
+  await actionControl(statusSlot(page), view, "copyAndTalk").click();
   await (await popup).close();
   const box = statusSlot(page).locator('textarea[data-copy-fallback="true"]');
   await expect(box).toHaveValue(view.inquiryCopy ?? "");
@@ -167,8 +169,8 @@ test("carrier chips look the same number up again with the chosen carrier", asyn
   await page.goto("/");
   await lookUp(page, FAKE.domestic);
   const chips = statusSlot(page).getByRole("group", { name: "택배사 선택" });
-  await expect(chips.getByRole("button")).toHaveCount(5);
-  await chips.getByRole("button", { name: "CJ대한통운" }).click();
+  await expect(chips.getByRole("radio")).toHaveCount(5);
+  await chips.getByRole("radio", { name: "CJ대한통운" }).click();
   await expect.poll(() => bodies.length).toBe(2);
   expect(bodies[1]).toEqual({ trackingNumber: FAKE.domestic, carrierCode: "CJ" });
   // S06: result modes show the number bar; [다른 번호 조회] brings the form back with the chosen carrier (RULE-MAP S5).
@@ -178,7 +180,7 @@ test("carrier chips look the same number up again with the chosen carrier", asyn
 
 test("delivered: '받지 못하셨나요?' opens the pickup help inside 지금 할 일", async ({ page }) => {
   await showResult(page, trackData("delivered"), FIXTURE_NOW);
-  const help = statusSlot(page).locator('[data-cta-state="delivered"] details', { hasText: resultCopy.actionUndelivered });
+  const help = page.locator("details[data-delivered-help]", { hasText: resultCopy.actionUndelivered });
   await help.locator("summary").click();
   const lines = siteConfig.help.find((item) => item.id === "undelivered")?.body ?? [];
   expect(lines.length).toBeGreaterThan(0);
@@ -189,7 +191,7 @@ test("the details below the slot are one result region; the legacy summary is go
   await showResult(page, trackData("inTransit"), FIXTURE_NOW);
   const region = page.getByRole("region", { name: "배송 조회 결과" });
   await expect(region).toHaveAttribute("data-ad-exclude", "true");
-  await expect(region.getByRole("heading", { name: "국내 배송 진행 상황" })).toBeVisible();
+  await expect(region.locator("details[data-history]")).toBeVisible();
   await expect(page.locator('[data-tracking-result-summary="true"]')).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 2, name: expectedResult(trackData("inTransit")).title })).toHaveCount(1);
 });
