@@ -446,3 +446,25 @@ test.describe("navigation around the scrub", () => {
     assertNoTrackingValues(capture.requests());
   });
 });
+
+test.describe("same-address history entry", () => {
+  test("after a manual lookup, Back returns to the lookup form at '/', Forward shows the result again", async ({ page }) => {
+    const lookups = recordLookups();
+    await mockTrack(page, inTransit(FAKE.domestic), { onRequest: lookups.onRequest });
+    await page.goto("/");
+    const lengthBefore = await page.evaluate(() => history.length);
+    await submitFromHome(page, FAKE.domestic);
+    await expectPath(page, "/");
+    expect(await page.evaluate(() => history.length)).toBe(lengthBefore + 1);
+
+    await page.goBack();
+    await expectPath(page, "/");
+    await expect(page.getByRole("button", RESULT_READY)).toHaveCount(0);
+    await expect(page.getByLabel(INPUT_LABEL, { exact: true })).toBeVisible();
+
+    await page.goForward();
+    await expectPath(page, "/");
+    await expect(page.getByRole("button", RESULT_READY)).toBeVisible();
+    expect(lookups.numbers()).toEqual([FAKE.domestic]);
+  });
+});

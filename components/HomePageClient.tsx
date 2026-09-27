@@ -18,6 +18,7 @@ import { StorefrontShowcase } from "@/components/StorefrontShowcase";
 import { RecommendedProducts } from "@/components/RecommendedProducts";
 import { ReturnLinkButton } from "@/components/ReturnLinkButton";
 import { TrackingForm } from "@/components/TrackingForm";
+import type { TrackingFormSubmitSource } from "@/components/TrackingForm";
 import { TrackingResultSummary } from "@/components/TrackingResultSummary";
 import { Card } from "@/components/ui/card";
 import { setAdSignals } from "@/lib/ads/ad-signals";
@@ -56,11 +57,25 @@ const markRestoreConsumed = (): void => {
   restoreConsumed = true;
 };
 
+// Same-address history entry (spec §3 뒤로가기): when a manual lookup settles on '/', push '/' once more so that
+// Back returns to the lookup form instead of leaving the site. Kept only because the local-router regression passes.
+const LOOKUP_HISTORY_MARK = "ttLookup";
+const isLookupHistoryEntry = (state: unknown): boolean =>
+  typeof state === "object" && state !== null && LOOKUP_HISTORY_MARK in state;
+const pushLookupHistoryEntry = (): void => {
+  const { pathname, search, hash } = window.location;
+  if (pathname !== "/" || search !== "" || hash !== "") return;
+  if (isLookupHistoryEntry(window.history.state)) return;
+  window.history.pushState({ [LOOKUP_HISTORY_MARK]: true }, "", "/");
+};
+
 export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) => {
   const [result, setResult] = useState<TrackResponseData | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const resultTopRef = useRef<HTMLHeadingElement | null>(null);
+  const lastOutcomeRef = useRef<{ readonly result: TrackResponseData | null; readonly error: string } | null>(null);
+  const manualLookupPendingRef = useRef(false);
   const prefersReducedMotion = useReducedMotion();
 
   // Candidate B (spec §3): TrackingForm's effect has already started the lookup. Now, once the App Router
@@ -78,14 +93,40 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
   const restoreEntry = useSyncExternalStore(subscribeToNothing, getRestoreSnapshot, getServerRestoreSnapshot);
   const restoredRequest = initialTrackingNumber ? null : restoreEntry;
 
-  const handleSubmitted = useCallback((number: string, carrier: DeliveryCarrierCode) => {
-    markRestoreConsumed();
-    saveRestoreEntry({ number, carrier, savedAt: Date.now() });
+  const handleSubmitted = useCallback(
+    (number: string, carrier: DeliveryCarrierCode, source: TrackingFormSubmitSource) => {
+      markRestoreConsumed();
+      saveRestoreEntry({ number, carrier, savedAt: Date.now() });
+      manualLookupPendingRef.current = source === "manual";
+    },
+    []
+  );
+
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent): void => {
+      if (window.location.pathname !== "/") return;
+      if (isLookupHistoryEntry(event.state)) {
+        const last = lastOutcomeRef.current;
+        if (!last) return;
+        setResult(last.result);
+        setError(last.error);
+        return;
+      }
+      setResult(null);
+      setError("");
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
   const handleSuccess = useCallback((data: TrackResponseData) => {
     setResult(data);
     setError("");
+    lastOutcomeRef.current = { result: data, error: "" };
+    if (manualLookupPendingRef.current) {
+      manualLookupPendingRef.current = false;
+      pushLookupHistoryEntry();
+    }
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -100,7 +141,13 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
 
   const handleError = useCallback((message: string) => {
     setError(message);
-    if (message) setResult(null);
+    if (!message) return;
+    setResult(null);
+    lastOutcomeRef.current = { result: null, error: message };
+    if (manualLookupPendingRef.current) {
+      manualLookupPendingRef.current = false;
+      pushLookupHistoryEntry();
+    }
   }, []);
 
   const getDeliveryWaitingMessage = (data: TrackResponseData): string | undefined => {
