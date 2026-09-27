@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getSiteConfig } from "@/lib/config/server";
 import { DM_Mono } from "next/font/google";
 import { DEFAULT_STYLE_ID } from "@/lib/style/styles";
+import { style as styleConfig } from "@/config/site.config";
+import { PREPAINT_SCRIPT, PREPAINT_SCRIPT_ID } from "@/lib/style/prepaint";
 import "./globals.css";
 import "./styles/tokens.css";
 import "./styles/style-manifest.css";
@@ -43,7 +45,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // Validates config/site.config.ts: an invalid operator config fails `next build` with Korean 'path: message' lines.
   getSiteConfig();
   return (
-    <html lang="ko" data-style={DEFAULT_STYLE_ID} className={monoFont.variable}>
+    <html
+      lang="ko"
+      data-style={DEFAULT_STYLE_ID}
+      data-follow-dark={styleConfig.followSystemDark ? "1" : "0"}
+      className={monoFont.variable}
+      suppressHydrationWarning
+    >
+      <head>
+        {/* Sets html[data-style] before the first paint (spec §13); allowed by its hash in the CSP (lib/style/prepaint.ts). */}
+        <script id={PREPAINT_SCRIPT_ID} dangerouslySetInnerHTML={{ __html: PREPAINT_SCRIPT }} />
+      </head>
       <body className="font-tt-body google-anno-skip antialiased">
         <div className="relative z-10">{children}</div>
       </body>

@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { buildSecurityHeaders } from "./lib/security/headers";
+import { PREPAINT_CSP_SOURCE } from "./lib/style/prepaint";
 
 /**
  * Legacy links '/?trackingNumber=X' → 307 '/X' (spec §3). Only a value that starts with a letter or digit and
@@ -18,7 +19,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   poweredByHeader: false,
   // Stage-1 security headers, number-route noindex and /internal isolation (lib/security/headers.ts).
-  headers: async () => buildSecurityHeaders().map((rule) => ({ source: rule.source, headers: [...rule.headers] })),
+  headers: async () => buildSecurityHeaders({ extraScriptHashes: [PREPAINT_CSP_SOURCE] }).map((rule) => ({ source: rule.source, headers: [...rule.headers] })),
   redirects: async () => [
     {
       source: "/",
