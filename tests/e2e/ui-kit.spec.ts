@@ -200,3 +200,60 @@ test.describe("Button and ButtonLink", () => {
     await expect(link).toHaveAccessibleName("개인정보처리방침");
   });
 });
+
+test.describe("ToneIcon, StatusChip and the status-head field", () => {
+  test("one chip per tone, each with an aria-hidden icon and its text", async ({ page }) => {
+    await openKit(page);
+    const chips = page.locator('[data-demo="chips"] [data-status-chip]');
+    await expect(chips).toHaveCount(6);
+    const tones = await chips.evaluateAll((elements) => elements.map((element) => element.getAttribute("data-tone")));
+    expect(tones).toEqual(["neutral", "progress", "waiting", "attention", "problem", "done"]);
+    for (const chip of await chips.all()) {
+      await expect(chip).toHaveAttribute("data-status-chip", "true");
+      await expect(chip.locator('svg[aria-hidden="true"]')).toHaveCount(1);
+      await expect(chip).not.toHaveText("");
+    }
+  });
+
+  test("inside a field the chip is reversed and secondary/text buttons take the field's text color", async ({ page }) => {
+    await openKit(page);
+    for (const tone of ["neutral", "progress", "waiting", "attention", "problem", "done"]) {
+      const colors = await page.locator(`[data-demo="field-${tone}"]`).evaluate((field) => {
+        const read = (selector: string) => {
+          const node = field.querySelector(selector);
+          return node ? getComputedStyle(node) : null;
+        };
+        const chip = read("[data-status-chip]");
+        const secondary = read('[data-slot="button"][data-variant="secondary"]');
+        const text = read('[data-slot="button"][data-variant="text"]');
+        return {
+          fieldBg: getComputedStyle(field).backgroundColor,
+          fieldFg: getComputedStyle(field).color,
+          chipBg: chip?.backgroundColor,
+          chipFg: chip?.color,
+          secondaryBorder: secondary?.borderTopColor,
+          secondaryFg: secondary?.color,
+          secondaryBg: secondary?.backgroundColor,
+          textFg: text?.color
+        };
+      });
+      expect(colors.fieldBg, tone).not.toBe("rgba(0, 0, 0, 0)");
+      expect(colors.chipBg, tone).toBe(colors.fieldFg);
+      expect(colors.chipFg, tone).toBe(colors.fieldBg);
+      expect(colors.secondaryBorder, tone).toBe(colors.fieldFg);
+      expect(colors.secondaryFg, tone).toBe(colors.fieldFg);
+      expect(colors.secondaryBg, tone).toBe("rgba(0, 0, 0, 0)");
+      expect(colors.textFg, tone).toBe(colors.fieldFg);
+    }
+  });
+
+  test("forced colors: chips keep a visible border", async ({ page }) => {
+    await page.emulateMedia({ forcedColors: "active" });
+    await openKit(page);
+    const width = await page
+      .locator('[data-demo="chips"] [data-status-chip]')
+      .first()
+      .evaluate((element) => getComputedStyle(element).borderTopWidth);
+    expect(Number.parseFloat(width)).toBeGreaterThanOrEqual(1);
+  });
+});

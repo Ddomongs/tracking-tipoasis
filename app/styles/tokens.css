@@ -85,3 +85,54 @@
   outline: var(--tt-focus-width) solid var(--tt-focus);
   outline-offset: var(--tt-focus-offset);
 }
+
+
+/* ---------- 변형 슬롯 status-head — signal: 상태 톤 단색 면 ----------
+ * data-slot="status-head" 요소는 data-tone 도 함께 가집니다. 색면 안의 글자·선·포커스 링은 --field-fg 한 가지.
+ * 높이 예산은 --tt-status-field-max(375×812 에서 '지금 할 일'이 420px 안에서 시작). 자르지 않고 배치로 지킵니다. */
+[data-slot="status-head"] {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px var(--tt-gutter) 20px;
+  background-color: var(--field-bg);
+  color: var(--field-fg);
+}
+[data-slot="status-head"][data-tone="neutral"] { --field-bg: var(--tt-ground); --field-fg: var(--tt-ink); }
+[data-slot="status-head"][data-tone="progress"] { --field-bg: var(--tt-tone-progress); --field-fg: var(--tt-tone-progress-on); }
+[data-slot="status-head"][data-tone="waiting"] { --field-bg: var(--tt-tone-waiting); --field-fg: var(--tt-tone-waiting-on); }
+[data-slot="status-head"][data-tone="attention"] { --field-bg: var(--tt-tone-attention); --field-fg: var(--tt-tone-attention-on); }
+[data-slot="status-head"][data-tone="problem"] { --field-bg: var(--tt-tone-problem); --field-fg: var(--tt-tone-problem-on); }
+[data-slot="status-head"][data-tone="done"] { --field-bg: var(--tt-tone-done); --field-fg: var(--tt-tone-done-on); }
+[data-slot="status-head"] .tt-focus:focus-visible { outline-color: var(--field-fg); }
+[data-slot="status-head"] [data-slot="button"][data-variant="secondary"] {
+  border-color: var(--field-fg);
+  background-color: transparent;
+  color: var(--field-fg);
+}
+[data-slot="status-head"] [data-slot="button"][data-variant="text"] { color: var(--field-fg); }
+
+/* ---------- 상태 칩: 흰 면 위에서는 톤 색면, 색면 안에서는 반전 ---------- */
+[data-status-chip] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  background-color: var(--chip-bg);
+  color: var(--chip-fg);
+  font-size: var(--tt-text-sm);
+  line-height: 20px;
+  font-weight: 700;
+}
+[data-status-chip][data-tone="neutral"] { --chip-bg: var(--tt-ink); --chip-fg: var(--tt-surface); }
+[data-status-chip][data-tone="progress"] { --chip-bg: var(--tt-tone-progress); --chip-fg: var(--tt-tone-progress-on); }
+[data-status-chip][data-tone="waiting"] { --chip-bg: var(--tt-tone-waiting); --chip-fg: var(--tt-tone-waiting-on); }
+[data-status-chip][data-tone="attention"] { --chip-bg: var(--tt-tone-attention); --chip-fg: var(--tt-tone-attention-on); }
+[data-status-chip][data-tone="problem"] { --chip-bg: var(--tt-tone-problem); --chip-fg: var(--tt-tone-problem-on); }
+[data-status-chip][data-tone="done"] { --chip-bg: var(--tt-tone-done); --chip-fg: var(--tt-tone-done-on); }
+[data-slot="status-head"] [data-status-chip] { --chip-bg: var(--field-fg); --chip-fg: var(--field-bg); }
+
+@media (forced-colors: active) {
+  [data-status-chip] { border: 1px solid CanvasText; }
+}

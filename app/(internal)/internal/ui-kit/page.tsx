@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Button } from "@/components/primitives/Button";
 import { ButtonLink } from "@/components/primitives/ButtonLink";
+import { StatusChip } from "@/components/primitives/StatusChip";
 import { DEFAULT_STYLE_ID, STYLE_LABELS } from "@/lib/style/styles";
 import { COLOR_TOKENS, CONTRAST_REQUIREMENTS, STYLE_COLOR_TOKENS, contrastRatio } from "@/lib/style/tokens";
+import type { Tone } from "@/lib/tracking/types";
 
 export const metadata: Metadata = {
   title: "화면 부품 모음"
@@ -119,7 +121,67 @@ export default function UiKitPage(): React.JSX.Element {
         <ColorSection />
         <TypeSection />
         <ButtonSection />
+        <ToneSection />
       </div>
     </main>
+  );
+}
+
+const TONES: readonly Tone[] = ["neutral", "progress", "waiting", "attention", "problem", "done"];
+
+const TONE_NAMES: Readonly<Record<Tone, string>> = {
+  neutral: "조회 중",
+  progress: "정상 진행",
+  waiting: "정보 대기",
+  attention: "확인 필요",
+  problem: "문제",
+  done: "완료"
+};
+
+/** A signal color field. Full-bleed below 640px like the real result card. */
+function Field({ tone, demo, children }: { readonly tone: Tone; readonly demo: string; readonly children: React.ReactNode }): React.JSX.Element {
+  return (
+    <div data-slot="status-head" data-tone={tone} data-demo={demo} className="-mx-4 sm:mx-0">
+      {children}
+    </div>
+  );
+}
+
+function StatusHeadDemo(): React.JSX.Element {
+  return (
+    <Field tone="progress" demo="status-head">
+      <div className="flex flex-col items-start gap-2">
+        <StatusChip tone="progress" text="통관 대기 · 2/4" />
+        <div className="flex flex-col gap-1">
+          <h3 className="m-0 font-tt-display text-tt-lg [font-weight:var(--tt-weight-display)]">통관 순서를 기다리고 있어요</h3>
+          <p className="m-0 text-tt-sm font-medium">세관 접수가 끝났고 순서대로 심사가 진행돼요.</p>
+        </div>
+      </div>
+    </Field>
+  );
+}
+
+function ToneSection(): React.JSX.Element {
+  return (
+    <Section id="tones" title="상태 톤 · 칩 · 색면">
+      <div data-demo="chips" className="flex flex-wrap gap-2">
+        {TONES.map((tone) => (
+          <StatusChip key={tone} tone={tone} text={TONE_NAMES[tone]} />
+        ))}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {TONES.map((tone) => (
+          <Field key={tone} tone={tone} demo={`field-${tone}`}>
+            <StatusChip tone={tone} text={TONE_NAMES[tone]} />
+            <p className="m-0 text-tt-sm font-medium">색면 위 글자와 선은 색면 글자색 한 가지만 써요.</p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary">다시 조회</Button>
+              <Button variant="text">번호 수정</Button>
+            </div>
+          </Field>
+        ))}
+      </div>
+      <StatusHeadDemo />
+    </Section>
   );
 }
