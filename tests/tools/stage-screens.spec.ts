@@ -72,6 +72,25 @@ const SCENARIOS: readonly StageScenario[] = [
       await mockTrack(page, customsWaitingData());
     }
   },
+  // S08: the two new screen styles, chosen before the page loads like a returning customer's stored choice.
+  { name: "home-manifest", path: "/", prepare: (page) => page.addInitScript(() => window.localStorage.setItem("tt:style", "manifest")) },
+  { name: "home-night", path: "/", prepare: (page) => page.addInitScript(() => window.localStorage.setItem("tt:style", "night")) },
+  {
+    name: "deeplink-inTransit-manifest",
+    path: `/${FAKE.hbl}`,
+    prepare: async (page) => {
+      await page.addInitScript(() => window.localStorage.setItem("tt:style", "manifest"));
+      await mockTrack(page, trackData("inTransit"));
+    }
+  },
+  {
+    name: "deeplink-inTransit-night",
+    path: `/${FAKE.hbl}`,
+    prepare: async (page) => {
+      await page.addInitScript(() => window.localStorage.setItem("tt:style", "night"));
+      await mockTrack(page, trackData("inTransit"));
+    }
+  }
 ];
 
 /** The pre-S01 example buttons and help line showed real shipments; mask them so no real number reaches a screenshot. */
