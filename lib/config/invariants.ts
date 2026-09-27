@@ -19,7 +19,9 @@ export const RESULT_COPY_SLOTS = {
   actionCallDriver: [], actionReturnLink: [], actionUndelivered: [],
   pendingStoresIntro: [], notFoundCaveat: [], carrierCutLine: [], rateLimitedReason: ["seconds"],
   customsCheckNote: [], chooseCarrierSentence: [],
-  returnLinkCopied: [], returnLinkShared: [], returnLinkFallback: [], inquiryCopied: []
+  returnLinkCopied: [], returnLinkShared: [], returnLinkFallback: [], inquiryCopied: [],
+  recommendationsOpen: [], recommendationsClose: [], recommendationPriceChecked: ["date"],
+  showcaseTitle: [], footerNote: [], adSlotLabel: []
 } satisfies Readonly<Record<keyof ResultCopyConfig, readonly string[]>>;
 
 export const SERVER_STALE_DAYS = 14; // lib/services/normalizer.ts STALE_AFTER_DAYS

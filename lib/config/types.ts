@@ -189,6 +189,12 @@ export interface ResultCopyConfig {
   readonly returnLinkShared: string;       // '링크를 공유했어요' (S07)
   readonly returnLinkFallback: string;     // '아래 링크를 길게 눌러 복사해 주세요.' (S07)
   readonly inquiryCopied: string;          // '문의 내용을 복사했어요' (S07)
+  readonly recommendationsOpen: string;    // '운영자 추천 상품 보기' — opens the approval-10 fallback dialog (S08)
+  readonly recommendationsClose: string;   // '닫기' (S08)
+  readonly recommendationPriceChecked: string; // '{date} 확인' — after a price that was checked within 7 days (S08)
+  readonly showcaseTitle: string;          // home store showcase heading (S08)
+  readonly footerNote: string;             // footer sentence about where the data comes from (S08)
+  readonly adSlotLabel: string;            // '광고' — the manual ad slot's accessible name (S08)
 }
 
 export interface SiteConfig {

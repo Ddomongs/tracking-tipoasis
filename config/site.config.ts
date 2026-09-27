@@ -478,7 +478,15 @@ export const resultCopy = {
   returnLinkCopied: "링크를 복사했어요",
   returnLinkShared: "링크를 공유했어요",
   returnLinkFallback: "아래 링크를 길게 눌러 복사해 주세요.",
-  inquiryCopied: "문의 내용을 복사했어요"
+  inquiryCopied: "문의 내용을 복사했어요",
+  // 결과 아래 추천 묶음(승인 10 전에는 '운영자 추천' 창을 여는 버튼과 닫기 버튼), 가격 옆 확인일({date} 자리 필수)
+  recommendationsOpen: "운영자 추천 상품 보기",
+  recommendationsClose: "닫기",
+  recommendationPriceChecked: "{date} 확인",
+  // 홈 첫 화면 아래 스토어 묶음 제목, 푸터 안내 문장, 수동 광고 자리의 이름(화면 읽기용)
+  showcaseTitle: "판매 중인 상품 둘러보기",
+  footerNote: "입력한 번호로 관세청 통관 정보와 택배사 배송 정보를 함께 조회해요. 정보가 반영되는 시점에 따라 실제와 조금 다를 수 있어요.",
+  adSlotLabel: "광고"
 } satisfies ResultCopyConfig;
 
 /** 전체 설정(서버·내부 도구·결과 지연 청크용). 브라우저 코드는 위의 필요한 부분만 가져다 씁니다. */

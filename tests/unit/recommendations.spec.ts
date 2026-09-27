@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import { channels } from "@/config/site.config";
+import { channels, resultCopy, siteConfig } from "@/config/site.config";
+import { SiteConfigSchema, formatConfigIssues } from "@/lib/config/schema";
 import type { FeaturedItem } from "@/lib/config/types";
 import {
   PRICE_CHECK_MAX_AGE_DAYS,
@@ -141,4 +142,29 @@ test("RECOMMENDATION_PRESENTATION follows approvalconst status = /^| 10 | [^|]+|
   const status = /^\| 10 \| [^|]+\| (\w+)[^|]*\|/m.exec(ledger)?.[1];
   expect(status, "approvalconst status = /^| 10 | [^|]+| (w+)[^|]*|/m.exec(ledger)?.[1]; // the cell may carry a date and a noterow not found in roadmap §4").toBeTruthy();
   expect(RECOMMENDATION_PRESENTATION).toBe(status === "approved" ? "inline" : "dialog");
+});
+
+test.describe("supplementary copy in the config (S08)", () => {
+  test("resultCopy carries the S08 strings and the shipped config still parses", () => {
+    expect(resultCopy.recommendationsOpen).toBe("운영자 추천 상품 보기");
+    expect(resultCopy.recommendationsClose).toBe("닫기");
+    expect(resultCopy.recommendationPriceChecked).toBe("{date} 확인");
+    expect(resultCopy.showcaseTitle).toBe("판매 중인 상품 둘러보기");
+    expect(resultCopy.footerNote.length).toBeGreaterThan(10);
+    expect(resultCopy.adSlotLabel).toBe("광고");
+    const parsed = SiteConfigSchema.safeParse(siteConfig);
+    expect(parsed.success, parsed.success ? "" : formatConfigIssues(parsed.error)).toBe(true);
+  });
+
+  test("the price note keeps exactly its {date} slot and every S08 string stays token-free otherwise", () => {
+    const broken = SiteConfigSchema.safeParse({
+      ...siteConfig,
+      resultCopy: { ...siteConfig.resultCopy, recommendationPriceChecked: "가격 확인", showcaseTitle: "{date} 상품" }
+    });
+    expect(broken.success).toBe(false);
+    if (broken.success) return;
+    const issues = formatConfigIssues(broken.error);
+    expect(issues).toContain("resultCopy.recommendationPriceChecked: {date} 자리가 필요합니다");
+    expect(issues).toContain("resultCopy.showcaseTitle: 허용되지 않은 토큰 {date}입니다");
+  });
 });
