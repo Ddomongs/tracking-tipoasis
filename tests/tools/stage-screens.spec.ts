@@ -28,7 +28,12 @@ const SCENARIOS: readonly StageScenario[] = [
   { name: "deeplink-inTransit", path: `/${FAKE.hbl}`, prepare: (page) => mockTrack(page, trackData("inTransit")) },
   { name: "deeplink-delivered", path: `/${FAKE.hbl}`, prepare: (page) => mockTrack(page, trackData("delivered")) },
   { name: "deeplink-notFound", path: `/${FAKE.domestic}`, prepare: (page) => mockTrack(page, "notFound404") },
-  { name: "privacy", path: "/privacy" }
+  { name: "privacy", path: "/privacy" },
+  // S04: the status slot's problem and choice states (deep links; the tool pins the page clock to FIXTURE_NOW).
+  { name: "deeplink-serverError", path: `/${FAKE.domestic}`, prepare: (page) => mockTrack(page, "serverError500") },
+  { name: "deeplink-rateLimited", path: `/${FAKE.domestic}`, prepare: (page) => mockTrack(page, "rateLimited429") },
+  { name: "deeplink-stale", path: `/${FAKE.hbl}`, prepare: (page) => mockTrack(page, trackData("stale")) },
+  { name: "deeplink-ambiguous", path: `/${FAKE.domestic}`, prepare: (page) => mockTrack(page, trackData("ambiguous")) }
 ];
 
 /** The pre-S01 example buttons and help line showed real shipments; mask them so no real number reaches a screenshot. */

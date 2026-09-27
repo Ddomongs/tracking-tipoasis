@@ -265,8 +265,8 @@ function HomePageContent({ initialTrackingNumber }: HomePageClientProps) {
   const invalid = slotState.phase === "error" && slotView?.guideKey === "invalidNumber";
   const settledData = slotState.phase === "settled" ? slotState.outcome.data : null;
   const recommendationStage = recommendationStageOf(slotView);
-  // Store link and showcase keep the pre-renewal rule until Task 7 of the S04 plan narrows them to the idle page.
-  const showStorefront = idle || settledData?.currentStatusCode === 7;
+  // Stores outside 지금 할 일 only on the idle page (spec §7–§8): problem states and in transit show none, delivered leads in the block.
+  const showStorefront = idle;
 
   return (
     <MotionConfig reducedMotion="user">
