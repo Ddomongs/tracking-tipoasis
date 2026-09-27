@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { UiKitInteractive } from "./UiKitInteractive";
+import { buildReturnLink } from "@/lib/site";
+import { buildInquiryCopy } from "@/lib/tracking/inquiry-copy";
 import { AffiliateLinkGroup } from "@/components/primitives/AffiliateLinkGroup";
 import { Button } from "@/components/primitives/Button";
 import { NoticeBanner } from "@/components/primitives/NoticeBanner";
@@ -147,6 +150,7 @@ export default function UiKitPage(): React.JSX.Element {
         <NumberBarSection />
         <LinkSection />
         <NoticeSection />
+        <CopySection />
       </div>
     </main>
   );
@@ -516,6 +520,27 @@ function NoticeSection(): React.JSX.Element {
           </Field>
         ))}
       </div>
+    </Section>
+  );
+}
+
+const DEMO_NOW = new Date("2026-09-26T14:05:00+09:00");
+const DEMO_NUMBER = "000012345678";
+
+function CopySection(): React.JSX.Element {
+  // '[배송 문의] 조회번호 0000 1234 5678 / 조회 화면 오류 / 9월 26일 14:05' (S03's inquiry copy)
+  const inquiryText = buildInquiryCopy({ kind: "screenError", number: numberView(DEMO_NUMBER), now: DEMO_NOW });
+  return (
+    <Section id="copy" title="복사 버튼">
+      <p className="m-0 text-tt-sm text-tt-muted">
+        클립보드가 막힌 인앱 브라우저에서는 내용을 고른 상태의 읽기 전용 글상자를 보여 줘요. 문의 복사 버튼은 같은 클릭에서 톡톡을 새 창으로 열어요.
+      </p>
+      <UiKitInteractive
+        returnLink={buildReturnLink(DEMO_NUMBER, "AUTO")}
+        inquiryText={inquiryText}
+        talkUrl={channels.talk.url}
+        talkLabel={channels.talk.labels.copyAndTalk}
+      />
     </Section>
   );
 }

@@ -3,6 +3,7 @@ import { STYLE_COLOR_TOKENS, contrastRatio } from "@/lib/style/tokens";
 import { groupTrackingNumber } from "@/lib/tracking/number-format";
 import { FAKE, FAKE_GROUPED } from "../fixtures/tracking-fixtures";
 import { channels, disclosures } from "@/config/site.config";
+import { buildReturnLink } from "@/lib/site";
 import { INTERNAL_TEST_CREDENTIALS } from "../internal-auth";
 
 // Basic-auth credentials are sent only when a route challenges (the /internal/* pages).
@@ -784,5 +785,75 @@ test.describe("motion", () => {
         .filter((durations) => durations.split(",").some((part) => Number.parseFloat(part) !== 0))
     );
     expect(moving).toEqual([]);
+  });
+});
+
+/** In-app browser stand-in: the clipboard API rejects (or is missing) and execCommand('copy') returns false. */
+async function blockClipboard(page: Page, mode: "reject" | "missing"): Promise<void> {
+  await page.addInitScript((kind: "reject" | "missing") => {
+    const blocked = () => Promise.reject(new DOMException("Blocked by the in-app browser", "NotAllowedError"));
+    Object.defineProperty(Navigator.prototype, "clipboard", {
+      configurable: true,
+      get: () => (kind === "missing" ? undefined : { writeText: blocked, readText: blocked })
+    });
+    document.execCommand = () => false;
+  }, mode);
+}
+
+test.describe("CopyButton", () => {
+  test("copy writes the exact text and switches to the copied label", async ({ page }) => {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await openKit(page);
+    const demo = page.locator('[data-demo="copy"]');
+    const expected = (await demo.getAttribute("data-copy-text")) ?? "";
+    expect(expected).toBe(buildReturnLink(FAKE.domestic, "AUTO"));
+    await demo.getByRole("button", { name: "다시 볼 링크 복사" }).click();
+    await expect(demo).toHaveAttribute("data-copy-outcome", "copied");
+    await expect(demo.getByRole("button")).toHaveText("링크를 복사했어요");
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(expected);
+    await expect(demo.locator("[data-copy-fallback]")).toHaveCount(0);
+  });
+
+  for (const mode of ["reject", "missing"] as const) {
+    test(`falls back to a selected read-only text box when the clipboard is ${mode === "reject" ? "blocked" : "missing"}`, async ({ page }) => {
+      const errors: string[] = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      await blockClipboard(page, mode);
+      await openKit(page);
+      const demo = page.locator('[data-demo="copy"]');
+      const expected = (await demo.getAttribute("data-copy-text")) ?? "";
+      await demo.getByRole("button", { name: "다시 볼 링크 복사" }).click();
+      const box = demo.locator("textarea[data-copy-fallback]");
+      await expect(box).toBeVisible();
+      await expect(box).toHaveAttribute("readonly", "");
+      await expect(box).toHaveValue(expected);
+      await expect(box).toBeFocused();
+      expect(await box.evaluate((area: HTMLTextAreaElement) => [area.selectionStart, area.selectionEnd])).toEqual([0, expected.length]);
+      await expect(demo).toHaveAttribute("data-copy-outcome", "fallback");
+      await expect(demo.getByRole("button")).toHaveText("다시 볼 링크 복사");
+      expect(errors).toEqual([]);
+    });
+  }
+
+  test("copyAndOpen opens 톡톡 in a new tab in the same click and still shows the fallback box", async ({ page }) => {
+    await page.context().route(`${new URL(channels.talk.url).origin}/**`, (route) =>
+      route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>talk</title>" })
+    );
+    await blockClipboard(page, "reject");
+    await openKit(page);
+    const demo = page.locator('[data-demo="copy-and-open"]');
+    const link = demo.getByRole("link", { name: `${channels.talk.labels.copyAndTalk} 새 창으로 열기` });
+    await expect(link).toHaveAttribute("href", channels.talk.url);
+    await expect(link).toHaveAttribute("target", "_blank");
+    await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    await expect(link).toHaveAttribute("data-variant", "primary");
+    const popupPromise = page.context().waitForEvent("page");
+    await link.click();
+    const popup = await popupPromise;
+    await popup.waitForLoadState("domcontentloaded");
+    expect(popup.url()).toBe(channels.talk.url);
+    await popup.close();
+    await expect(demo.locator("textarea[data-copy-fallback]")).toHaveValue((await demo.getAttribute("data-copy-text")) ?? "");
+    await expect(demo).toHaveAttribute("data-copy-outcome", "fallback");
   });
 });
