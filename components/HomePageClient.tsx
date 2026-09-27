@@ -16,6 +16,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { StoreContactPopup } from "@/components/StoreContactPopup";
 import { StorefrontShowcase } from "@/components/StorefrontShowcase";
 import { RecommendedProducts } from "@/components/RecommendedProducts";
+import { ReturnLinkButton } from "@/components/ReturnLinkButton";
 import { TrackingForm } from "@/components/TrackingForm";
 import { TrackingResultSummary } from "@/components/TrackingResultSummary";
 import { Card } from "@/components/ui/card";
@@ -177,6 +178,11 @@ export const HomePageClient = ({ initialTrackingNumber }: HomePageClientProps) =
                 현재 배송 상태는 {result.currentStatus}입니다.
               </p>
               <TrackingResultSummary data={result} />
+              <ReturnLinkButton
+                key={`${result.trackingNumber}:${result.delivery.carrierCode}`}
+                number={result.trackingNumber}
+                carrier={result.delivery.carrierCode}
+              />
               <section className="space-y-3 pt-3" aria-labelledby="tracking-details-title">
                 <div>
                   <h3 id="tracking-details-title" className="text-lg font-bold text-slate-50">상세 진행 내역</h3>
