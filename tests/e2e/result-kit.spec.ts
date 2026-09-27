@@ -34,7 +34,8 @@ function viewFor(outcome: LookupOutcome, now: Date = FIXTURE_NOW): TrackingViewM
 async function openKit(page: Page, width = 375, height = 812): Promise<void> {
   await page.setViewportSize({ width, height });
   await page.goto("/internal/result-kit");
-  await expect(page.locator('[data-result-kit="ready"]')).toBeAttached();
+  // The harness route compiles on first use in dev mode; under a full parallel run that can take longer than 5 s.
+  await expect(page.locator('[data-result-kit="ready"]')).toBeAttached({ timeout: 15_000 });
 }
 
 async function showView(page: Page, view: TrackingViewModel, options: KitOptions = {}): Promise<void> {
