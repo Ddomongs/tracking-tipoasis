@@ -124,7 +124,10 @@ export function useLookup({ config, onSettled }: UseLookupOptions): UseLookupRes
         scheduleNext();
       }, delay);
     };
-    shownStage = loadingAt(request, startedAt).stage;
+    const initial = loadingAt(request, startedAt);
+    shownStage = initial.stage;
+    // A busy device can start this chain after 0.4 s: the stage it starts in has not been announced yet.
+    if (initial.announcement !== null) announce(initial.announcement);
     scheduleNext();
     return () => window.clearTimeout(timer);
   }, [announce, config, loadingAt, state]);

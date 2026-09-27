@@ -165,6 +165,37 @@ test.describe("after the lookup (S06)", () => {
     expect(heard[0]).toBe(lookup.copy.started);
   });
 
+  test("a slow device whose loading timer starts after 0.4 s still hears the start once (CI 2026-09-28)", async ({ page }) => {
+    await page.addInitScript(() => {
+      const heard: string[] = [];
+      (window as unknown as { __ttLive: string[] }).__ttLive = heard;
+      let last = "";
+      new MutationObserver(() => {
+        const text = document.querySelector('[data-live-region="polite"]')?.textContent?.trim() ?? "";
+        if (text === last) return;
+        if (text !== "") heard.push(text);
+        last = text;
+      }).observe(document, { subtree: true, childList: true, characterData: true });
+      // Simulates a busy phone: the lookup's fetch starts, and the loading timer's effect (same commit, right after it)
+      // sees the clock already 600 ms past the submit — the short stage has begun before the timer chain exists.
+      let offset = 0;
+      const realNow = performance.now.bind(performance);
+      performance.now = (): number => realNow() + offset;
+      const realFetch = window.fetch.bind(window);
+      window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+        if (String(input instanceof Request ? input.url : input).includes("/api/track")) offset += 600;
+        return realFetch(input, init);
+      };
+    });
+    await recordTrack(page, { delayMs: 1000 });
+    await page.goto(`/${FAKE.domestic}`);
+    await expect(page.getByRole("button", RESULT_READY)).toBeVisible();
+    await page.waitForTimeout(300);
+    const heard = await page.evaluate(() => (window as unknown as { __ttLive: string[] }).__ttLive);
+    expect(heard[0]).toBe(lookup.copy.started);
+    expect(heard).toHaveLength(2);
+  });
+
   test("the document title follows the result and never contains the number", async ({ page }) => {
     await recordTrack(page);
     await page.goto(`/${FAKE.domestic}`);
