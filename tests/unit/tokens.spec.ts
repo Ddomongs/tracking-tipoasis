@@ -16,6 +16,8 @@ import {
   contrastRatio,
   type ColorTokenSet
 } from "@/lib/style/tokens";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 const HEX_COLOR = /^#[0-9A-F]{6}$/;
 const TONES = ["progress", "waiting", "attention", "problem", "done"] as const;
@@ -156,5 +158,79 @@ test.describe("signal supplements (spec §13)", () => {
     const signal = signalColors();
     const fills = TONES.map((tone) => signal[`--tt-tone-${tone}`]);
     expect(new Set(fills).size).toBe(5);
+  });
+});
+const REPO_ROOT = path.resolve(__dirname, "../..");
+
+function readRepoFile(relativePath: string): string {
+  return readFileSync(path.join(REPO_ROOT, relativePath), "utf8");
+}
+
+function declarations(block: string): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const match of block.matchAll(/(--tt-[a-z0-9-]+)\s*:\s*([^;]+);/g)) map.set(match[1], match[2].trim());
+  return map;
+}
+
+function signalBlock(css: string): Map<string, string> {
+  const match = css.match(/:root,\s*\[data-style="signal"\]\s*\{([^}]*)\}/);
+  if (!match) throw new Error('app/styles/tokens.css has no ":root, [data-style=\\"signal\\"]" block');
+  return declarations(match[1]);
+}
+
+function pixels(value: string | undefined): number {
+  if (!value || !/^\d+(\.\d+)?px$/.test(value)) throw new Error(`expected a px value, got "${value}"`);
+  return Number.parseFloat(value);
+}
+
+function milliseconds(value: string | undefined): number {
+  if (!value || !/^\d+ms$/.test(value)) throw new Error(`expected a ms value, got "${value}"`);
+  return Number.parseFloat(value);
+}
+
+test.describe("tokens.css (signal)", () => {
+  test("declares every contract token with the TypeScript color values and nothing else", () => {
+    const block = signalBlock(readRepoFile("app/styles/tokens.css"));
+    const signal = signalColors();
+    for (const token of COLOR_TOKENS) expect(block.get(token)?.toUpperCase(), token).toBe(signal[token]);
+    for (const token of NON_COLOR_TOKENS) expect(block.has(token), token).toBe(true);
+    const known = new Set<string>([...COLOR_TOKENS, ...NON_COLOR_TOKENS]);
+    expect([...block.keys()].filter((name) => !known.has(name))).toEqual([]);
+  });
+
+  test("non-color signal values follow the spec's type, focus, motion and layout budgets", () => {
+    const block = signalBlock(readRepoFile("app/styles/tokens.css"));
+    expect(["--tt-text-xs", "--tt-text-sm", "--tt-text-md", "--tt-text-lg", "--tt-text-xl"].map((t) => pixels(block.get(t)))).toEqual([
+      12, 14, 16, 20, 24
+    ]);
+    const eta = pixels(block.get("--tt-text-eta"));
+    expect(eta).toBeGreaterThanOrEqual(32);
+    expect(eta).toBeLessThanOrEqual(40);
+    expect(pixels(block.get("--tt-focus-width"))).toBeGreaterThanOrEqual(3);
+    expect(pixels(block.get("--tt-focus-offset"))).toBe(2);
+    for (const token of ["--tt-motion-fast", "--tt-motion-base", "--tt-motion-slow"]) {
+      const ms = milliseconds(block.get(token));
+      expect(ms, token).toBeGreaterThanOrEqual(150);
+      expect(ms, token).toBeLessThanOrEqual(300);
+    }
+    expect(pixels(block.get("--tt-header-h"))).toBe(48);
+    expect(pixels(block.get("--tt-column"))).toBe(560);
+    expect(pixels(block.get("--tt-side"))).toBe(320);
+    expect(pixels(block.get("--tt-status-field-max"))).toBe(300);
+    expect(pixels(block.get("--tt-anchor-reserve"))).toBe(64);
+    expect(pixels(block.get("--tt-radius-button"))).toBe(0);
+    expect(pixels(block.get("--tt-border-button"))).toBe(2);
+    expect(block.get("--tt-font-mono")).toContain("var(--font-dm-mono");
+    expect(block.get("--tt-font-body")).not.toMatch(/IBM Plex|Space Grotesk/);
+  });
+
+  test("reduced motion sets every motion token to 0ms with a selector style files cannot outrank", () => {
+    const css = readRepoFile("app/styles/tokens.css");
+    const match = css.match(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*:root,\s*\[data-style\]\[data-style\]\s*\{([^}]*)\}/);
+    expect(match, "reduced-motion block").not.toBeNull();
+    const block = declarations(match ? match[1] : "");
+    expect(block.get("--tt-motion-fast")).toBe("0ms");
+    expect(block.get("--tt-motion-base")).toBe("0ms");
+    expect(block.get("--tt-motion-slow")).toBe("0ms");
   });
 });

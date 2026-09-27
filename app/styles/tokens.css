@@ -1,0 +1,80 @@
+/*
+ * 화면 스타일 토큰 — signal(기본, B 색면 신호)
+ * - 기준 문서: DESIGN.md 3장. 색 값은 lib/style/tokens.ts, DESIGN.md, design-system/_base.css 와 같아야 하고
+ *   tests/unit/tokens.spec.ts 가 검사합니다.
+ * - :root 에도 같은 값을 둬서 data-style 이 없을 때의 기본값이 됩니다.
+ * - manifest(서류형)·night(어두운 화면)는 S08 이 app/styles/style-manifest.css·style-night.css 에 더합니다.
+ * - 이 파일은 --tt-* 변수와 [data-slot]·[data-status-chip]·[data-spine-part] 같은 새 훅에만 규칙을 겁니다.
+ *   기존(레거시) 화면은 바꾸지 않습니다.
+ */
+:root,
+[data-style="signal"] {
+  --tt-ground: #EEEDE8;
+  --tt-surface: #FFFFFF;
+  --tt-raised: #FFFFFF;
+  --tt-ink: #111110;
+  --tt-muted: #5C5B56;
+  --tt-rule: #D3D2CB;
+  --tt-control: #767570;
+  --tt-route: #85847E;
+  --tt-primary: #111110;
+  --tt-on-primary: #FFFFFF;
+  --tt-accent: #2244D1;
+  --tt-link: #111110;
+  --tt-focus: #111110;
+  --tt-tile: #FFFFFF;
+  --tt-board: #111110;
+  --tt-tone-progress: #2244D1;
+  --tt-tone-progress-on: #FFFFFF;
+  --tt-tone-progress-ink: #2244D1;
+  --tt-tone-waiting: #CFCEC6;
+  --tt-tone-waiting-on: #111110;
+  --tt-tone-waiting-ink: #5C5B56;
+  --tt-tone-attention: #F4BC00;
+  --tt-tone-attention-on: #111110;
+  --tt-tone-attention-ink: #8A5A00;
+  --tt-tone-problem: #C8261D;
+  --tt-tone-problem-on: #FFFFFF;
+  --tt-tone-problem-ink: #C8261D;
+  --tt-tone-done: #0B6B3E;
+  --tt-tone-done-on: #FFFFFF;
+  --tt-tone-done-ink: #0B6B3E;
+
+  --tt-font-body: "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Noto Sans CJK KR", system-ui, -apple-system, sans-serif;
+  --tt-font-display: "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Noto Sans CJK KR", system-ui, -apple-system, sans-serif;
+  --tt-font-mono: var(--font-dm-mono, "DM Mono"), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --tt-weight-display: 800;
+  --tt-text-xs: 12px;
+  --tt-text-sm: 14px;
+  --tt-text-md: 16px;
+  --tt-text-lg: 20px;
+  --tt-text-xl: 24px;
+  --tt-text-eta: 40px;
+  --tt-leading-tight: 1.25;
+  --tt-leading-body: 1.5;
+  --tt-radius-button: 0px;
+  --tt-radius-card: 0px;
+  --tt-border-button: 2px;
+  --tt-focus-width: 3px;
+  --tt-focus-offset: 2px;
+  --tt-motion-fast: 150ms;
+  --tt-motion-base: 200ms;
+  --tt-motion-slow: 250ms;
+  --tt-ease: cubic-bezier(0.2, 0, 0, 1);
+  --tt-gutter: 20px;
+  --tt-header-h: 48px;
+  --tt-column: 560px;
+  --tt-side: 320px;
+  --tt-status-field-max: 300px;
+  --tt-anchor-reserve: 64px;
+}
+
+/* 줄인 모션: 모든 스타일에서 0. [data-style][data-style] 은 스타일 파일의 [data-style="…"] 보다 우선합니다. */
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  [data-style][data-style] {
+    --tt-motion-fast: 0ms;
+    --tt-motion-base: 0ms;
+    --tt-motion-slow: 0ms;
+  }
+}
