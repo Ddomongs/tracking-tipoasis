@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { STYLE_COLOR_TOKENS, contrastRatio } from "@/lib/style/tokens";
 import { groupTrackingNumber } from "@/lib/tracking/number-format";
 import { FAKE, FAKE_GROUPED } from "../fixtures/tracking-fixtures";
+import { channels, disclosures } from "@/config/site.config";
 import { INTERNAL_TEST_CREDENTIALS } from "../internal-auth";
 
 // Basic-auth credentials are sent only when a route challenges (the /internal/* pages).
@@ -616,5 +617,107 @@ test.describe("NumberBar", () => {
       if (demo === "number-bar-hbl30") expect(info.height, demo).toBeGreaterThan(info.lineHeight * 1.5);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  });
+});
+
+test.describe("TalkLink and AffiliateLinkGroup", () => {
+  test("TalkLink opens 톡톡 in a new tab with one look at three weights", async ({ page }) => {
+    await openKit(page);
+    const talk = channels.talk;
+    for (const [demo, variant, placement, label, icons] of [
+      ["talk-header", "text", "header", talk.labels.header, 0],
+      ["talk-state", "text", "state", talk.labels.cta, 1],
+      ["talk-secondary", "secondary", "state", talk.labels.cta, 1],
+      ["talk-primary", "primary", "state", talk.labels.cta, 1],
+      ["talk-footer", "text", "footer", talk.labels.footer, 1]
+    ] as const) {
+      const link = page.locator(`[data-demo="${demo}"] a`);
+      await expect(link, demo).toHaveAttribute("href", talk.url);
+      await expect(link, demo).toHaveAttribute("target", "_blank");
+      await expect(link, demo).toHaveAttribute("rel", "noopener noreferrer");
+      await expect(link, demo).toHaveAttribute("aria-label", `${label} 새 창으로 열기`);
+      await expect(link, demo).toHaveAttribute("data-variant", variant);
+      await expect(link, demo).toHaveAttribute("data-link-placement", placement);
+      await expect(link.locator('svg[aria-hidden="true"]'), demo).toHaveCount(icons);
+      await expect(link, demo).toHaveText(label);
+    }
+  });
+
+  test("affiliate groups start with the disclosure exactly when a link is affiliate", async ({ page }) => {
+    await openKit(page);
+    const affiliateHrefs = new Set<string>(Object.values(channels.coupang.urls));
+    for (const demo of ["affiliate-pending", "affiliate-delivered", "affiliate-missing-disclosure", "affiliate-naver-only", "field-links"]) {
+      const group = page.locator(`[data-demo="${demo}"] [data-affiliate-group]`);
+      await expect(group, demo).toHaveCount(1);
+      const placement = (await group.getAttribute("data-affiliate-group")) ?? "";
+      const links = await group.locator("a").evaluateAll((anchors) =>
+        anchors.map((anchor) => ({
+          href: anchor.getAttribute("href") ?? "",
+          rel: (anchor.getAttribute("rel") ?? "").split(/\s+/).filter(Boolean).sort(),
+          target: anchor.getAttribute("target"),
+          placement: anchor.getAttribute("data-link-placement"),
+          name: anchor.getAttribute("aria-label"),
+          text: (anchor.textContent ?? "").trim()
+        }))
+      );
+      expect(links.length, demo).toBeGreaterThan(0);
+      const first = await group.evaluate((element) => {
+        const child = element.firstElementChild;
+        return child ? { tag: child.tagName, disclosure: child.getAttribute("data-affiliate-disclosure"), text: child.textContent } : null;
+      });
+      if (links.some((link) => affiliateHrefs.has(link.href))) {
+        expect(first, demo).toEqual({ tag: "P", disclosure: "coupang", text: disclosures.coupang });
+      } else {
+        await expect(group.locator("[data-affiliate-disclosure]"), demo).toHaveCount(0);
+      }
+      for (const link of links) {
+        const expectedRel = affiliateHrefs.has(link.href) ? ["nofollow", "noopener", "noreferrer", "sponsored"] : ["noopener", "noreferrer"];
+        expect(link.rel, `${demo} ${link.href}`).toEqual(expectedRel);
+        expect(link.target, demo).toBe("_blank");
+        expect(link.placement, demo).toBe(placement);
+        expect(link.name, demo).toBe(`${link.text} 새 창으로 열기`);
+      }
+    }
+  });
+
+  test("placement ids, the purchase-choice intro and an empty group", async ({ page }) => {
+    await openKit(page);
+    await expect(page.locator('[data-demo="affiliate-pending"] [data-affiliate-group]')).toHaveAttribute("data-affiliate-group", "pending");
+    await expect(page.locator('[data-demo="affiliate-delivered"] [data-affiliate-group]')).toHaveAttribute(
+      "data-affiliate-group",
+      "deliveredLead"
+    );
+    await expect(page.locator('[data-demo="affiliate-pending"] [data-affiliate-group] > p').nth(1)).toHaveText(
+      "주문하신 곳에서도 배송 안내를 볼 수 있어요"
+    );
+    const lead = page.locator('[data-demo="affiliate-delivered"] a').first();
+    await expect(lead).toHaveAttribute("href", channels.naver.urls.deliveredLead);
+    await expect(lead).toHaveAttribute("data-variant", "primary");
+    await expect(page.locator('[data-demo="affiliate-empty"] *')).toHaveCount(0);
+  });
+
+  test("inside a field no text uses the muted color and links take the field color", async ({ page }) => {
+    await openKit(page);
+    const muted = await page.evaluate(() => {
+      const probe = document.createElement("span");
+      probe.style.color = "var(--tt-muted)";
+      document.body.append(probe);
+      const value = getComputedStyle(probe).color;
+      probe.remove();
+      return value;
+    });
+    const fieldColors = await page
+      .locator('main[data-ui-kit] [data-slot="status-head"]')
+      .evaluateAll((fields) => fields.flatMap((field) => Array.from(field.querySelectorAll("*"), (element) => getComputedStyle(element).color)));
+    expect(fieldColors.length).toBeGreaterThan(0);
+    expect(fieldColors).not.toContain(muted);
+    const result = await page.locator('[data-demo="field-links"]').evaluate((field) => ({
+      fieldFg: getComputedStyle(field).color,
+      links: Array.from(field.querySelectorAll('a[data-variant="text"], a[data-variant="secondary"]'), (anchor) => getComputedStyle(anchor).color),
+      disclosure: getComputedStyle(field.querySelector("[data-affiliate-disclosure]") ?? field).color
+    }));
+    expect(result.links.length).toBeGreaterThanOrEqual(2);
+    for (const color of result.links) expect(color).toBe(result.fieldFg);
+    expect(result.disclosure).toBe(result.fieldFg);
   });
 });

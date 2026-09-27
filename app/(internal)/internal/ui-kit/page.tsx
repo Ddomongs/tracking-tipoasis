@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { AffiliateLinkGroup } from "@/components/primitives/AffiliateLinkGroup";
 import { Button } from "@/components/primitives/Button";
+import { TalkLink } from "@/components/primitives/TalkLink";
 import { NumberBar } from "@/components/primitives/NumberBar";
 import { EtaDisplay } from "@/components/primitives/EtaDisplay";
 import { JourneySpine } from "@/components/primitives/JourneySpine";
@@ -7,7 +9,18 @@ import { ButtonLink } from "@/components/primitives/ButtonLink";
 import { StatusChip } from "@/components/primitives/StatusChip";
 import { DEFAULT_STYLE_ID, STYLE_LABELS } from "@/lib/style/styles";
 import { COLOR_TOKENS, CONTRAST_REQUIREMENTS, STYLE_COLOR_TOKENS, contrastRatio } from "@/lib/style/tokens";
-import type { EtaDate, EtaView, NumberView, SpineView, Tone } from "@/lib/tracking/types";
+import type {
+  ActionWeight,
+  EtaDate,
+  EtaView,
+  NumberView,
+  SpineView,
+  StoreLinkView,
+  StoreLinksView,
+  StorePlacementId,
+  Tone
+} from "@/lib/tracking/types";
+import { channels, disclosures } from "@/config/site.config";
 import { groupTrackingNumber } from "@/lib/tracking/number-format";
 import { formatKstDate, weekdayLabel } from "@/lib/tracking/time";
 
@@ -130,6 +143,7 @@ export default function UiKitPage(): React.JSX.Element {
         <JourneySection />
         <EtaSection />
         <NumberBarSection />
+        <LinkSection />
       </div>
     </main>
   );
@@ -371,6 +385,99 @@ function NumberBarSection(): React.JSX.Element {
           actions={<Button variant="secondary">번호 변경</Button>}
         />
       </div>
+    </Section>
+  );
+}
+
+function storeLink(channel: StoreLinkView["channel"], placement: StorePlacementId, weight: ActionWeight): StoreLinkView {
+  const store = channels[channel];
+  return { channel, label: store.linkLabel, href: store.urls[placement], isAffiliate: store.isAffiliate, weight };
+}
+
+const DELIVERED_STORES: StoreLinksView = {
+  placement: "deliveredLead",
+  intro: null,
+  disclosure: disclosures.coupang,
+  links: [storeLink("naver", "deliveredLead", "primary"), storeLink("coupang", "deliveredLead", "secondary")]
+};
+
+const STORE_DEMOS: ReadonlyArray<{
+  readonly demo: string;
+  readonly caption: string;
+  readonly layout: "row" | "stack";
+  readonly stores: StoreLinksView;
+}> = [
+  {
+    demo: "affiliate-pending",
+    caption: "국내 도착 전 · 구매처 선택지 (고지 → 안내 → 링크)",
+    layout: "row",
+    stores: {
+      placement: "pending",
+      intro: "주문하신 곳에서도 배송 안내를 볼 수 있어요",
+      disclosure: disclosures.coupang,
+      links: [storeLink("naver", "pending", "secondary"), storeLink("coupang", "pending", "secondary")]
+    }
+  },
+  { demo: "affiliate-delivered", caption: "배송 완료 · 스토어 선두", layout: "row", stores: DELIVERED_STORES },
+  {
+    demo: "affiliate-missing-disclosure",
+    caption: "고지 문구가 빠진 뷰라도 제휴 링크가 있으면 고지를 붙여요",
+    layout: "stack",
+    stores: { placement: "showcase", intro: null, disclosure: null, links: [storeLink("coupang", "showcase", "secondary")] }
+  },
+  {
+    demo: "affiliate-naver-only",
+    caption: "제휴 링크가 없으면 고지도 없어요",
+    layout: "stack",
+    stores: { placement: "showcase", intro: null, disclosure: disclosures.coupang, links: [storeLink("naver", "showcase", "secondary")] }
+  },
+  {
+    demo: "affiliate-empty",
+    caption: "링크가 0개면 묶음을 그리지 않아요",
+    layout: "row",
+    stores: { placement: "pending", intro: null, disclosure: null, links: [] }
+  }
+];
+
+function LinkSection(): React.JSX.Element {
+  const talk = channels.talk;
+  return (
+    <Section id="links" title="톡톡 링크 · 스토어 링크 묶음">
+      <p className="m-0 text-tt-sm text-tt-muted">
+        톡톡은 한 가지 모양을 세 무게로 써요. 스토어 묶음은 제휴 링크가 있을 때 고지를 첫 줄에 붙여요.
+      </p>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 bg-tt-surface p-4">
+        <span data-demo="talk-header">
+          <TalkLink href={talk.url} label={talk.labels.header} weight="text" placement="header" />
+        </span>
+        <span data-demo="talk-state">
+          <TalkLink href={talk.url} label={talk.labels.cta} weight="text" placement="state" />
+        </span>
+        <span data-demo="talk-secondary">
+          <TalkLink href={talk.url} label={talk.labels.cta} weight="secondary" placement="state" />
+        </span>
+        <span data-demo="talk-primary">
+          <TalkLink href={talk.url} label={talk.labels.cta} weight="primary" placement="state" />
+        </span>
+        <span data-demo="talk-footer">
+          <TalkLink href={talk.url} label={talk.labels.footer} weight="text" placement="footer" />
+        </span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {STORE_DEMOS.map((item) => (
+          <div key={item.demo} className="flex min-w-0 flex-col gap-2 bg-tt-surface p-4">
+            <p className="m-0 text-tt-xs font-bold text-tt-muted">{item.caption}</p>
+            <div data-demo={item.demo}>
+              <AffiliateLinkGroup stores={item.stores} layout={item.layout} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <Field tone="attention" demo="field-links">
+        <TalkLink href={talk.url} label="9월 29일(화)까지 그대로면 알려 주세요" weight="text" placement="state" />
+        <AffiliateLinkGroup stores={DELIVERED_STORES} layout="row" />
+        <p className="m-0 text-tt-xs text-tt-muted">색면 안에서는 보조 글자도 색면 글자색으로 바뀌어요.</p>
+      </Field>
     </Section>
   );
 }
