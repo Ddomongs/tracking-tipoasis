@@ -37,6 +37,8 @@ async function open(page: Page, scene: A11yScene): Promise<void> {
   await mockTrack(page, scene.reply, { delayMs: scene.delayMs });
   await page.goto(`/${typeof scene.reply === "string" ? FAKE.domestic : scene.reply.trackingNumber}`);
   await expect(page.locator(scene.ready)).toBeVisible();
+  // The status field paints once (tt-paint, 200 ms) from the ground colour; measure contrast on the final colours.
+  await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined))));
 }
 
 /** Violations as 'scene: rule — targets'. Legacy blocks S08 replaces (footer/showcase bands, the legacy recommendation card) are excluded. */
