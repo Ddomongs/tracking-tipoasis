@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AffiliateLinkGroup } from "@/components/primitives/AffiliateLinkGroup";
 import { Button } from "@/components/primitives/Button";
+import { NoticeBanner } from "@/components/primitives/NoticeBanner";
 import { TalkLink } from "@/components/primitives/TalkLink";
 import { NumberBar } from "@/components/primitives/NumberBar";
 import { EtaDisplay } from "@/components/primitives/EtaDisplay";
@@ -13,6 +14,7 @@ import type {
   ActionWeight,
   EtaDate,
   EtaView,
+  NoticeView,
   NumberView,
   SpineView,
   StoreLinkView,
@@ -144,6 +146,7 @@ export default function UiKitPage(): React.JSX.Element {
         <EtaSection />
         <NumberBarSection />
         <LinkSection />
+        <NoticeSection />
       </div>
     </main>
   );
@@ -478,6 +481,41 @@ function LinkSection(): React.JSX.Element {
         <AffiliateLinkGroup stores={DELIVERED_STORES} layout="row" />
         <p className="m-0 text-tt-xs text-tt-muted">색면 안에서는 보조 글자도 색면 글자색으로 바뀌어요.</p>
       </Field>
+    </Section>
+  );
+}
+
+const HOME_NOTICE: NoticeView = {
+  id: "demo-chuseok-home",
+  kind: "holiday",
+  title: "추석 연휴 안내",
+  body: "추석 연휴(9/24~26)와 주말에는 통관·택배가 쉬어요. 9월 28일(월)부터 순서대로 진행돼요."
+};
+
+const INLINE_NOTICES: ReadonlyArray<{ readonly tone: Tone; readonly notice: NoticeView }> = [
+  {
+    tone: "attention",
+    notice: { id: "demo-outage", kind: "outage", title: "통관 조회 점검", body: "UNI-PASS 점검(22:00~24:00) 중에는 통관 정보가 늦게 보일 수 있어요" }
+  },
+  { tone: "progress", notice: { id: "demo-delay", kind: "delay", title: "배송 지연", body: "택배 물량이 많아 배송이 하루 늦어질 수 있어요" } },
+  { tone: "progress", notice: { id: "demo-holiday", kind: "holiday", title: "추석 연휴", body: "추석 연휴로 통관이 9월 28일(월)부터 이어져요." } },
+  { tone: "waiting", notice: { id: "demo-info", kind: "info", title: "화면 안내", body: "조회 화면이 새로 바뀌었어요" } }
+];
+
+function NoticeSection(): React.JSX.Element {
+  return (
+    <Section id="notices" title="공지 줄">
+      <p className="m-0 text-tt-sm text-tt-muted">공지는 화면당 하나예요. 화면을 열 때 읽어 주는 알림으로 만들지 않아요.</p>
+      <div data-demo="notice-banner" className="-mx-4 sm:mx-0">
+        <NoticeBanner notice={HOME_NOTICE} variant="banner" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {INLINE_NOTICES.map((item) => (
+          <Field key={item.notice.id} tone={item.tone} demo={`notice-inline-${item.notice.kind}`}>
+            <NoticeBanner notice={item.notice} variant="inline" />
+          </Field>
+        ))}
+      </div>
     </Section>
   );
 }

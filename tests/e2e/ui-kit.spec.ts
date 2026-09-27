@@ -721,3 +721,68 @@ test.describe("TalkLink and AffiliateLinkGroup", () => {
     expect(result.disclosure).toBe(result.fieldFg);
   });
 });
+
+// The spec's home banner example (spec §7, idle).
+const HOME_NOTICE_BODY = "추석 연휴(9/24~26)와 주말에는 통관·택배가 쉬어요. 9월 28일(월)부터 순서대로 진행돼요.";
+
+test.describe("NoticeBanner", () => {
+  test("the home banner is an aside named '안내' with the body, at most two lines at 375px, never live", async ({ page }) => {
+    await openKit(page, 375, 812);
+    const banner = page.locator('[data-demo="notice-banner"] aside');
+    await expect(banner).toHaveAttribute("aria-label", "안내");
+    await expect(banner).toHaveAttribute("data-notice-kind", "holiday");
+    await expect(banner).toHaveAttribute("data-notice-variant", "banner");
+    await expect(banner).toHaveText(`안내 ${HOME_NOTICE_BODY}`);
+    expect(await banner.getAttribute("aria-live")).toBeNull();
+    expect(await banner.getAttribute("role")).toBeNull();
+    expect((await banner.boundingBox())?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(56);
+  });
+
+  test("the in-card line carries '안내', one icon and the field's text color for every notice kind", async ({ page }) => {
+    await openKit(page);
+    for (const kind of ["outage", "delay", "holiday", "info"] as const) {
+      const field = page.locator(`[data-demo="notice-inline-${kind}"]`);
+      const line = field.locator('[data-notice-variant="inline"]');
+      await expect(line, kind).toHaveAttribute("data-notice-kind", kind);
+      await expect(line.locator("strong"), kind).toHaveText("안내");
+      await expect(line.locator('svg[aria-hidden="true"]'), kind).toHaveCount(1);
+      const fieldColor = await field.evaluate((element) => getComputedStyle(element).color);
+      const lineColor = await line.evaluate((element) => getComputedStyle(element).color);
+      expect(lineColor, kind).toBe(fieldColor);
+      expect(await line.getAttribute("aria-live"), kind).toBeNull();
+    }
+  });
+});
+
+test.describe("motion", () => {
+  test("every animation in the gallery runs once within 150–300 ms", async ({ page }) => {
+    await openKit(page);
+    const animated = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("main[data-ui-kit] *"))
+        .map((element) => getComputedStyle(element))
+        .filter((style) => style.animationName !== "none")
+        .map((style) => ({ name: style.animationName, duration: style.animationDuration, count: style.animationIterationCount }))
+    );
+    expect(new Set(animated.map((item) => item.name))).toEqual(new Set(["tt-paint", "tt-grow"]));
+    for (const item of animated) {
+      expect(item.count, item.name).toBe("1");
+      const ms = item.duration.endsWith("ms") ? Number.parseFloat(item.duration) : Number.parseFloat(item.duration) * 1000;
+      expect(ms, item.name).toBeGreaterThanOrEqual(150);
+      expect(ms, item.name).toBeLessThanOrEqual(300);
+    }
+  });
+
+  test("reduced motion: every animation and transition in the gallery takes 0 ms", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await openKit(page);
+    const moving = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("main[data-ui-kit] *"))
+        .map((element) => {
+          const style = getComputedStyle(element);
+          return `${style.animationDuration},${style.transitionDuration}`;
+        })
+        .filter((durations) => durations.split(",").some((part) => Number.parseFloat(part) !== 0))
+    );
+    expect(moving).toEqual([]);
+  });
+});
