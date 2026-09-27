@@ -150,7 +150,9 @@ export const lookup = {
     numberFinderSummary: "번호는 어디서 찾나요?",
     numberFinderItems: ["네이버 주문상세 → 배송조회", "쿠팡 주문목록 → 배송조회", "톡톡 출고 안내문"],
     carrierAuto: "택배사 자동 확인",
-    typicalSummary: "보통 이렇게 걸려요"
+    typicalSummary: "보통 이렇게 걸려요",
+    // 자바스크립트가 꺼진 브라우저에서 번호 링크를 열었을 때 번호 바 위에 보이는 안내
+    noscriptNotice: "자바스크립트가 꺼져 있어 조회 결과를 보여 드릴 수 없어요. 브라우저 설정에서 켠 뒤 다시 열어 주세요."
   }
 } satisfies LookupConfig;
 

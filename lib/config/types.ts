@@ -86,6 +86,7 @@ export interface LookupConfig {
     readonly numberFinderItems: readonly string[]; // 네이버 주문상세 → 배송조회, 쿠팡 주문목록 → 배송조회, 톡톡 출고 안내문
     readonly carrierAuto: string;          // '택배사 자동 확인' (S03 addition: loading-only number-bar suffix)
     readonly typicalSummary: string;       // '보통 이렇게 걸려요' (S03 addition)
+    readonly noscriptNotice: string;       // S06 addition: the deep-link shell's note when JavaScript is off
   };
 }
 

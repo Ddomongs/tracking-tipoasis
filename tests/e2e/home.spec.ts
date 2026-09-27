@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { channels, disclosures } from "@/config/site.config";
+import { channels, disclosures, durations, lookup } from "@/config/site.config";
 import { FAKE, mockTrack, trackData } from "../fixtures/tracking-fixtures";
 
 test.describe("site header (S06)", () => {
@@ -242,5 +242,25 @@ test.describe("상담·스토어 바로가기 row (S06, approval 1)", () => {
     await page.goto("/");
     await page.waitForTimeout(1500);
     await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+});
+
+test.describe("below the form (S06)", () => {
+  test("'보통 이렇게 걸려요' opens the four typical durations from config", async ({ page }) => {
+    await page.goto("/");
+    const summary = page.getByText(lookup.copy.typicalSummary, { exact: true });
+    const details = page.locator("details", { has: summary });
+    await expect(details).not.toHaveAttribute("open");
+    await summary.click();
+    await expect(details).toHaveAttribute("open", "");
+    await expect(details.locator("dt")).toHaveText(["해외 출발", "입항·통관", "국내 배송", "도착"]);
+    await expect(details.locator("dd")).toHaveText(durations.typical.map((row) => row.text));
+  });
+
+  test("a notice that has ended by the customer's clock is gone after mount", async ({ page }) => {
+    await page.clock.setFixedTime(NO_NOTICE_TIME);
+    await page.goto("/");
+    await expect(page.locator('[data-view-state="idle"]')).toHaveCount(1);
+    await expect(page.locator("[data-notice-kind]")).toHaveCount(0);
   });
 });

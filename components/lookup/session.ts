@@ -47,3 +47,16 @@ export function pushLookupHistoryEntry(): void {
   if (isLookupHistoryEntry(window.history.state)) return;
   window.history.pushState({ [LOOKUP_HISTORY_MARK]: true }, "", "/");
 }
+
+
+let clientNowMs: number | null = null;
+
+/** The customer's clock, read once per document after hydration (the home notice is re-filtered with it). */
+export function getClientNowSnapshot(): number | null {
+  if (clientNowMs === null) clientNowMs = Date.now();
+  return clientNowMs;
+}
+
+export function getServerNowSnapshot(): number | null {
+  return null;
+}

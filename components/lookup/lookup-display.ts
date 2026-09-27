@@ -7,10 +7,13 @@ import type {
   LoadingViewModel,
   LookupOutcome,
   LookupRequest,
+  NoticeView,
   TrackingEntry,
   TrackingViewModel,
   ViewMode
 } from "@/lib/tracking/types";
+import type { Notice } from "@/lib/config/types";
+import { activeNotices } from "@/lib/tracking/notices";
 
 /** The error under the input: from the client pre-check, or a server INVALID answer (diagnosis null). */
 export interface InvalidInput {
@@ -89,4 +92,14 @@ export function viewModeOf(display: LookupDisplay, phase: LookupState["phase"]):
   if (display.kind === "pending") return "loading";
   if (phase === "settled") return "settled";
   return phase === "error" ? "error" : "loading";
+}
+
+/**
+ * '/' is static and cached for up to 5 minutes, so the server-picked home notice may already have ended by the time the
+ * customer sees it. After mount it survives only while it is still active at the customer's clock (spec §9 "'/'는
+ * 마운트 뒤 KST로 다시 걸러"). `nowMs` is null while hydrating: the server pick is kept so the HTML matches.
+ */
+export function stillActiveHomeNotice(notice: NoticeView | null, all: readonly Notice[], nowMs: number | null): NoticeView | null {
+  if (notice === null || nowMs === null) return notice;
+  return activeNotices(all, new Date(nowMs), { kind: "home" }).some((item) => item.id === notice.id) ? notice : null;
 }

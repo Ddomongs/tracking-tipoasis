@@ -6,14 +6,15 @@ import { FailureFallback } from "@/components/lookup/FailureFallback";
 import { InputAssist } from "@/components/lookup/InputAssist";
 import { getLoadedLegacyDeriver, LegacyRecommendations, LegacyResultSection, loadLegacyDeriver, type LegacyDeriver } from "@/components/lookup/LegacyResultSection";
 import { LookupForm } from "@/components/lookup/LookupForm";
-import { computeDisplay, outcomeKey, viewModeOf, type DerivedView, type InvalidInput, type LookupDisplay } from "@/components/lookup/lookup-display";
+import { computeDisplay, outcomeKey, stillActiveHomeNotice, viewModeOf, type DerivedView, type InvalidInput, type LookupDisplay } from "@/components/lookup/lookup-display";
 import { PendingCard } from "@/components/lookup/PendingCard";
 import { ShortcutRow } from "@/components/lookup/ShortcutRow";
-import { getRestoreSnapshot, getServerRestoreSnapshot, isLookupHistoryEntry, markRestoreConsumed, pushLookupHistoryEntry, subscribeToNothing } from "@/components/lookup/session";
+import { getClientNowSnapshot, getRestoreSnapshot, getServerNowSnapshot, getServerRestoreSnapshot, isLookupHistoryEntry, markRestoreConsumed, pushLookupHistoryEntry, subscribeToNothing } from "@/components/lookup/session";
 import { useLookup } from "@/components/lookup/useLookup";
 import { Button } from "@/components/primitives/Button";
 import { useAnnounce } from "@/components/primitives/LiveAnnouncer";
 import { NumberBar } from "@/components/primitives/NumberBar";
+import { NoticeBanner } from "@/components/primitives/NoticeBanner";
 import { setAdSignals } from "@/lib/ads/ad-signals";
 import type { LoadingConfig } from "@/lib/config/types";
 import type { LookupState } from "@/lib/tracking/lookup-state";
@@ -119,7 +120,7 @@ function pageTitleOf(display: LookupDisplay, loadingLike: boolean): string | nul
  * The one client island of the tracking page (spec §3, §14): mode as component state, lookups through S04's useLookup,
  * candidate B and restore (S02), focus/live/title rules (spec §5). [다른 번호 조회] is a state reset, never a navigation.
  */
-export function LookupController({ entry, idleExtras }: LookupControllerProps): React.JSX.Element {
+export function LookupController({ entry, homeNotice, idleExtras }: LookupControllerProps): React.JSX.Element {
   const announce = useAnnounce();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
@@ -159,6 +160,8 @@ export function LookupController({ entry, idleExtras }: LookupControllerProps): 
 
   const { state, loading, submit, retry, cancel, reset } = useLookup({ config: LOADING_CONFIG, onSettled: handleSettled });
   const restoreEntry = useSyncExternalStore(subscribeToNothing, getRestoreSnapshot, getServerRestoreSnapshot);
+  const clientNowMs = useSyncExternalStore(subscribeToNothing, getClientNowSnapshot, getServerNowSnapshot);
+  const notice = stillActiveHomeNotice(homeNotice, notices, clientNowMs);
 
   const replaying = replay !== null && state.phase === "idle";
   const shownState: LookupState = replaying ? replay.state : state;
@@ -381,6 +384,7 @@ export function LookupController({ entry, idleExtras }: LookupControllerProps): 
 
   return (
     <>
+      {viewMode === "idle" && notice !== null ? <NoticeBanner notice={notice} variant="banner" /> : null}
       <div id="tracking-panel">
         <section
           id="tracking"

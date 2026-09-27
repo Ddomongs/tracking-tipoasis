@@ -3,11 +3,14 @@ import { lookup, notices } from "@/config/site.config";
 import {
   computeDisplay,
   outcomeKey,
+  stillActiveHomeNotice,
   viewModeOf,
   type DerivedView,
   type DisplayInput
 } from "@/components/lookup/lookup-display";
 import type { LoadingConfig } from "@/lib/config/types";
+import type { Notice } from "@/lib/config/types";
+import { toNoticeView } from "@/lib/tracking/notices";
 import { deriveLoadingView } from "@/lib/tracking/loading-view";
 import { INITIAL_LOOKUP_STATE, type LookupState } from "@/lib/tracking/lookup-state";
 import type { FailureCause, LoadingViewModel, LookupOutcome, LookupRequest, TrackingEntry } from "@/lib/tracking/types";
@@ -92,4 +95,25 @@ test("view modes follow the display", () => {
   expect(viewModeOf({ kind: "slot", request: MANUAL, derived: null }, "loading")).toBe("loading");
   expect(viewModeOf({ kind: "slot", request: MANUAL, derived: null }, "settled")).toBe("settled");
   expect(viewModeOf({ kind: "slot", request: MANUAL, derived: null }, "error")).toBe("error");
+});
+
+const HOME_NOTICE: Notice = {
+  id: "test-home-notice",
+  kind: "holiday",
+  title: "연휴 배송 안내",
+  body: "연휴에는 통관·택배가 쉬어요. 다음 영업일부터 순서대로 진행돼요.",
+  startsAt: "2026-09-21T00:00:00+09:00",
+  endsAt: "2026-09-29T00:00:00+09:00",
+  home: true,
+  guideKeys: [],
+  cs: false
+};
+
+test("the home notice survives only while it is active on the customer's clock", () => {
+  const view = toNoticeView(HOME_NOTICE);
+  expect(stillActiveHomeNotice(view, [HOME_NOTICE], FIXTURE_NOW.getTime())).toEqual(view);
+  expect(stillActiveHomeNotice(view, [HOME_NOTICE], Date.parse(HOME_NOTICE.endsAt))).toBeNull();
+  expect(stillActiveHomeNotice(view, [], FIXTURE_NOW.getTime())).toBeNull();
+  expect(stillActiveHomeNotice(view, [HOME_NOTICE], null)).toEqual(view);
+  expect(stillActiveHomeNotice(null, [HOME_NOTICE], FIXTURE_NOW.getTime())).toBeNull();
 });

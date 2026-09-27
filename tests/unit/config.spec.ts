@@ -416,3 +416,7 @@ test.describe("server access", () => {
     expect(TALK_URL).toBe(channels.talk.url);
   });
 });
+
+test("the noscript notice (S06) is one plain customer sentence pair", () => {
+  expect(lookup.copy.noscriptNotice).toBe("자바스크립트가 꺼져 있어 조회 결과를 보여 드릴 수 없어요. 브라우저 설정에서 켠 뒤 다시 열어 주세요.");
+});

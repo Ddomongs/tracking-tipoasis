@@ -121,7 +121,7 @@ const LookupSchema = z.object({
     submit: TextSchema, submitting: TextSchema, title: TextSchema, body: TextSchema, started: TextSchema,
     longWait: TextSchema, veryLongWait: TextSchema, elapsed: TextSchema, cancel: TextSchema, carrierOfficialFirst: TextSchema,
     formatHint: TextSchema, numberFinderSummary: TextSchema, numberFinderItems: z.array(TextSchema).min(1),
-    carrierAuto: TextSchema, typicalSummary: TextSchema
+    carrierAuto: TextSchema, typicalSummary: TextSchema, noscriptNotice: TextSchema
   }).strict()
 }).strict();
 

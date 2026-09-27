@@ -204,3 +204,12 @@ test.describe("input assist (S06)", () => {
     await expect(page.locator("#tracking-input-assist")).toHaveCount(0);
   });
 });
+
+test.describe("deep-link shell without JavaScript (S06)", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("without JavaScript the deep-link shell explains that results need JavaScript", async ({ page }) => {
+    await page.goto(`/${FAKE.domestic}`);
+    await expect(page.getByText(lookup.copy.noscriptNotice, { exact: true })).toBeVisible();
+  });
+});
