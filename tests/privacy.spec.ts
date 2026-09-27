@@ -64,11 +64,17 @@ test("privacy policy discloses page addresses, access logs, customs lookup forwa
     "접속 로그에는 요청한 페이지 주소도 함께 남습니다.",
     "통관 조회 서비스(customstrack.com)",
     "이 브라우저 탭 안(세션 저장소)에만 보관합니다.",
-    "30분이 지나면 다시 쓰지 않고, 탭을 닫으면 브라우저가 지웁니다.",
+    "보관한 정보는 30분이 지나면 다시 쓰지 않습니다.",
+    // Browsers restore sessionStorage for a reopened (Ctrl+Shift+T) or duplicated tab, so the policy must say so.
+    "닫은 탭을 다시 열거나 탭을 복제하면 30분 안에는 다시 보일 수 있습니다.",
+    "공용 PC에서는 조회를 마친 뒤 브라우저를 모두 닫아 주세요.",
     "[다시 볼 링크 복사]로 만든 링크에는 조회번호가 들어 있습니다."
   ];
   for (const text of disclosures) {
     await expect(policy.getByText(text, { exact: false }).first(), text).toBeVisible();
+  }
+  for (const overstated of ["탭을 닫으면 바로 지워집니다", "다른 탭이나 다른 기기에서는 보이지 않습니다"]) {
+    await expect(policy.getByText(overstated, { exact: false }), overstated).toHaveCount(0);
   }
   const effective = policy.getByText(/^시행일: /);
   await expect(effective).toHaveText(/^시행일: \d{4}년 \d{1,2}월 \d{1,2}일$/);
