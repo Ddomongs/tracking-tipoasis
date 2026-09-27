@@ -486,3 +486,15 @@ test.describe("approval 3 on the live page (ledger decision)", () => {
     });
   }
 });
+
+test.describe("pending help line (approval 4)", () => {
+  test("pending: the help line after the purchase choices opens the order-check help", async ({ page }) => {
+    const data = trackData("pending");
+    const help = viewFor(success(data)).help.find((item) => item.id === "order-check");
+    await openDeepLink(page, data);
+    const line = page.locator('[data-cta-state="pending"] [data-help-link="order-check"]');
+    await expect(line).toHaveText(help?.summary ?? "");
+    await line.click();
+    await expect(page.locator('[data-result-view] details[data-help="order-check"]')).toHaveAttribute("open", "");
+  });
+});

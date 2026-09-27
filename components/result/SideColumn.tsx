@@ -12,6 +12,8 @@ export interface SideColumnProps {
   readonly frame: "responsive" | "mobile";
   readonly historyId: string;
   readonly help: readonly HelpItemView[];
+  /** Prefix for the help items' ids (helpDetailsId), so 지금 할 일 can open one of them. */
+  readonly helpIdPrefix?: string;
 }
 
 /**
@@ -19,7 +21,7 @@ export interface SideColumnProps {
  * '전체 보기' (opens 처리 내역) and the help items. Below 1024 px — and always in the mobile frame — it follows the main
  * column and the recent list is not shown, because the 처리 내역 details already hold the history.
  */
-export function SideColumn({ view, frame, historyId, help }: SideColumnProps): React.JSX.Element | null {
+export function SideColumn({ view, frame, historyId, help, helpIdPrefix }: SideColumnProps): React.JSX.Element | null {
   const recent = view.history.recent;
   const showRecent = frame === "responsive" && recent.length > 0;
   if (!showRecent && help.length === 0) return null;
@@ -44,7 +46,7 @@ export function SideColumn({ view, frame, historyId, help }: SideColumnProps): R
           </Button>
         </section>
       ) : null}
-      <HelpItems items={help} />
+      <HelpItems items={help} idPrefix={helpIdPrefix} />
     </div>
   );
 }

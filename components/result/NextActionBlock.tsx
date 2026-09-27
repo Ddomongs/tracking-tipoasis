@@ -1,9 +1,21 @@
 import { AffiliateLinkGroup } from "@/components/primitives/AffiliateLinkGroup";
+import { Button } from "@/components/primitives/Button";
 import { TalkLink } from "@/components/primitives/TalkLink";
 import type { ActionKind, ActionView, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
 import { ActionControl } from "./ActionControl";
+import { openDetails } from "./details";
 
 const TALK_KINDS: ReadonlySet<ActionKind> = new Set<ActionKind>(["talk", "copyAndTalk"]);
+
+
+/** A text button in 지금 할 일 that opens one help item elsewhere in the result (pending purchase choices → 'order-check'). */
+export interface HelpLink {
+  /** DOM id of the help <details> (helpDetailsId). */
+  readonly id: string;
+  /** config help id, for the data-help-link hook. */
+  readonly helpId: string;
+  readonly label: string;
+}
 
 export interface NextActionBlockProps {
   readonly view: TrackingViewModel;
@@ -12,6 +24,8 @@ export interface NextActionBlockProps {
   readonly undeliveredHelpId: string | null;
   /** CarrierChooser for ambiguous results and carrier delays without an official link. */
   readonly carrierChooser?: React.ReactNode;
+  /** Pending: '주문내역에서 확인' right after the purchase choices (approval 4). */
+  readonly helpLink?: HelpLink | null;
 }
 
 /**
@@ -19,7 +33,14 @@ export interface NextActionBlockProps {
  * Store links lead only for delivered (spec §8 "스토어 선두") and follow 톡톡 for pending (purchase choices after the
  * disclosure). 톡톡 appears once: the worry line gets its own 톡톡 link only when no 톡톡 control is in the block.
  */
-export function NextActionBlock({ view, headingId, onAction, undeliveredHelpId, carrierChooser }: NextActionBlockProps): React.JSX.Element {
+export function NextActionBlock({
+  view,
+  headingId,
+  onAction,
+  undeliveredHelpId,
+  carrierChooser,
+  helpLink
+}: NextActionBlockProps): React.JSX.Element {
   const next = view.nextAction;
   const controls = [next.primary, ...next.secondary].filter((item): item is ActionView => item !== null);
   const hasTalk = controls.some((item) => TALK_KINDS.has(item.kind));
@@ -60,6 +81,13 @@ export function NextActionBlock({ view, headingId, onAction, undeliveredHelpId, 
         </p>
       )}
       {!storesLead && next.stores !== null ? <AffiliateLinkGroup stores={next.stores} /> : null}
+      {helpLink === undefined || helpLink === null ? null : (
+        <div>
+          <Button variant="text" data-help-link={helpLink.helpId} aria-controls={helpLink.id} onClick={() => openDetails(helpLink.id)}>
+            {helpLink.label}
+          </Button>
+        </div>
+      )}
       {carrierChooser}
       {next.note === null ? null : (
         <p data-next-note="true" className="m-0 text-tt-sm text-tt-muted [word-break:keep-all]">

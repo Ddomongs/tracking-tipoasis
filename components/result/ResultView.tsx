@@ -7,9 +7,10 @@ import { ActionControl } from "./ActionControl";
 import { CarrierChooser } from "./CarrierChooser";
 import { DeliveredHelp, UNDELIVERED_HELP_ITEM_ID } from "./DeliveredHelp";
 import { FailureCard } from "./FailureCard";
+import { helpDetailsId } from "./HelpItems";
 import { HistoryDetails } from "./HistoryDetails";
 import { LastEventLine } from "./LastEventLine";
-import { NextActionBlock } from "./NextActionBlock";
+import { NextActionBlock, type HelpLink } from "./NextActionBlock";
 import { SideColumn } from "./SideColumn";
 import { StatusCard } from "./StatusCard";
 
@@ -40,6 +41,16 @@ const MOBILE_FRAME_LAYOUT = "mx-auto flex w-full max-w-[375px] flex-col gap-4";
 type ExternalTarget = Extract<ResultAction, { kind: "openedExternal" }>["target"];
 
 const ignoreAction = (): void => undefined;
+
+
+/** config help id the pending purchase choices point to (spec §7 pending "'주문내역에서 확인' 도움말", approval 4). */
+const ORDER_CHECK_HELP_ID = "order-check";
+
+function pendingHelpLink(view: TrackingViewModel, baseId: string): HelpLink | null {
+  if (view.guideKey !== "pending") return null;
+  const item = view.help.find((help) => help.id === ORDER_CHECK_HELP_ID);
+  return item === undefined ? null : { id: helpDetailsId(baseId, item.id), helpId: item.id, label: item.summary };
+}
 
 /** Which outside place a result link opens (reported for analytics, S11). */
 function externalTarget(anchor: HTMLAnchorElement): ExternalTarget | null {
@@ -122,6 +133,7 @@ function SettledFlow({ view, baseId, onAction, headingRef, recommendationSlot }:
             <CarrierChooser choices={choices} onChoose={(carrier) => onAction({ kind: "chooseCarrier", carrier })} />
           )
         }
+        helpLink={pendingHelpLink(view, baseId)}
       />
       <LastEventLine lastEvent={view.lastEvent} />
       <div data-primary-end="true" aria-hidden="true" />
@@ -173,7 +185,9 @@ export function ResultView({
           <SettledFlow view={view} baseId={baseId} onAction={act} headingRef={headingRef} recommendationSlot={recommendationSlot} />
         )}
       </div>
-      {view.mode === "error" ? null : <SideColumn view={view} frame={frame} historyId={`${baseId}-history`} help={otherHelp} />}
+      {view.mode === "error" ? null : (
+        <SideColumn view={view} frame={frame} historyId={`${baseId}-history`} help={otherHelp} helpIdPrefix={baseId} />
+      )}
     </div>
   );
 }

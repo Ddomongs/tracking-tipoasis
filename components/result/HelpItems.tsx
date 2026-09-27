@@ -32,13 +32,25 @@ export function HelpDetails({
   );
 }
 
+/** The DOM id of a help item's <details>, so a line elsewhere in the result can open it with openDetails(). */
+export function helpDetailsId(prefix: string, helpId: string): string {
+  return `${prefix}-help-${helpId}`;
+}
+
 /** The state's help items in config order (config/site.config.ts help[].showIn / openIn). */
-export function HelpItems({ items }: { readonly items: readonly HelpItemView[] }): React.JSX.Element | null {
+export function HelpItems({
+  items,
+  idPrefix
+}: {
+  readonly items: readonly HelpItemView[];
+  /** When set, every item gets the id helpDetailsId(idPrefix, item.id). */
+  readonly idPrefix?: string;
+}): React.JSX.Element | null {
   if (items.length === 0) return null;
   return (
     <div data-help-list="true" className="flex flex-col gap-2">
       {items.map((item) => (
-        <HelpDetails key={item.id} item={item} />
+        <HelpDetails key={item.id} item={item} id={idPrefix === undefined ? undefined : helpDetailsId(idPrefix, item.id)} />
       ))}
     </div>
   );

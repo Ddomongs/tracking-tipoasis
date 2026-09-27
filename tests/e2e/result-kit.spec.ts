@@ -796,3 +796,30 @@ test.describe("loading card", () => {
     await expect(page.locator('[data-loading-stage] [data-notice-kind="outage"]')).toContainText(model.outageNotice?.body ?? "");
   });
 });
+
+test.describe("pending help line (approval 4)", () => {
+  test("pending: the help line follows the purchase choices and opens the order-check help with its summary focused", async ({ page }) => {
+    const view = viewFor(success(pendingData()));
+    const help = view.help.find((item) => item.id === "order-check");
+    expect(help).toBeDefined();
+    await openKit(page);
+    await showView(page, view);
+    const line = page.locator('[data-cta-state="pending"]').getByRole("button", { name: help?.summary ?? "" });
+    await expect(line).toHaveAttribute("data-help-link", "order-check");
+    expect(await follows(page, '[data-cta-state="pending"] [data-affiliate-group]', '[data-cta-state="pending"] [data-help-link]')).toBe(true);
+    const details = page.locator('[data-result-view] details[data-help="order-check"]');
+    await expect(details).not.toHaveAttribute("open");
+    await line.click();
+    await expect(details).toHaveAttribute("open", "");
+    await expect(details.locator("summary")).toBeFocused();
+    expect(await kitActions(page)).toEqual([]);
+  });
+
+  test("the help line belongs to pending only", async ({ page }) => {
+    await openKit(page);
+    await showView(page, viewFor(failure("notFound")), { failureCause: "notFound" });
+    await expect(page.locator("[data-help-link]")).toHaveCount(0);
+    await showView(page, viewFor(success(customsWaitingData())));
+    await expect(page.locator("[data-help-link]")).toHaveCount(0);
+  });
+});
