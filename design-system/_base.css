@@ -330,7 +330,8 @@
 
 
 /* ---------- 제휴 고지: 링크 묶음의 첫 줄. 흰 면에서는 muted, 색면 안에서는 색면 글자색 ---------- */
-[data-affiliate-disclosure] {
+/* 기존 결과 화면(CustomerCta, S07에서 교체)도 data-affiliate-disclosure 를 쓰므로 부품 전용 data-slot 으로 한정합니다. */
+[data-slot="disclosure"][data-affiliate-disclosure] {
   margin: 0;
   color: var(--tt-muted);
   font-size: var(--tt-text-xs);
@@ -339,7 +340,7 @@
   word-break: keep-all;
 }
 /* --tt-muted 는 색면 위에서 대비가 모자랍니다(1.03–4.31:1). 색면 안의 보조 글자는 색면 글자색 한 가지로 씁니다. */
-[data-slot="status-head"] [data-affiliate-disclosure],
+[data-slot="status-head"] [data-slot="disclosure"][data-affiliate-disclosure],
 [data-slot="status-head"] .text-tt-muted {
   color: var(--field-fg);
 }

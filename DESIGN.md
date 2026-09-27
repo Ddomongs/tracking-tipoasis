@@ -171,7 +171,7 @@ framer-motion 대체(패키지 제거는 S06):
 | `data-eta-kind` | 도착 예상 | `date` `today` `holidayAffected` `overdue` `deliveredOn` `pendingInfo` `withheld` `unknown` |
 | `data-number-bar` | 번호 바 | `true` |
 | `data-affiliate-group` | 스토어 링크 묶음 | `shortcut` `showcase` `pending` `deliveredLead` |
-| `data-affiliate-disclosure` | 묶음의 첫 줄 고지 | `coupang` |
+| `data-affiliate-disclosure` (+ `data-slot="disclosure"`) | 묶음의 첫 줄 고지. CSS는 `data-slot="disclosure"` 가 붙은 부품에만 적용(기존 결과 화면은 S07까지 제 모양 유지) | `coupang` |
 | `data-link-placement` | 톡톡·스토어 링크 | 위치 id |
 | `data-notice-kind` | 공지 줄 | `outage` `delay` `holiday` `info` |
 | `data-variant` | 버튼·버튼 모양 링크(`data-slot="button"`) | 행동 무게 `primary` `secondary` `text` |

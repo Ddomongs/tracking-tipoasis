@@ -20,7 +20,7 @@ export function AffiliateLinkGroup({
   const disclosure = hasAffiliate ? (stores.disclosure ?? disclosures.coupang) : null;
   return (
     <div data-affiliate-group={stores.placement} className="flex min-w-0 flex-col gap-2">
-      {disclosure === null ? null : <p data-affiliate-disclosure="coupang">{disclosure}</p>}
+      {disclosure === null ? null : <p data-affiliate-disclosure="coupang" data-slot="disclosure">{disclosure}</p>}
       {stores.intro === null ? null : <p className="m-0 text-tt-sm font-medium [word-break:keep-all]">{stores.intro}</p>}
       <div className={layout === "row" ? "grid grid-cols-1 gap-2 min-[360px]:grid-cols-2" : "flex flex-col items-start gap-2"}>
         {stores.links.map((link) => (

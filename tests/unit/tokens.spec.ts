@@ -412,7 +412,7 @@ test.describe("design-system bundle", () => {
     let groups = 0;
     for (const file of HTML_FILES) {
       const html = readRepoFile(`design-system/${file}`);
-      const pattern = /<(?:div|section) data-(?:affiliate-group|shortcut-row)="[^"]*"[^>]*>\s*(<p data-affiliate-disclosure="coupang">([^<]*)<\/p>)?/g;
+      const pattern = /<(?:div|section) data-(?:affiliate-group|shortcut-row)="[^"]*"[^>]*>\s*(<p data-affiliate-disclosure="coupang"[^>]*>([^<]*)<\/p>)?/g;
       for (const match of html.matchAll(pattern)) {
         groups += 1;
         expect(match[1], `${file}: the disclosure must be the first child`).toBeDefined();
