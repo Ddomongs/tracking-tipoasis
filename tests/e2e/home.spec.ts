@@ -327,7 +327,7 @@ test.describe("axe (S06, approval 13)", () => {
       await page.setViewportSize(viewport);
       await mockTrack(page, trackData("inTransit", { trackingNumber: FAKE.domestic }), { delayMs: 20_000 });
       const scan = async (label: string): Promise<void> => {
-        const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).exclude(".tt-legacy-dark").analyze();
+        const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
         expect(results.violations.map((violation) => `${violation.id} (${violation.nodes.length})`), label).toEqual([]);
       };
       await page.goto("/");

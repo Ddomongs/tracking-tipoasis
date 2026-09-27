@@ -41,13 +41,9 @@ async function open(page: Page, scene: A11yScene): Promise<void> {
   await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined))));
 }
 
-/** Violations as 'scene: rule — targets'. Legacy blocks S08 replaces (footer/showcase bands, the legacy recommendation card) are excluded. */
+/** Violations as 'scene: rule — targets'. */
 async function violationsOf(page: Page, label: string): Promise<readonly string[]> {
-  const results = await new AxeBuilder({ page })
-    .withTags(AXE_TAGS)
-    .exclude(".tt-legacy-dark")
-    .exclude("[data-recommended-products]")
-    .analyze();
+  const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
   return results.violations.map((violation) => `${label}: ${violation.id} — ${violation.nodes.map((node) => node.target.join(" ")).join(", ")}`);
 }
 
