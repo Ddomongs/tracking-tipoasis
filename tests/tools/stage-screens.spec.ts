@@ -1,5 +1,6 @@
 import { test, type Locator, type Page } from "@playwright/test";
 import { FAKE, FIXTURE_NOW, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+import { INTERNAL_TEST_CREDENTIALS } from "../internal-auth";
 import { customsWaitingData } from "../fixtures/derive-scenarios";
 
 /**
@@ -21,6 +22,14 @@ interface StageScenario {
   readonly path: string;
   readonly prepare?: (page: Page) => Promise<void>;
 }
+
+/** Internal pages sit behind basic auth (proxy.ts); the tool's context has no credentials, so send the header. */
+const INTERNAL_AUTHORIZATION = `Basic ${Buffer.from(`${INTERNAL_TEST_CREDENTIALS.username}:${INTERNAL_TEST_CREDENTIALS.password}`).toString("base64")}`;
+const internalScreen = (name: string, tab: string): StageScenario => ({
+  name,
+  path: `/internal/cs-helper?tab=${tab}`,
+  prepare: (page) => page.setExtraHTTPHeaders({ authorization: INTERNAL_AUTHORIZATION })
+});
 
 const SCENARIOS: readonly StageScenario[] = [
   { name: "home", path: "/" },
@@ -90,7 +99,12 @@ const SCENARIOS: readonly StageScenario[] = [
       await page.addInitScript(() => window.localStorage.setItem("tt:style", "night"));
       await mockTrack(page, trackData("inTransit"));
     }
-  }
+  },
+  // S09: the internal CS desk, one screen per tab (preview and notices follow the pinned FIXTURE_NOW).
+  internalScreen("internal-delivery", "delivery"),
+  internalScreen("internal-mismatch", "mismatch"),
+  internalScreen("internal-preview", "preview"),
+  internalScreen("internal-notices", "notices")
 ];
 
 /** The pre-S01 example buttons and help line showed real shipments; mask them so no real number reaches a screenshot. */
