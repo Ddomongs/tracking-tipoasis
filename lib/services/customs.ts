@@ -2,7 +2,7 @@ import { parseStringPromise } from "xml2js";
 import type { TrackingEvent, TrackingType } from "@/lib/types";
 import { toIsoOrNow } from "@/lib/utils";
 import { postJsonWithTimeout, readTextWithLimit } from "@/lib/services/http";
-import { LOOKUP_TIMING, createLookupDeadline, type LookupDeadline } from "@/lib/services/lookup-budget";
+import { LOOKUP_TIMING, type LookupDeadline } from "@/lib/services/lookup-budget";
 import type { UnipassCallOutcome } from "@/lib/services/lookup-log";
 
 export const normalizeCustomsStatus = (raw: string): TrackingEvent["statusCode"] => {
@@ -324,16 +324,4 @@ export const lookupCustomsEvents = async (
   };
   const direct = await lookupDirect(request, options);
   return direct.kind === "unavailable" ? lookupViaProxy(trackingNumber, type, options, direct) : direct;
-};
-
-/** Transitional pre-R4 signature kept only until Task A5 switches app/api/track/route.ts; Task A5 deletes it. */
-export const fetchCustomsEvents = async (trackingNumber: string, type: TrackingType): Promise<TrackingEvent[]> => {
-  if (type === "UNKNOWN") return [];
-  const deadline = createLookupDeadline();
-  try {
-    const result = await lookupCustomsEvents(trackingNumber, type, { deadline });
-    return result.kind === "found" ? result.events : [];
-  } finally {
-    deadline.cancel();
-  }
 };
