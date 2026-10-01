@@ -208,5 +208,6 @@ test("a kept list is deleted once its 7 days are over", async ({ page }) => {
   ] as const);
   await page.reload();
   await expect(page.getByText(EMPTY_MESSAGE)).toBeVisible();
-  expect(await page.evaluate((key) => window.localStorage.getItem(key), MISMATCH_KEY)).toBeNull();
+  // The empty list is also the server render; the purge runs once the list subscribes after hydration.
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), MISMATCH_KEY)).toBeNull();
 });
