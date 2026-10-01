@@ -144,6 +144,46 @@ Latest live verification returned `READY` for deployment `c8b7c28a-5fa1-43a7-995
 
 See [docs/insforge-deployment-runbook.md](./docs/insforge-deployment-runbook.md) for the full handoff, including the manual GitHub Actions deployment path.
 
+## 조회 로그와 실패율 경보 (R4)
+
+`POST /api/track`은 요청마다 번호 없는 한 줄 로그를 남깁니다(`lib/services/lookup-log.ts`).
+
+```text
+track_lookup {"route":"/api/track","elapsedBucket":"1to3s","unipassOk":12,"unipassFail":0,"resultKind":"notFound","errorCode":"NOT_FOUND"}
+```
+
+- `elapsedBucket`: `lt1s` `1to3s` `3to6s` `6to10s` `10to15s` `ge15s`
+- `unipassOk` / `unipassFail`: 이 요청에서 UNI-PASS 직접 호출이 확정 응답을 받은 수 / 실패(시간 초과·연결 오류·비정상 응답)한 수
+- `resultKind`: `found` `carrierFirst` `pending` `lookupUnavailable` `ambiguous` `notFound` `notFoundCached` `cached` `allFailed` `invalid` `rateLimited` `error`
+- `errorCode`: 오류 응답이면 `ApiError.code`, 아니면 `null`
+- 조회번호·전화번호·IP·UA·URL은 넣지 않습니다. 필드를 더할 때도 enum과 정수만 씁니다.
+
+확인 방법: Vercel 대시보드 → 프로젝트 `tracking-tipoasis` → Logs에서 아래 검색어로 줄 수를 셉니다. 로그 보관 기간이 짧을 수 있으므로 R4 배포 뒤 7일 동안 매일 같은 시각에 한 번 세어 S10 단계 요약의 표에 적습니다.
+
+| 셀 값 | 검색어 |
+|---|---|
+| T (전체) | `track_lookup` |
+| Z (UNI-PASS를 부르지 않은 줄) | `"unipassOk":0,"unipassFail":0` |
+| F0 (UNI-PASS 실패가 없던 줄) | `"unipassFail":0,` |
+| A (모두 실패) | `"resultKind":"allFailed"` |
+| S (느린 응답) | `"elapsedBucket":"10to15s"` 줄 수 + `"elapsedBucket":"ge15s"` 줄 수 |
+| L (6초 이상) | `"elapsedBucket":"6to10s"` 줄 수 + `"elapsedBucket":"10to15s"` 줄 수 + `"elapsedBucket":"ge15s"` 줄 수 |
+| N (결과 없음·도착 전) | `"resultKind":"notFound"` 줄 수 + `"resultKind":"pending"` 줄 수 |
+
+- 실패가 있던 줄의 비율 = (T − F0) ÷ (T − Z)
+- 느린 결과 없음 비율의 상한 = L ÷ N (L은 모든 종류의 느린 줄을 세므로 실제 값보다 크거나 같습니다)
+
+경보 제안(새 서비스 없이 수동 점검으로 시작합니다. 로그 드레인·외부 경보 서비스는 승인 13 대상입니다):
+
+| 신호 | 계산 | 기준 | 조치 |
+|---|---|---|---|
+| UNI-PASS 장애 | 15분 창의 (T − F0) ÷ (T − Z) | 30% 이상(창 안 T − Z가 10줄 이상) | `config/site.config.ts` notices에 outage 공지를 켜고 UNI-PASS 공지 확인 |
+| 모두 실패 | 15분 창의 A | 3줄 이상 | 위와 같음 |
+| 느린 응답 | 1시간 창의 S ÷ T | 10% 이상 | UNI-PASS 지연 확인, 계속되면 `LOOKUP_TIMING` 재검토 |
+| 직접 호출 실패율(승인 12 판단) | 하루의 (T − F0) ÷ (T − Z) | 3일 연속 1% 이하, 3일 합계 T − Z가 200줄 이상 | InsForge 프록시 폐기(승인 12) 진행 |
+
+되돌리기: 배포 직후 A가 계속 늘거나 `allFailed`가 대부분이면 Vercel 대시보드 → Deployments에서 직전 배포로 Instant Rollback 한 뒤 원인을 봅니다.
+
 ## AdSense Auto Ads
 
 Auto ads are controlled in the AdSense dashboard, not in code. Element-level exclusion is only available there
