@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { DeliveryGuideTab } from "./DeliveryGuideTab";
 import { MismatchTab } from "./MismatchTab";
+import { PreviewTab } from "./PreviewTab";
 import { DEFAULT_INTERNAL_TAB, INTERNAL_TAB_IDS, INTERNAL_TAB_LABELS, type InternalTabId } from "./tabs";
 import { HELP_CLASS } from "./ui";
 
@@ -14,6 +15,15 @@ const TAB_CLASS =
 
 const tabElementId = (id: InternalTabId): string => `cs-tab-${id}`;
 const panelElementId = (id: InternalTabId): string => `cs-panel-${id}`;
+
+/** The desk's reference time: read once, on the client, the first time a snapshot is taken (never during server render). */
+let deskNow: Date | null = null;
+const subscribeNever = (): (() => void) => () => undefined;
+function readDeskNow(): Date {
+  if (deskNow === null) deskNow = new Date();
+  return deskNow;
+}
+const readServerNow = (): null => null;
 
 /** Where a key moves the selection (automatic activation; the arrows wrap). */
 function targetIndex(key: string, index: number, last: number): number | null {
@@ -31,12 +41,14 @@ function targetIndex(key: string, index: number, last: number): number | null {
   }
 }
 
-function TabContent({ id }: { readonly id: InternalTabId }): React.JSX.Element {
+function TabContent({ id, now }: { readonly id: InternalTabId; readonly now: Date | null }): React.JSX.Element {
   switch (id) {
     case "delivery":
       return <DeliveryGuideTab />;
     case "mismatch":
       return <MismatchTab />;
+    case "preview":
+      return <PreviewTab now={now} />;
   }
 }
 
@@ -45,6 +57,7 @@ function TabContent({ id }: { readonly id: InternalTabId }): React.JSX.Element {
  * then stays mounted (hidden), so a running bulk lookup or a half-written draft survives a tab switch.
  */
 export function InternalCsDesk({ initialTab = DEFAULT_INTERNAL_TAB }: { readonly initialTab?: InternalTabId }): React.JSX.Element {
+  const now = useSyncExternalStore(subscribeNever, readDeskNow, readServerNow);
   const [active, setActive] = useState<InternalTabId>(initialTab);
   const [opened, setOpened] = useState<ReadonlySet<InternalTabId>>(() => new Set([initialTab]));
   const tabRefs = useRef<Partial<Record<InternalTabId, HTMLButtonElement | null>>>({});
@@ -63,7 +76,11 @@ export function InternalCsDesk({ initialTab = DEFAULT_INTERNAL_TAB }: { readonly
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 pb-16 pt-6 text-tt-ink">
+    <main
+      // Present once the desk has hydrated (the reference time is read on the client only); tests wait for it.
+      data-desk-ready={now === null ? undefined : "true"}
+      className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 pb-16 pt-6 text-tt-ink"
+    >
       <header className="flex flex-col gap-2">
         <h1 className="m-0 font-tt-display text-tt-xl [font-weight:var(--tt-weight-display)]">{DESK_TITLE}</h1>
         <p className={HELP_CLASS}>{DESK_INTRO}</p>
@@ -101,7 +118,7 @@ export function InternalCsDesk({ initialTab = DEFAULT_INTERNAL_TAB }: { readonly
           tabIndex={0}
           className="tt-focus"
         >
-          {opened.has(id) ? <TabContent id={id} /> : null}
+          {opened.has(id) ? <TabContent id={id} now={now} /> : null}
         </section>
       ))}
     </main>

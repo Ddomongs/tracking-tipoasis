@@ -12,6 +12,8 @@ declare global {
 export async function openDesk(page: Page, tab: InternalTabId): Promise<void> {
   await page.goto(`/internal/cs-helper?tab=${tab}`);
   await expect(page.getByRole("tab", { name: INTERNAL_TAB_LABELS[tab], exact: true })).toHaveAttribute("aria-selected", "true");
+  // Controls changed before hydration lose their change handlers' effect, so wait for the hydrated desk.
+  await expect(page.locator("main[data-desk-ready]")).toHaveAttribute("data-desk-ready", "true");
 }
 
 /** Replaces navigator.clipboard.writeText with a recorder, so a test reads exactly what a copy button copied. */
