@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { RESTORE_KEY, RESTORE_TTL_MS } from "@/lib/privacy/session-restore";
 import type { TrackResponseData } from "@/lib/types";
-import { FAKE, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+import { FAKE, mockTrack, trackDataAtRealTime } from "../fixtures/tracking-fixtures";
 import { recordLookups, waitForIdle } from "../support/network-capture";
 import type { LookupRecorder } from "../support/network-capture";
 
@@ -10,7 +10,8 @@ const INPUT_LABEL = "조회번호 (HBL 또는 운송장)";
 const RESULT_READY = { name: "다시 볼 링크 복사" } as const;
 
 function inTransit(number: string): TrackResponseData {
-  return trackData("inTransit", { trackingNumber: number });
+  // Restore needs the real clock (see trackDataAtRealTime), so the result is dated relative to it.
+  return trackDataAtRealTime("inTransit", { trackingNumber: number });
 }
 
 async function submitFromHome(page: Page, number: string): Promise<void> {

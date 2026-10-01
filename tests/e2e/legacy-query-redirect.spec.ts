@@ -2,7 +2,12 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { APIResponse } from "@playwright/test";
-import { FAKE, FAKE_GROUPED, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+import { FAKE, FAKE_GROUPED, FIXTURE_NOW, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+
+// The fixtures' dates: on a later real day these results turn overdue and the return link is withheld, so pin the clock.
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(FIXTURE_NOW);
+});
 
 const RESULT_READY = { name: "다시 볼 링크 복사" } as const;
 

@@ -2,7 +2,12 @@ import { devices, expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { buildReturnLink } from "@/lib/site";
 import type { TrackResponseData } from "@/lib/types";
-import { FAKE, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+import { FAKE, FIXTURE_NOW, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+
+// The fixtures' dates: on a later real day these results turn overdue and the return link is withheld, so pin the clock.
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(FIXTURE_NOW);
+});
 
 const INPUT_LABEL = "조회번호 (HBL 또는 운송장)";
 const RETURN_LINK = { name: "다시 볼 링크 복사" } as const;

@@ -1,7 +1,12 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { channels, lookup, stateGuide } from "@/config/site.config";
-import { FAKE, FAKE_GROUPED, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+import { FAKE, FAKE_GROUPED, FIXTURE_NOW, mockTrack, trackData } from "../fixtures/tracking-fixtures";
 import { waitForIdle } from "../support/network-capture";
+
+// The fixtures' dates: on a later real day these results turn overdue and the return link is withheld, so pin the clock.
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(FIXTURE_NOW);
+});
 
 const INPUT_LABEL = "조회번호 (HBL 또는 운송장)";
 const RESULT_READY = { name: "다시 볼 링크 복사" } as const;
@@ -99,7 +104,7 @@ test.describe("lookup input (S06)", () => {
   });
 
   test("while a lookup starts the form stays editable and only the button label changes", async ({ page }) => {
-    await page.clock.install();
+    await page.clock.install({ time: FIXTURE_NOW });
     const bodies = await recordTrack(page, 2000);
     await page.goto("/");
     await trackingInput(page).fill(FAKE.domestic);

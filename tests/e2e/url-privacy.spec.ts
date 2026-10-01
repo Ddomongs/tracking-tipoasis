@@ -4,7 +4,7 @@ import { AD_TIMING_POLICY } from "@/lib/ads/ad-gate";
 import { containsTrackingLikeValue } from "@/lib/privacy/number-patterns";
 import { ADSENSE_LOADER_URL } from "@/lib/site";
 import type { TrackResponseData } from "@/lib/types";
-import { FAKE, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+import { FAKE, mockTrack, trackDataAtRealTime } from "../fixtures/tracking-fixtures";
 import {
   assertNoTrackingValues,
   captureThirdParty,
@@ -31,7 +31,8 @@ function loaderExpected(entry: Entry): boolean {
 }
 
 function inTransit(number: string): TrackResponseData {
-  return trackData("inTransit", { trackingNumber: number });
+  // Restore needs the real clock (see trackDataAtRealTime), so the result is dated relative to it.
+  return trackDataAtRealTime("inTransit", { trackingNumber: number });
 }
 
 async function expectPath(page: Page, expected: string): Promise<void> {

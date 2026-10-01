@@ -172,17 +172,32 @@ const RECIPES: Readonly<Record<FixtureState, Recipe>> = {
   customsWithCarrierCut: hblRecipe(CLEARED_FLOW, autoLookup({ lookupUnavailable: true }))
 };
 
-/** Built with the real normalizer at FIXTURE_NOW; every call returns fresh objects. `overrides` is a shallow merge. */
-export function trackData(state: FixtureState, overrides: Partial<TrackResponseData> = {}): TrackResponseData {
+function buildTrackData(state: FixtureState, overrides: Partial<TrackResponseData>, offsetMs: number): TrackResponseData {
   const recipe = RECIPES[state];
+  // Offset 0 keeps the recipes' own datetime strings (their +09:00 form is part of what the fixture tests pin).
+  const shift = (item: TrackingEvent): TrackingEvent =>
+    offsetMs === 0 ? { ...item } : { ...item, datetime: new Date(Date.parse(item.datetime) + offsetMs).toISOString() };
   const data = normalizeTrackingData({
     trackingNumber: recipe.number,
     type: recipe.type,
-    customsEvents: recipe.customs.map((item) => ({ ...item })),
-    deliveryLookup: { ...recipe.lookup, events: recipe.deliveryEvents.map((item) => ({ ...item })) },
-    now: FIXTURE_NOW
+    customsEvents: recipe.customs.map(shift),
+    deliveryLookup: { ...recipe.lookup, events: recipe.deliveryEvents.map(shift) },
+    now: new Date(FIXTURE_NOW.getTime() + offsetMs)
   });
   return { ...data, ...overrides };
+}
+
+/** Built with the real normalizer at FIXTURE_NOW; every call returns fresh objects. `overrides` is a shallow merge. */
+export function trackData(state: FixtureState, overrides: Partial<TrackResponseData> = {}): TrackResponseData {
+  return buildTrackData(state, overrides, 0);
+}
+
+/**
+ * trackData moved so its events sit as far before the real clock as they sit before FIXTURE_NOW. For pages that keep
+ * the real clock: Playwright's fake clock hides the navigation entries that session restore reads.
+ */
+export function trackDataAtRealTime(state: FixtureState, overrides: Partial<TrackResponseData> = {}): TrackResponseData {
+  return buildTrackData(state, overrides, Date.now() - FIXTURE_NOW.getTime());
 }
 
 export type FailureFixture =

@@ -1,9 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 import { channels, lookup, stateGuide } from "@/config/site.config";
 import type { TrackResponseData } from "@/lib/types";
-import { FAKE, FAKE_GROUPED, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+import { FAKE, FAKE_GROUPED, FIXTURE_NOW, mockTrack, trackData } from "../fixtures/tracking-fixtures";
 import { waitForIdle } from "../support/network-capture";
 import { IS_PRODUCTION_RUN } from "../support/prod-mode";
+
+// The fixtures' dates: on a later real day these results turn overdue and the return link is withheld, so pin the clock.
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(FIXTURE_NOW);
+});
 
 const RESULT_READY = { name: "다시 볼 링크 복사" } as const;
 const TITLE_SUFFIX = " · 배송 조회";

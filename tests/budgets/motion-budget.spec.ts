@@ -1,8 +1,13 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { FAKE, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+import { FAKE, FIXTURE_NOW, mockTrack, trackData } from "../fixtures/tracking-fixtures";
 import { IS_PRODUCTION_RUN } from "../support/prod-mode";
+
+// The fixtures' dates: on a later real day these results turn overdue and the return link is withheld, so pin the clock.
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(FIXTURE_NOW);
+});
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 /** Spec §12 2.2.2: after 8 s nothing may still be moving forever. */
