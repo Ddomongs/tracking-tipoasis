@@ -84,7 +84,8 @@ export function MismatchTab(): React.JSX.Element {
       status: "draft",
       createdAt: new Date().toISOString()
     };
-    if (!save([record, ...records])) return;
+    // The stored list, not this render's copy: another tab may have added to a kept list since.
+    if (!save([record, ...getStoredRecordsSnapshot()])) return;
     setPhone("");
     setMemo("");
   };
@@ -96,11 +97,11 @@ export function MismatchTab(): React.JSX.Element {
   };
 
   const onStatus = (id: string, status: MismatchStatus): void => {
-    save(withRecordStatus(records, id, status, new Date()));
+    save(withRecordStatus(getStoredRecordsSnapshot(), id, status, new Date()));
   };
 
   const onDelete = (id: string): void => {
-    save(records.filter((record) => record.id !== id));
+    save(getStoredRecordsSnapshot().filter((record) => record.id !== id));
   };
 
   const onClearAll = (): void => {

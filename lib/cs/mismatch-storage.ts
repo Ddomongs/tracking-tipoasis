@@ -210,14 +210,37 @@ let snapshotKey: string | null = null;
 let snapshotRecords: readonly MismatchRecord[] = EMPTY_RECORDS;
 let snapshotRetention: MismatchRetention = SESSION_RETENTION;
 
+let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+/** setTimeout's longest delay; a later keepUntil is simply re-checked when this fires. */
+const MAX_TIMER_MS = 2_147_483_647;
+
 function notify(): void {
   listeners.forEach((listener) => listener());
+  scheduleExpiry();
+}
+
+/** While anyone is subscribed and the list is kept, purge it the moment keepUntil passes (not only on the next visit). */
+function scheduleExpiry(): void {
+  if (expiryTimer !== null) clearTimeout(expiryTimer);
+  expiryTimer = null;
+  if (listeners.size === 0) return;
+  const now = Date.now();
+  const { area, parsed } = readState(now);
+  if (area !== "local" || parsed.keepUntil === null) return;
+  const delay = Math.min(Math.max(Date.parse(parsed.keepUntil) - now, 0) + 1, MAX_TIMER_MS);
+  expiryTimer = setTimeout(() => {
+    expiryTimer = null;
+    migrateAndPurge();
+    notify();
+  }, delay);
 }
 
 function refreshSnapshot(): void {
   // JSON never contains a raw line break, so "\n" separates the two stored texts unambiguously.
   const key = `${readRaw("session", MISMATCH_KEY) ?? ""}\n${readRaw("local", MISMATCH_KEY) ?? ""}`;
-  if (key === snapshotKey) return;
+  // A kept list whose time is up must not keep showing from the cached snapshot.
+  const keptExpired = snapshotRetention.kind === "kept" && Date.now() >= Date.parse(snapshotRetention.keepUntil);
+  if (key === snapshotKey && !keptExpired) return;
   snapshotKey = key;
   const { area, parsed } = readState(Date.now());
   snapshotRecords = parsed.records;
@@ -278,11 +301,23 @@ function migrateAndPurge(): void {
   if (changed) notify();
 }
 
+/** Storage events: another tab of this browser changed the kept list (or the legacy key). */
+const WATCHED_KEYS: ReadonlySet<string | null> = new Set([MISMATCH_KEY, MISMATCH_LEGACY_KEY, null]);
+
 export function subscribeStoredRecords(onChange: () => void): () => void {
   listeners.add(onChange);
+  const onStorage = (event: StorageEvent): void => {
+    if (!WATCHED_KEYS.has(event.key)) return;
+    scheduleExpiry();
+    onChange();
+  };
+  window.addEventListener("storage", onStorage);
   migrateAndPurge();
+  scheduleExpiry();
   return () => {
     listeners.delete(onChange);
+    window.removeEventListener("storage", onStorage);
+    if (listeners.size === 0) scheduleExpiry();
   };
 }
 

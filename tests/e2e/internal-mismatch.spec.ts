@@ -211,3 +211,29 @@ test("a kept list is deleted once its 7 days are over", async ({ page }) => {
   // The empty list is also the server render; the purge runs once the list subscribes after hydration.
   await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), MISMATCH_KEY)).toBeNull();
 });
+
+test("a kept list that runs out while the desk is open is cleared then", async ({ page }) => {
+  await page.clock.install({ time: FIXTURE_NOW });
+  await openDesk(page, "mismatch");
+  await saveDraft(page, "ORDER-RUNOUT");
+  await page.getByRole("checkbox", { name: KEEP_LABEL }).check();
+  await expect(page.locator("[data-mismatch-retention]")).toHaveAttribute("data-mismatch-retention", "kept");
+  await page.clock.fastForward(MISMATCH_KEEP_DAYS * DAY_MS + 60_000);
+  await expect(page.getByText(EMPTY_MESSAGE)).toBeVisible();
+  await expect(page.locator("[data-mismatch-retention]")).toHaveAttribute("data-mismatch-retention", "session");
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), MISMATCH_KEY)).toBeNull();
+  expect(await page.evaluate((key) => window.sessionStorage.getItem(key), MISMATCH_KEY)).toBeNull();
+});
+
+test("two tabs sharing a kept list see each other's saves without losing any", async ({ page, context }) => {
+  await openDesk(page, "mismatch");
+  await page.getByRole("checkbox", { name: KEEP_LABEL }).check();
+  await expect(page.locator("[data-mismatch-retention]")).toHaveAttribute("data-mismatch-retention", "kept");
+  const other = await context.newPage();
+  await openDesk(other, "mismatch");
+  await saveDraft(page, "ORDER-TAB-A");
+  await expect(recordWith(other, "ORDER-TAB-A")).toBeVisible();
+  await saveDraft(other, "ORDER-TAB-B");
+  await expect(recordWith(page, "ORDER-TAB-B")).toBeVisible();
+  await expect(recordWith(page, "ORDER-TAB-A")).toBeVisible();
+});
