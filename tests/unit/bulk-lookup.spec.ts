@@ -13,6 +13,7 @@ import {
   type BulkRow
 } from "@/lib/cs/bulk-lookup";
 import type { FetchTrackResult } from "@/lib/tracking/fetch-track";
+import { maskPhone } from "@/lib/cs/phone-mask";
 import { deriveTrackingView } from "@/lib/tracking/derive-view";
 import { buildInquiryCopy } from "@/lib/tracking/inquiry-copy";
 import { formatKstDateTight } from "@/lib/tracking/time";
@@ -62,7 +63,23 @@ test.describe("parseBulkInput", () => {
     const digitsOnly = FAKE.phone.replace(/-/g, "");
     const international = `+82 ${FAKE.phone.slice(1)}`;
     const text = [FAKE.phone, digitsOnly, international, FAKE.domestic].join("\n");
-    expect(parseBulkInput(text)).toEqual({ numbers: [FAKE.domestic], rejected: [FAKE.phone, digitsOnly, international], truncated: false });
+    expect(parseBulkInput(text)).toEqual({
+      numbers: [FAKE.domestic],
+      rejected: [maskPhone(FAKE.phone), maskPhone(FAKE.phone), maskPhone(FAKE.phone)],
+      truncated: false
+    });
+  });
+
+  test("a phone inside a rejected line is listed back masked, never in full", () => {
+    const parsed = parseBulkInput(`연락처 ${FAKE.phone} 부탁드려요`);
+    expect(parsed.rejected).toEqual([`연락처 ${maskPhone(FAKE.phone)} 부탁드려요`]);
+    expect(parsed.rejected.join("\n")).not.toContain(FAKE.phone.slice(-9));
+  });
+
+  test("a 12-digit number starting with 82 is a tracking number unless written with +", () => {
+    const startsWith82 = ["82", "10", "0000", "5678"].join("");
+    expect(parseBulkInput(startsWith82).numbers).toEqual([startsWith82]);
+    expect(parseBulkInput(`+${startsWith82}`).numbers).toEqual([]);
   });
 
   test("lines with digits that are not numbers come back to staff as written", () => {
@@ -241,6 +258,24 @@ test.describe("runBulkLookup", () => {
       cause: "notFound",
       consecutiveFailures: 1
     });
+  });
+
+  test("a new run waits for the previous run's last start and reports its own starts", async () => {
+    const run = harness([DELIVERED, DELIVERED], 100);
+    const previous = run.now().getTime() - 300;
+    const reported: number[] = [];
+    await runBulkLookup([FAKE.domestic, FAKE.hbl], "AUTO", {
+      signal: new AbortController().signal,
+      now: run.now,
+      wait: run.wait,
+      fetcher: run.fetcher,
+      lastStart: previous,
+      onStart: (at) => reported.push(at),
+      onRow: () => undefined
+    });
+    expect(run.waits[0]).toBe(BULK_MIN_INTERVAL_MS - 300);
+    expect(run.starts[0] - previous).toBe(BULK_MIN_INTERVAL_MS);
+    expect(reported).toEqual(run.starts);
   });
 
   test("a slow answer is not followed by an extra wait", async () => {

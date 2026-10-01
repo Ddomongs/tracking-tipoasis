@@ -2,6 +2,7 @@ import { siteConfig } from "@/config/site.config";
 import { classifyFailure } from "@/lib/tracking/classify-failure";
 import { deriveTrackingView } from "@/lib/tracking/derive-view";
 import { fetchTrack, type FetchTrackResult } from "@/lib/tracking/fetch-track";
+import { maskPhone } from "@/lib/cs/phone-mask";
 import { parseInquiryCopy } from "@/lib/tracking/inquiry-copy";
 import { normalizeInput, precheckNumber } from "@/lib/tracking/number-input";
 import { formatKstDateTight } from "@/lib/tracking/time";
@@ -47,6 +48,10 @@ export interface BulkRunOptions {
   readonly derive?: (outcome: LookupOutcome, now: Date) => TrackingViewModel;
   /** Default siteConfig.lookup.timeoutMs. */
   readonly timeoutMs?: number;
+  /** The previous run's last request start (ms), so a restarted run keeps the spacing too. */
+  readonly lastStart?: number | null;
+  /** Called with each request start (ms of `now()`). */
+  readonly onStart?: (at: number) => void;
 }
 
 /** Line breaks, commas, semicolons and tabs separate entries. */
@@ -55,11 +60,21 @@ const HAS_DIGIT = /[0-9０-９]/;
 const INQUIRY_LABEL = "조회번호";
 /** A line that is only the '조회번호' label; the number follows on the next line. */
 const LABEL_ONLY = /^조회번호[\s:：]*$/;
-/** Korean mobile numbers after normalizeInput (+82 allowed): never looked up as a tracking number. */
-const PHONE_DIGITS = /^(?:82)?0?1[016789]\d{7,8}$/;
+/** Korean mobile numbers after normalizeInput: never looked up as a tracking number. */
+const PHONE_DIGITS = /^01[016789]\d{7,8}$/;
+/** '+82 10 …' (the country code only counts when written with '+'). */
+const INTERNATIONAL_PHONE_DIGITS = /^\+820?1[016789]\d{7,8}$/;
+/** A phone written inside a longer line ('연락처 010-…'), masked before the line is listed back to staff. */
+const PHONE_IN_TEXT = /(?:\+82[\s-]?)?0?1[016789][\s-]?\d{3,4}[\s-]?\d{4}/g;
 
 function isPhoneLike(line: string): boolean {
-  return PHONE_DIGITS.test(normalizeInput(line).replace(/^\+/, ""));
+  const normalized = normalizeInput(line);
+  return PHONE_DIGITS.test(normalized) || INTERNATIONAL_PHONE_DIGITS.test(normalized);
+}
+
+/** How a line that is not a number is listed back: phones only masked (spec §10 '010-****-1234'). */
+function rejectedText(line: string): string {
+  return isPhoneLike(line) ? maskPhone(line) : line.replace(PHONE_IN_TEXT, (phone) => maskPhone(phone));
 }
 
 function numberFromLine(line: string): string | null {
@@ -79,7 +94,7 @@ export function parseBulkInput(text: string): BulkParseResult {
     if (line === "" || LABEL_ONLY.test(line) || !HAS_DIGIT.test(line)) continue;
     const number = numberFromLine(line);
     if (number === null) {
-      rejected.push(line);
+      rejected.push(rejectedText(line));
     } else if (!numbers.includes(number)) {
       if (numbers.length < BULK_MAX) numbers.push(number);
       else truncated = true;
@@ -136,7 +151,7 @@ export async function runBulkLookup(
   const derive = options.derive ?? deriveWithSiteConfig;
   const timeoutMs = options.timeoutMs ?? siteConfig.lookup.timeoutMs;
   const batch = numbers.slice(0, BULK_MAX);
-  let previousStart: number | null = null;
+  let previousStart: number | null = options.lastStart ?? null;
   for (let index = 0; index < batch.length; index += 1) {
     const number = batch[index];
     if (previousStart !== null) {
@@ -144,6 +159,7 @@ export async function runBulkLookup(
     }
     if (options.signal.aborted) return;
     previousStart = options.now().getTime();
+    options.onStart?.(previousStart);
     options.onRow(index, { number, status: "running", outcome: null, view: null });
     const request: LookupRequest = { number, carrier, entry: "manual" };
     const result = await fetcher(request, { signal: options.signal, timeoutMs });

@@ -4,6 +4,7 @@ import { siteConfig } from "@/config/site.config";
 import { BULK_MAX, BULK_MIN_INTERVAL_MS, TONE_LABELS, sortBulkRows, type BulkRow } from "@/lib/cs/bulk-lookup";
 import { buildCsReply, type CsReply } from "@/lib/cs/cs-reply";
 import { MISMATCH_LEGACY_KEY } from "@/lib/cs/mismatch-storage";
+import { maskPhone } from "@/lib/cs/phone-mask";
 import { buildInquiryCopy } from "@/lib/tracking/inquiry-copy";
 import type { FailureCause, LookupOutcome, TrackingViewModel } from "@/lib/tracking/types";
 import type { TrackResponseData } from "@/lib/types";
@@ -217,7 +218,9 @@ test("pasted inquiry copies, chat lines and bad lines", async ({ page }) => {
   await runDesk(page, ["안녕하세요", copy, FAKE.invalidShort, FAKE.phone, FAKE_GROUPED.domestic]);
   await expect(page.locator("[data-bulk-row]")).toHaveCount(2);
   await expect(doneRows(page)).toHaveCount(2, { timeout: SETTLE_TIMEOUT_MS });
-  await expect(page.locator("[data-bulk-rejected]")).toHaveText(`번호로 읽지 못한 줄 2개: ${FAKE.invalidShort} · ${FAKE.phone}`);
+  await expect(page.locator("[data-bulk-rejected]")).toHaveText(`번호로 읽지 못한 줄 2개: ${FAKE.invalidShort} · ${maskPhone(FAKE.phone)}`);
+  // Only the staff's own paste box still holds the full number.
+  for (const shown of ["[data-bulk-rejected]", "[data-bulk-table]"]) await expect(page.locator(shown)).not.toContainText(FAKE.phone);
 });
 
 test("at most 20 numbers run, and [멈추기] stops the rest", async ({ page }) => {
@@ -252,6 +255,20 @@ test("requests start at least 1000 ms apart and carry the chosen carrier", async
   expect(gaps).toHaveLength(numbers.length - 1);
   // 2 ms of slack: the run spaces starts with Date (whole milliseconds), the recorder reads performance.now().
   expect(minGap).toBeGreaterThanOrEqual(BULK_MIN_INTERVAL_MS - 2);
+});
+
+test("pressing [조회 시작] again keeps requests 1000 ms apart across runs", async ({ page }) => {
+  await recordTrackStarts(page);
+  await answerByNumber(page, { [FAKE.domestic]: deliveredData(), [FAKE.hbl]: deliveredData() });
+  await runDesk(page, [FAKE.domestic]);
+  await expect(bulkRow(page, FAKE.domestic)).toHaveAttribute("data-bulk-status", "done", { timeout: SETTLE_TIMEOUT_MS });
+  await page.getByLabel(INPUT_LABEL, { exact: true }).fill(FAKE.hbl);
+  await page.getByRole("button", { name: "조회 시작", exact: true }).click();
+  await expect(bulkRow(page, FAKE.hbl)).toHaveAttribute("data-bulk-status", "done", { timeout: SETTLE_TIMEOUT_MS });
+  const starts = await trackStarts(page);
+  expect(starts).toHaveLength(2);
+  // 2 ms of slack, as in the spacing test above.
+  expect(starts[1] - starts[0]).toBeGreaterThanOrEqual(BULK_MIN_INTERVAL_MS - 2);
 });
 
 test("a new run replaces the previous one; the old run's late answer is ignored", async ({ page }) => {

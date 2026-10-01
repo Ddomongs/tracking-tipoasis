@@ -43,6 +43,8 @@ export function DeliveryGuideTab(): React.JSX.Element {
   const [expanded, setExpanded] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const runIdRef = useRef(0);
+  /** The last request start of any run: a restarted run still waits BULK_MIN_INTERVAL_MS after it. */
+  const lastStartRef = useRef<number | null>(null);
   const displayRows = useMemo(() => sortBulkRows(rows), [rows]);
   const doneCount = rows.filter((row) => row.status === "done").length;
 
@@ -71,6 +73,10 @@ export function DeliveryGuideTab(): React.JSX.Element {
       signal: controller.signal,
       now: () => new Date(),
       derive: deriveResultView,
+      lastStart: lastStartRef.current,
+      onStart: (at) => {
+        lastStartRef.current = at;
+      },
       onRow: (index, row) => {
         if (!isCurrent()) return;
         setRows((previous) => previous.map((item, position) => (position === index ? row : item)));
