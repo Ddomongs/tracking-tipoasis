@@ -1,12 +1,16 @@
 import { expect, test } from "@playwright/test";
 import {
+  MISMATCH_KEEP_DAYS,
+  MISMATCH_KEY,
   MISMATCH_LEGACY_KEY,
   MISMATCH_STATUSES,
   MISMATCH_STATUS_LABELS,
   MISMATCH_TTL_DAYS,
   isMismatchStatus,
   parseMismatchPayload,
+  parseStorePayload,
   serializeMismatchPayload,
+  serializeStorePayload,
   withRecordStatus,
   type MismatchRecord
 } from "@/lib/cs/mismatch-storage";
@@ -126,4 +130,41 @@ test("withRecordStatus changes one record, stamps updatedAt and leaves the other
   expect(next[1]).toEqual({ ...second, status: "sent", updatedAt: FIXTURE_NOW.toISOString() });
   expect(input[1].status).toBe("draft");
   expect(parseMismatchPayload(serializeMismatchPayload(next), NOW).needsRewrite).toBe(false);
+});
+
+test("approval 14: one key for the list and a 7-day keep", () => {
+  expect(MISMATCH_KEY).toBe("tt:cs-mismatch");
+  expect(MISMATCH_KEEP_DAYS).toBe(7);
+});
+
+test("a tab-only v2 payload round-trips without a rewrite", () => {
+  const records = [record("a", isoDaysAgo(1))];
+  const raw = serializeStorePayload(records, null);
+  expect(JSON.parse(raw)).toEqual({ v: 2, keepUntil: null, records });
+  expect(parseStorePayload(raw, NOW)).toEqual({ records, keepUntil: null, valid: true, needsRewrite: false });
+});
+
+test("a kept payload is valid until keepUntil and gone at keepUntil", () => {
+  const keepUntil = new Date(NOW + DAY_MS).toISOString();
+  const raw = serializeStorePayload([record("a", isoDaysAgo(1))], keepUntil);
+  expect(parseStorePayload(raw, NOW + DAY_MS - 1)).toMatchObject({ keepUntil, valid: true, needsRewrite: false });
+  expect(parseStorePayload(raw, NOW + DAY_MS)).toEqual({ records: [], keepUntil: null, valid: false, needsRewrite: true });
+});
+
+test("broken records are dropped from a v2 payload", () => {
+  const valid = record("ok", isoDaysAgo(1));
+  const raw = JSON.stringify({ v: 2, keepUntil: null, records: [valid, { ...valid, id: "bad-date", createdAt: "어제" }, null] });
+  expect(parseStorePayload(raw, NOW)).toEqual({ records: [valid], keepUntil: null, valid: true, needsRewrite: true });
+});
+
+test("a v1 payload, garbage or nothing is not a v2 list", () => {
+  expect(parseStorePayload(serializeMismatchPayload([record("a", isoDaysAgo(1))]), NOW)).toMatchObject({ valid: false, needsRewrite: true });
+  expect(parseStorePayload("not json", NOW)).toMatchObject({ valid: false, needsRewrite: true });
+  expect(parseStorePayload(null, NOW)).toEqual({ records: [], keepUntil: null, valid: false, needsRewrite: false });
+});
+
+test("a keepUntil further away than the 7-day keep is not trusted", () => {
+  const tooFar = new Date(NOW + (MISMATCH_KEEP_DAYS + 2) * DAY_MS).toISOString();
+  const raw = serializeStorePayload([record("a", isoDaysAgo(1))], tooFar);
+  expect(parseStorePayload(raw, NOW)).toEqual({ records: [], keepUntil: null, valid: false, needsRewrite: true });
 });

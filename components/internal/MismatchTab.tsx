@@ -4,12 +4,15 @@ import { useId, useState, useSyncExternalStore, type FormEvent } from "react";
 import { Button } from "@/components/primitives/Button";
 import { CopyButton } from "@/components/primitives/CopyButton";
 import {
-  MISMATCH_TTL_DAYS,
+  MISMATCH_KEEP_DAYS,
   clearAllStoredRecords,
   createRecordId,
+  getRetentionSnapshot,
+  getServerRetentionSnapshot,
   getServerStoredRecordsSnapshot,
   getStoredRecordsSnapshot,
   normalizePhone,
+  setKeepInBrowser,
   subscribeStoredRecords,
   withRecordStatus,
   writeStoredRecords,
@@ -17,6 +20,7 @@ import {
   type MismatchStatus
 } from "@/lib/cs/mismatch-storage";
 import { CUSTOMS_MISMATCH_TEMPLATES, type CustomsMismatchTemplateKey } from "@/lib/cs/mismatch-templates";
+import { formatKstDateTime, parseInstant } from "@/lib/tracking/time";
 import { MismatchRecordList } from "./MismatchRecordList";
 import { ERROR_CLASS, FIELD_CLASS, HELP_CLASS, LABEL_CLASS, PANEL_CLASS, SECTION_TITLE_CLASS } from "./ui";
 
@@ -29,7 +33,13 @@ const STORAGE_REFUSED_MESSAGE = "이 브라우저에서는 목록을 저장할 �
 const MISSING_FIELDS_MESSAGE = "휴대폰 번호와 안내 내용을 입력해주세요.";
 const CLEAR_CONFIRM = "저장된 통관부호 불일치 안내를 모두 삭제할까요?";
 const COPIED_LABEL = "복사했어요";
-const RETENTION_NOTE = `이 브라우저에만 ${MISMATCH_TTL_DAYS}일 동안 보관하고, 지나면 자동으로 지워요.`;
+const KEEP_LABEL = `이 브라우저에 ${MISMATCH_KEEP_DAYS}일 보관`;
+const TAB_ONLY_NOTE = `이 탭을 닫으면 목록이 지워져요. 오래 두려면 ${MISMATCH_KEEP_DAYS}일 보관을 켜 주세요.`;
+
+function keptNote(keepUntil: string): string {
+  const until = parseInstant(keepUntil);
+  return until === null ? "" : `${formatKstDateTime(until)}까지 이 브라우저에 보관하고, 지나면 자동으로 지워요.`;
+}
 
 function isTemplateKey(value: string): value is CustomsMismatchTemplateKey {
   return TEMPLATE_OPTIONS.some((option) => option.key === value);
@@ -39,6 +49,7 @@ function isTemplateKey(value: string): value is CustomsMismatchTemplateKey {
 export function MismatchTab(): React.JSX.Element {
   const baseId = useId();
   const records = useSyncExternalStore(subscribeStoredRecords, getStoredRecordsSnapshot, getServerStoredRecordsSnapshot);
+  const retentionState = useSyncExternalStore(subscribeStoredRecords, getRetentionSnapshot, getServerRetentionSnapshot);
   const [phone, setPhone] = useState("");
   const [memo, setMemo] = useState("");
   const [templateKey, setTemplateKey] = useState<CustomsMismatchTemplateKey>("default");
@@ -96,10 +107,28 @@ export function MismatchTab(): React.JSX.Element {
     if (window.confirm(CLEAR_CONFIRM)) clearAllStoredRecords();
   };
 
+  const onKeepChange = (keep: boolean): void => {
+    try {
+      setKeepInBrowser(keep, new Date());
+      setError("");
+    } catch {
+      setError(STORAGE_REFUSED_MESSAGE);
+    }
+  };
+
   const retention = (
-    <p data-mismatch-retention="ttl14" className={HELP_CLASS}>
-      {RETENTION_NOTE}
-    </p>
+    <div data-mismatch-retention={retentionState.kind} className="flex flex-col gap-1">
+      <label className="flex min-h-[44px] items-center gap-2 text-tt-md font-bold">
+        <input
+          type="checkbox"
+          checked={retentionState.kind === "kept"}
+          onChange={(event) => onKeepChange(event.target.checked)}
+          className="tt-focus h-6 w-6"
+        />
+        {KEEP_LABEL}
+      </label>
+      <p className={HELP_CLASS}>{retentionState.kind === "kept" ? keptNote(retentionState.keepUntil) : TAB_ONLY_NOTE}</p>
+    </div>
   );
 
   return (
