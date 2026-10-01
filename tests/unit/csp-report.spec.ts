@@ -162,6 +162,44 @@ test.describe("CSP report endpoint (S11)", () => {
     }
     expect(lines).toEqual([]);
   });
+
+  test("a body sent without a length is read only up to the limit", async () => {
+    const valid = JSON.stringify(legacyReport({ "document-uri": `${PAGE}/`, "blocked-uri": "inline", "effective-directive": "script-src-elem" }));
+    let cancelled = false;
+    let pulled = 0;
+    const chunk = new TextEncoder().encode(" ".repeat(4096));
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(valid));
+      },
+      pull(controller) {
+        pulled += 1;
+        controller.enqueue(chunk);
+      },
+      cancel() {
+        cancelled = true;
+      }
+    });
+    const request = new Request(`${PAGE}${CSP_REPORT_PATH}`, {
+      method: "POST",
+      headers: { "content-type": "application/csp-report" },
+      body,
+      duplex: "half"
+    } as RequestInit);
+    const response = await handleCspReport(request, { limiter: createCspReportLimiter(), now: () => 0 });
+    expect(response.status).toBe(204);
+    expect(lines).toEqual([]);
+    expect(cancelled).toBe(true);
+    expect(pulled).toBeLessThan(10);
+  });
+
+  test("a blocked host whose digits are split by dots is redacted", () => {
+    const host = `${FAKE.domestic.slice(0, 6)}.${FAKE.domestic.slice(6)}.example`;
+    const [summary] = parseCspReports(
+      legacyReport({ "document-uri": `${PAGE}/`, "effective-directive": "img-src", "blocked-uri": `https://${host}/x.png` })
+    );
+    expect(summary?.blockedHost).toBe("[redacted]");
+  });
 });
 
 const reportOnlyOf = (rule: HeaderRule | undefined): string =>

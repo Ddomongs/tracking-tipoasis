@@ -49,7 +49,9 @@ test.describe("CSP Report-Only collection (S11)", () => {
     await waitForIdle(page);
     await page.goto("/");
     await waitForIdle(page);
-    const reports = capture.requests().filter((request) => new URL(request.url).pathname === CSP_REPORT_PATH);
-    assertNoTrackingValues(reports);
+    const reportsNow = () => capture.requests().filter((request) => new URL(request.url).pathname === CSP_REPORT_PATH);
+    // '/' reports Next.js inline scripts on every view, so an empty list would mean the check saw nothing.
+    await expect.poll(() => reportsNow().length).toBeGreaterThan(0);
+    assertNoTrackingValues(reportsNow());
   });
 });

@@ -105,7 +105,8 @@ function toBlocked(blockedUri: string, documentUri: string): Pick<CspReportSumma
   const page = parseUrl(documentUri);
   if (page !== null && page.origin === blocked.origin) return { blocked: "self", blockedHost: null };
   const host = blocked.hostname;
-  const safe = SAFE_HOST.test(host) && !containsTrackingLikeValue(host);
+  // Dots are not separators for the number patterns, so a host like 'dddddd.dddddd.example' is checked without them too.
+  const safe = SAFE_HOST.test(host) && !containsTrackingLikeValue(host) && !containsTrackingLikeValue(host.replace(/\./g, ""));
   return { blocked: "host", blockedHost: safe ? host : REDACTED_HOST };
 }
 
@@ -122,7 +123,11 @@ function summarize(raw: RawReport): CspReportSummary {
   };
 }
 
-/** Both report formats: `application/csp-report` (report-uri) and `application/reports+json` (Reporting API). */
+/**
+ * Both report formats: `application/csp-report` (report-uri) and `application/reports+json` (Reporting API). With
+ * `report-uri` alone browsers send only the first; if `report-to` is added later, the number-route override in
+ * lib/security/headers.ts must drop it (and `Reporting-Endpoints`) there too.
+ */
 export function parseCspReports(body: unknown): readonly CspReportSummary[] {
   const legacy = LegacyReportSchema.safeParse(body);
   if (legacy.success) {
@@ -203,6 +208,35 @@ export function setCspReportSink(next: CspLogSink | null): void {
 const ACCEPTED_TYPES = ["application/csp-report", "application/reports+json", "application/json"] as const;
 const sharedLimiter = createCspReportLimiter();
 
+/** The body as text, or null when it is unreadable or longer than `maxBytes` (stops reading there; no content-length needed). */
+async function readBodyWithin(request: Request, maxBytes: number): Promise<string | null> {
+  if (request.body === null) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 function noContent(): Response {
   return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
 }
@@ -221,13 +255,8 @@ export async function handleCspReport(
   if (!(ACCEPTED_TYPES as readonly string[]).includes(type)) return noContent();
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(declared) && declared > CSP_REPORT_MAX_BYTES) return noContent();
-  let text: string;
-  try {
-    text = await request.text();
-  } catch {
-    return noContent();
-  }
-  if (text.length > CSP_REPORT_MAX_BYTES) return noContent();
+  const text = await readBodyWithin(request, CSP_REPORT_MAX_BYTES);
+  if (text === null) return noContent();
   let body: unknown;
   try {
     body = JSON.parse(text);
