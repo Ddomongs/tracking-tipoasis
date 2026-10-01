@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { createProxyHandler } from "@/insforge/functions/unipass-proxy";
 import { FAKE } from "../fixtures/tracking-fixtures";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { POST } from "@/app/api/track/route";
 
 interface DenoLike {
   readonly env: { readonly get: (key: string) => string | undefined };
@@ -119,5 +122,71 @@ test.describe("hardened InsForge proxy (approval 12 fallback)", () => {
       expect(urls[0]).toContain("hblNo=");
       expect(urls[0]).toContain("blYy=");
     });
+  });
+});
+
+const SERVER_ENV_KEYS = ["UNIPASS_API_KEY", "UNIPASS_API_URL", "UNIPASS_PROXY_URL", "UNIPASS_PROXY_SECRET"] as const;
+
+const withServerProxy = async (
+  secret: string | null,
+  run: (proxySecrets: (string | null)[]) => Promise<void>
+): Promise<void> => {
+  const saved = SERVER_ENV_KEYS.map((key) => [key, process.env[key]] as const);
+  const proxySecrets: (string | null)[] = [];
+  const originalFetch = globalThis.fetch;
+  process.env.UNIPASS_API_KEY = "stub-key-not-real";
+  process.env.UNIPASS_API_URL = "https://unipass.stub/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo";
+  process.env.UNIPASS_PROXY_URL = "https://proxy.stub/functions/unipass-proxy";
+  if (secret === null) Reflect.deleteProperty(process.env, "UNIPASS_PROXY_SECRET");
+  else process.env.UNIPASS_PROXY_SECRET = secret;
+  globalThis.fetch = async (input, init): Promise<Response> => {
+    const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+    if (url.host === "proxy.stub") {
+      proxySecrets.push(new Headers(init?.headers).get("x-proxy-secret"));
+      return new Response("No backend services available for app", { status: 503 });
+    }
+    if (url.host === "unipass.stub") return new Response("Internal Server Error", { status: 500 });
+    return new Response("not found", { status: 404 });
+  };
+  try {
+    await run(proxySecrets);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [key, value] of saved) {
+      if (value === undefined) Reflect.deleteProperty(process.env, key);
+      else process.env[key] = value;
+    }
+  }
+};
+
+const postHbl = (number: string, ip: string): Promise<Response> =>
+  POST(
+    new Request("http://localhost/api/track", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": ip },
+      body: JSON.stringify({ trackingNumber: number, carrierCode: "AUTO" })
+    })
+  );
+
+test.describe("server side of the hardened proxy", () => {
+  test("the server sends the shared secret header to the proxy", async () => {
+    await withServerProxy(SECRET, async (proxySecrets) => {
+      await postHbl(FAKE.hbl, "198.51.100.41");
+      expect(proxySecrets.length).toBeGreaterThanOrEqual(1);
+      expect(proxySecrets.every((value) => value === SECRET)).toBe(true);
+    });
+  });
+
+  test("the server never calls the proxy without the shared secret", async () => {
+    await withServerProxy(null, async (proxySecrets) => {
+      await postHbl(FAKE.hblAlt, "198.51.100.42");
+      expect(proxySecrets).toHaveLength(0);
+    });
+  });
+
+  test("public docs do not publish the proxy URL", () => {
+    for (const file of ["DEPLOYMENT.md", "README.md", "AGENTS.md", "docs/insforge-deployment-runbook.md"]) {
+      expect(readFileSync(path.join(process.cwd(), file), "utf8"), file).not.toMatch(/insforge\.app/i);
+    }
   });
 });

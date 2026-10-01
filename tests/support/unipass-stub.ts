@@ -12,6 +12,7 @@ import type { DeliveryCarrierCode } from "@/lib/types";
 
 export const STUB_UNIPASS_URL = "https://unipass.stub/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo";
 export const STUB_PROXY_URL = "https://proxy.stub/functions/unipass-proxy";
+export const STUB_PROXY_SECRET = "stub-proxy-secret";
 export const STUB_YEAR = new Date().getFullYear();
 
 export type UnipassMode = "ok" | "timeout" | "http500" | "refused" | "bodyStall";
@@ -219,12 +220,14 @@ export function installUpstreamStub(scenarios: readonly UpstreamScenario[], opti
   const saved = {
     key: process.env.UNIPASS_API_KEY,
     url: process.env.UNIPASS_API_URL,
-    proxy: process.env.UNIPASS_PROXY_URL
+    proxy: process.env.UNIPASS_PROXY_URL,
+    secret: process.env.UNIPASS_PROXY_SECRET
   };
   const originalFetch = globalThis.fetch;
   setEnv("UNIPASS_API_KEY", options.apiKey === false ? undefined : "stub-key-not-real");
   setEnv("UNIPASS_API_URL", STUB_UNIPASS_URL);
   setEnv("UNIPASS_PROXY_URL", options.proxy === true ? STUB_PROXY_URL : undefined);
+  setEnv("UNIPASS_PROXY_SECRET", options.proxy === true ? STUB_PROXY_SECRET : undefined);
   globalThis.fetch = stubFetch;
 
   return {
@@ -237,6 +240,7 @@ export function installUpstreamStub(scenarios: readonly UpstreamScenario[], opti
       setEnv("UNIPASS_API_KEY", saved.key);
       setEnv("UNIPASS_API_URL", saved.url);
       setEnv("UNIPASS_PROXY_URL", saved.proxy);
+      setEnv("UNIPASS_PROXY_SECRET", saved.secret);
     }
   };
 }

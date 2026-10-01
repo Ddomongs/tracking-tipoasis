@@ -3,7 +3,7 @@
 ## Target
 
 This project has moved from the previous ChemiCloud standalone workflow to a Vercel frontend deployment.
-InsForge remains in use for the UNI-PASS Edge Function proxy.
+InsForge remains only as a fallback UNI-PASS proxy, called with the shared secret header `x-proxy-secret` (`UNIPASS_PROXY_SECRET`).
 
 - Source control: GitHub public repository `Ddomongs/tracking-tipoasis`
 - Primary deployment: Vercel
@@ -38,7 +38,8 @@ Required values:
 
 - `UNIPASS_API_KEY`: UNI-PASS API001 key (server-side only)
 - `UNIPASS_API_URL`: `https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo`
-- `UNIPASS_PROXY_URL`: `https://sk9gyysw.ap-southeast.insforge.app/functions/unipass-proxy`
+- `UNIPASS_PROXY_URL`: InsForge function URL (read it from the Vercel env var; it is not published here)
+- `UNIPASS_PROXY_SECRET`: shared secret sent as `x-proxy-secret`; the same value in Vercel (Production) and in the InsForge function env
 - `NEXT_PUBLIC_BASE_URL`: `https://tracking.tipoasis.com`
 - `INTERNAL_ACCESS_PASSWORD`: browser basic-auth password for `/internal/*` (any username). When unset in production the pages return 404.
 
@@ -93,7 +94,8 @@ Current Vercel environment variables are configured for Production:
 
 ```text
 NEXT_PUBLIC_BASE_URL=https://tracking.tipoasis.com
-UNIPASS_PROXY_URL=https://sk9gyysw.ap-southeast.insforge.app/functions/unipass-proxy
+UNIPASS_PROXY_URL=<InsForge function URL>
+UNIPASS_PROXY_SECRET=<server secret>
 UNIPASS_API_URL=https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo
 UNIPASS_API_KEY=<server secret>
 INTERNAL_ACCESS_PASSWORD=<server secret>
@@ -128,7 +130,7 @@ npx @insforge/cli login
 npx @insforge/cli create --name tracking-tipoasis --template empty
 npx @insforge/cli deployments env set UNIPASS_API_KEY "<value>"
 npx @insforge/cli deployments env set UNIPASS_API_URL "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo"
-npx @insforge/cli deployments env set UNIPASS_PROXY_URL "https://sk9gyysw.ap-southeast.insforge.app/functions/unipass-proxy"
+npx @insforge/cli deployments env set UNIPASS_PROXY_SECRET "<same value as Vercel>"
 npx @insforge/cli deployments env set NEXT_PUBLIC_BASE_URL "https://tracking.tipoasis.com"
 npm run insforge:deploy
 ```

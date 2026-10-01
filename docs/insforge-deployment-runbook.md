@@ -23,13 +23,14 @@ Configure these values in the InsForge project or in GitHub Actions secrets befo
 - `UNIPASS_API_KEY`
 - `UNIPASS_API_URL`
 - `UNIPASS_PROXY_URL`
+- `UNIPASS_PROXY_SECRET`
 - `NEXT_PUBLIC_BASE_URL`
 
 Use:
 
 ```text
 UNIPASS_API_URL=https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo
-UNIPASS_PROXY_URL=https://sk9gyysw.ap-southeast.insforge.app/functions/unipass-proxy
+UNIPASS_PROXY_URL=<InsForge function URL>
 NEXT_PUBLIC_BASE_URL=https://tracking.tipoasis.com
 ```
 
@@ -91,7 +92,7 @@ Then configure deployment variables and deploy:
 ```bash
 npx @insforge/cli deployments env set UNIPASS_API_KEY "<value>"
 npx @insforge/cli deployments env set UNIPASS_API_URL "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo"
-npx @insforge/cli deployments env set UNIPASS_PROXY_URL "https://sk9gyysw.ap-southeast.insforge.app/functions/unipass-proxy"
+npx @insforge/cli deployments env set UNIPASS_PROXY_SECRET "<same value as Vercel>"
 npx @insforge/cli deployments env set NEXT_PUBLIC_BASE_URL "https://tracking.tipoasis.com"
 npm run insforge:deploy
 ```

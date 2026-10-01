@@ -129,6 +129,7 @@ const dedupeEvents = (events: TrackingEvent[]): TrackingEvent[] => {
 
 const DEFAULT_UNIPASS_URL = "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo";
 const USER_AGENT = "Mozilla/5.0 tracking.tipoasis.com";
+const PROXY_SECRET_HEADER = "x-proxy-secret";
 const MAX_XML_BYTES = 1_048_576;
 /** Offsets from the current year. The first wave runs alone; the second only when the first found nothing. */
 const FIRST_WAVE_YEAR_OFFSETS: readonly number[] = [0, -1];
@@ -287,12 +288,15 @@ const lookupViaProxy = async (
   direct: DirectMiss
 ): Promise<CustomsLookupResult> => {
   const proxyUrl = process.env.UNIPASS_PROXY_URL;
+  const proxySecret = process.env.UNIPASS_PROXY_SECRET;
   const capMs = Math.min(LOOKUP_TIMING.proxyMs, options.deadline.remainingMs());
-  if (!proxyUrl) return direct;
+  if (!proxyUrl || !proxySecret) return direct;
   if (capMs <= 0) return proxyMissed(direct, true);
   const startedAt = Date.now();
   try {
-    const response = await postJsonWithTimeout(proxyUrl, { trackingNumber, type }, capMs);
+    const response = await postJsonWithTimeout(proxyUrl, { trackingNumber, type }, capMs, {
+      [PROXY_SECRET_HEADER]: proxySecret
+    });
     if (!response.ok) return proxyMissed(direct, false);
     const text = await readTextWithLimit(response, MAX_XML_BYTES, Math.max(1, capMs - (Date.now() - startedAt)));
     const xml = getProxyXml(JSON.parse(text) as unknown);
