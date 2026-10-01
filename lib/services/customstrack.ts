@@ -1,9 +1,12 @@
 import * as cheerio from "cheerio";
 import type { TrackingEvent } from "@/lib/types";
-import { fetchWithTimeout, readTextWithLimit } from "@/lib/services/http";
+import { readTextWithLimit } from "@/lib/services/http";
 import { normalizeCustomsStatus } from "@/lib/services/customs";
 
 const CUSTOMSTRACK_BASE_URL = "https://www.customstrack.com";
+const USER_AGENT = "Mozilla/5.0 tracking.tipoasis.com";
+const DEFAULT_TIMEOUT_MS = 12000;
+const MAX_HTML_BYTES = 1_048_576;
 
 const CUSTOMS_STATUS_LABELS = [
   "입항적재화물목록 운항정보 정정",
@@ -97,12 +100,30 @@ const parseCustomstrackEvents = (html: string): TrackingEvent[] => {
   return events.sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
 };
 
-export const fetchCustomstrackCustomsEvents = async (trackingNumber: string): Promise<TrackingEvent[]> => {
-  const response = await fetchWithTimeout(`${CUSTOMSTRACK_BASE_URL}/${encodeURIComponent(trackingNumber)}`, 12000);
+export interface CustomstrackOptions {
+  /** Upper bound for headers and body together. Default 12 s (the pre-R4 value). */
+  readonly timeoutMs?: number;
+  /** Ends the request early, e.g. when the /api/track deadline ends. */
+  readonly signal?: AbortSignal;
+}
+
+export const fetchCustomstrackCustomsEvents = async (
+  trackingNumber: string,
+  options: CustomstrackOptions = {}
+): Promise<TrackingEvent[]> => {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const startedAt = Date.now();
+  const timeout = AbortSignal.timeout(timeoutMs);
+  const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
+  const response = await fetch(`${CUSTOMSTRACK_BASE_URL}/${encodeURIComponent(trackingNumber)}`, {
+    signal,
+    cache: "no-store",
+    headers: { "user-agent": USER_AGENT }
+  });
   if (!response.ok) {
     return [];
   }
 
-  const html = await readTextWithLimit(response, 1_048_576, 12000);
+  const html = await readTextWithLimit(response, MAX_HTML_BYTES, Math.max(1, timeoutMs - (Date.now() - startedAt)));
   return parseCustomstrackEvents(html);
 };

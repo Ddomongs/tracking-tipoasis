@@ -1,7 +1,9 @@
 import { parseStringPromise } from "xml2js";
 import type { TrackingEvent, TrackingType } from "@/lib/types";
 import { toIsoOrNow } from "@/lib/utils";
-import { fetchWithTimeout, postJsonWithTimeout } from "@/lib/services/http";
+import { postJsonWithTimeout, readTextWithLimit } from "@/lib/services/http";
+import { LOOKUP_TIMING, createLookupDeadline, type LookupDeadline } from "@/lib/services/lookup-budget";
+import type { UnipassCallOutcome } from "@/lib/services/lookup-log";
 
 export const normalizeCustomsStatus = (raw: string): TrackingEvent["statusCode"] => {
   const normalized = raw.replace(/\s+/g, "");
@@ -93,50 +95,6 @@ const parseCustomsDatetime = (raw?: string): string => {
   return toIsoOrNow(raw);
 };
 
-const buildCustomsRequestUrlBatches = (
-  apiUrl: string,
-  apiKey: string,
-  trackingNumber: string,
-  type: TrackingType
-): string[][] => {
-  const thisYear = new Date().getFullYear();
-  const years = [thisYear, thisYear + 1, thisYear - 1, thisYear - 2, thisYear - 3, thisYear - 4];
-
-  if (type === "CARGO") {
-    return years.map((year) => {
-      const params = new URLSearchParams({
-        crkyCn: apiKey,
-        cargMtNo: trackingNumber,
-        blYy: String(year)
-      });
-      return [`${apiUrl}?${params.toString()}`];
-    });
-  }
-
-  if (type === "HBL") {
-    return years.map((year) => {
-      const common = { crkyCn: apiKey, blYy: String(year) };
-      return [
-        `${apiUrl}?${new URLSearchParams({ ...common, hblNo: trackingNumber }).toString()}`,
-        `${apiUrl}?${new URLSearchParams({ ...common, mblNo: trackingNumber }).toString()}`
-      ];
-    });
-  }
-
-  if (type === "DOMESTIC") {
-    return years.map((year) => {
-      const common = { crkyCn: apiKey, blYy: String(year) };
-      return [
-        `${apiUrl}?${new URLSearchParams({ ...common, hblNo: trackingNumber }).toString()}`,
-        `${apiUrl}?${new URLSearchParams({ ...common, mblNo: trackingNumber }).toString()}`,
-        `${apiUrl}?${new URLSearchParams({ ...common, cargMtNo: trackingNumber }).toString()}`
-      ];
-    });
-  }
-
-  return [];
-};
-
 const mapRowsToEvents = (rows: Record<string, string>[]): TrackingEvent[] =>
   rows
     .map((row): TrackingEvent | null => {
@@ -169,51 +127,144 @@ const dedupeEvents = (events: TrackingEvent[]): TrackingEvent[] => {
   return deduped;
 };
 
-const parseCustomsEventsXml = async (xml: string): Promise<TrackingEvent[]> => {
-  const parsed = await parseStringPromise(xml, { explicitArray: false, trim: true });
+const DEFAULT_UNIPASS_URL = "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo";
+const USER_AGENT = "Mozilla/5.0 tracking.tipoasis.com";
+const MAX_XML_BYTES = 1_048_576;
+/** Offsets from the current year. The first wave runs alone; the second only when the first found nothing. */
+const FIRST_WAVE_YEAR_OFFSETS: readonly number[] = [0, -1];
+const SECOND_WAVE_YEAR_OFFSETS: readonly number[] = [1, -2, -3, -4];
+
+export type CustomsLookupType = Exclude<TrackingType, "UNKNOWN">;
+type UnipassParam = "hblNo" | "mblNo" | "cargMtNo";
+
+const PARAMS_BY_TYPE: Readonly<Record<CustomsLookupType, readonly UnipassParam[]>> = {
+  HBL: ["hblNo", "mblNo"],
+  DOMESTIC: ["hblNo", "mblNo", "cargMtNo"],
+  CARGO: ["cargMtNo"]
+};
+
+export type CustomsLookupResult =
+  | { readonly kind: "found"; readonly events: TrackingEvent[] }
+  /** Every answer was a confirmed "no record"; complete = no call failed, so the route may cache NOT_FOUND. */
+  | { readonly kind: "empty"; readonly complete: boolean }
+  /** No confirmed UNI-PASS answer at all (timeouts, network errors, non-2xx, unreadable bodies). */
+  | { readonly kind: "unavailable"; readonly timedOut: boolean }
+  /** No UNIPASS_API_KEY and no proxy: local development. */
+  | { readonly kind: "notConfigured" };
+
+export interface CustomsLookupOptions {
+  readonly deadline: LookupDeadline;
+  readonly onUnipassCall?: (outcome: UnipassCallOutcome) => void;
+  /** Called once when the first wave ended without events (or right away without a key); starts customstrack. */
+  readonly onFirstWaveEmpty?: () => void;
+}
+
+type UnipassCall =
+  | { readonly outcome: "answered"; readonly events: TrackingEvent[] }
+  | { readonly outcome: "failed"; readonly timedOut: boolean };
+type YearCalls = readonly UnipassCall[];
+
+interface WaveRequest {
+  readonly apiUrl: string;
+  readonly apiKey: string;
+  readonly trackingNumber: string;
+  readonly type: CustomsLookupType;
+  readonly year: number;
+}
+
+const eventsFromParsedXml = (parsed: unknown): TrackingEvent[] => {
   const root = toRecord(parsed)?.cargCsclPrgsInfoQryRtnVo;
   const rootNode = toRecord(Array.isArray(root) ? root[0] : root) ?? toRecord(parsed);
-  if (!rootNode) {
-    return [];
-  }
+  if (!rootNode) return [];
 
   const summaryRows = toObjectArray(rootNode.cargCsclPrgsInfoQryVo).map(toFlatStringRecord);
   const detailRows = toObjectArray(rootNode.cargCsclPrgsInfoDtlQryVo).map(toFlatStringRecord);
   return mapRowsToEvents([...detailRows, ...summaryRows]);
 };
 
-type DirectCustomsResult = {
-  events: TrackingEvent[];
-  reachedDirectApi: boolean;
+/** A UNI-PASS answer is "confirmed" only when it carries the cargCsclPrgsInfoQryRtnVo envelope. */
+const readUnipassXml = async (xml: string): Promise<{ readonly confirmed: boolean; readonly events: TrackingEvent[] }> => {
+  const parsed: unknown = await parseStringPromise(xml, { explicitArray: false, trim: true });
+  return { confirmed: toRecord(parsed)?.cargCsclPrgsInfoQryRtnVo !== undefined, events: eventsFromParsedXml(parsed) };
 };
 
-const fetchDirectCustomsEvents = async (urlBatches: string[][]): Promise<DirectCustomsResult> => {
-  let reachedDirectApi = false;
+const errorName = (error: unknown): string =>
+  typeof error === "object" && error !== null && "name" in error && typeof error.name === "string" ? error.name : "";
 
-  for (const batch of urlBatches) {
-    const settled = await Promise.allSettled(
-      batch.map(async (url) => {
-        const response = await fetchWithTimeout(url, 8000);
-        if (!response.ok) {
-          return { events: [] as TrackingEvent[], reachedDirectApi: false };
-        }
+const isTimeoutError = (error: unknown): boolean => ["AbortError", "TimeoutError"].includes(errorName(error));
 
-        return {
-          events: await parseCustomsEventsXml(await response.text()),
-          reachedDirectApi: true
-        };
-      })
-    );
+const failedCall = (options: CustomsLookupOptions, timedOut: boolean): UnipassCall => {
+  options.onUnipassCall?.("fail");
+  return { outcome: "failed", timedOut };
+};
 
-    const fulfilled = settled.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
-    reachedDirectApi = reachedDirectApi || fulfilled.some((result) => result.reachedDirectApi);
-    const events = fulfilled.flatMap((result) => result.events);
-    if (events.length > 0) {
-      return { events, reachedDirectApi };
-    }
+/** One UNI-PASS call; headers and body share one cap that never outlives the request deadline. Never rejects. */
+const fetchUnipassCall = async (url: string, options: CustomsLookupOptions): Promise<UnipassCall> => {
+  const capMs = Math.min(LOOKUP_TIMING.unipassCallMs, options.deadline.remainingMs());
+  if (capMs <= 0) return failedCall(options, true);
+  const startedAt = Date.now();
+  const signal = options.deadline.signal(capMs);
+  try {
+    const response = await fetch(url, { signal, cache: "no-store", headers: { "user-agent": USER_AGENT } });
+    if (!response.ok) return failedCall(options, false);
+    const xml = await readTextWithLimit(response, MAX_XML_BYTES, Math.max(1, capMs - (Date.now() - startedAt)));
+    const answer = await readUnipassXml(xml);
+    if (!answer.confirmed) return failedCall(options, false);
+    options.onUnipassCall?.("ok");
+    return { outcome: "answered", events: answer.events };
+  } catch (error) {
+    return failedCall(options, signal.aborted || isTimeoutError(error));
   }
+};
 
-  return { events: [], reachedDirectApi };
+const yearUrls = (request: WaveRequest, year: number): string[] =>
+  PARAMS_BY_TYPE[request.type].map(
+    (param) =>
+      `${request.apiUrl}?${new URLSearchParams({ crkyCn: request.apiKey, blYy: String(year), [param]: request.trackingNumber }).toString()}`
+  );
+
+const runWave = (offsets: readonly number[], request: WaveRequest, options: CustomsLookupOptions): Promise<YearCalls[]> =>
+  Promise.all(
+    offsets.map((offset) =>
+      Promise.all(yearUrls(request, request.year + offset).map((url) => fetchUnipassCall(url, options)))
+    )
+  );
+
+/** Events of the first year (in wave order) that has any; later years are ignored so two shipments never mix. */
+const firstYearEvents = (years: readonly YearCalls[]): TrackingEvent[] => {
+  for (const calls of years) {
+    const events = calls.flatMap((call) => (call.outcome === "answered" ? call.events : []));
+    if (events.length > 0) return events;
+  }
+  return [];
+};
+
+const countAnswered = (years: readonly YearCalls[]): number =>
+  years.reduce((sum, calls) => sum + calls.filter((call) => call.outcome === "answered").length, 0);
+
+const countCalls = (years: readonly YearCalls[]): number => years.reduce((sum, calls) => sum + calls.length, 0);
+
+const anyTimedOut = (years: readonly YearCalls[]): boolean =>
+  years.some((calls) => calls.some((call) => call.outcome === "failed" && call.timedOut));
+
+const toFound = (events: TrackingEvent[]): CustomsLookupResult => ({
+  kind: "found",
+  events: dedupeEvents(events).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())
+});
+
+/** Wave 1 = current and last year; wave 2 (the other four years, in parallel) only when wave 1 found nothing. */
+const lookupDirect = async (request: WaveRequest, options: CustomsLookupOptions): Promise<CustomsLookupResult> => {
+  const first = await runWave(FIRST_WAVE_YEAR_OFFSETS, request, options);
+  const firstEvents = firstYearEvents(first);
+  if (firstEvents.length > 0) return toFound(firstEvents);
+  options.onFirstWaveEmpty?.();
+  if (countAnswered(first) === 0) return { kind: "unavailable", timedOut: anyTimedOut(first) };
+
+  const second = await runWave(SECOND_WAVE_YEAR_OFFSETS, request, options);
+  const secondEvents = firstYearEvents(second);
+  if (secondEvents.length > 0) return toFound(secondEvents);
+  const all = [...first, ...second];
+  return { kind: "empty", complete: countAnswered(all) === countCalls(all) };
 };
 
 const getProxyXml = (payload: unknown): string | null => {
@@ -221,42 +272,68 @@ const getProxyXml = (payload: unknown): string | null => {
   return typeof node?.xml === "string" ? node.xml : null;
 };
 
-const fetchProxyCustomsEvents = async (trackingNumber: string, type: TrackingType): Promise<TrackingEvent[]> => {
+type DirectMiss = Extract<CustomsLookupResult, { kind: "unavailable" } | { kind: "notConfigured" }>;
+
+const proxyMissed = (direct: DirectMiss, timedOut: boolean): CustomsLookupResult =>
+  direct.kind === "unavailable"
+    ? { kind: "unavailable", timedOut: direct.timedOut || timedOut }
+    : { kind: "unavailable", timedOut };
+
+/** InsForge proxy: only after every direct call failed (or without a key), bounded by the deadline. Approval 12 removes it. */
+const lookupViaProxy = async (
+  trackingNumber: string,
+  type: CustomsLookupType,
+  options: CustomsLookupOptions,
+  direct: DirectMiss
+): Promise<CustomsLookupResult> => {
   const proxyUrl = process.env.UNIPASS_PROXY_URL;
-  if (!proxyUrl) {
-    return [];
-  }
-
+  const capMs = Math.min(LOOKUP_TIMING.proxyMs, options.deadline.remainingMs());
+  if (!proxyUrl) return direct;
+  if (capMs <= 0) return proxyMissed(direct, true);
+  const startedAt = Date.now();
   try {
-    const response = await postJsonWithTimeout(proxyUrl, { trackingNumber, type }, 15000);
-    if (!response.ok) {
-      return [];
-    }
-
-    const xml = getProxyXml(await response.json());
-    return xml ? parseCustomsEventsXml(xml) : [];
-  } catch {
-    return [];
+    const response = await postJsonWithTimeout(proxyUrl, { trackingNumber, type }, capMs);
+    if (!response.ok) return proxyMissed(direct, false);
+    const text = await readTextWithLimit(response, MAX_XML_BYTES, Math.max(1, capMs - (Date.now() - startedAt)));
+    const xml = getProxyXml(JSON.parse(text) as unknown);
+    const answer = xml ? await readUnipassXml(xml) : null;
+    if (answer && answer.events.length > 0) return toFound(answer.events);
+    return answer?.confirmed ? { kind: "empty", complete: false } : proxyMissed(direct, false);
+  } catch (error) {
+    return proxyMissed(direct, isTimeoutError(error));
   }
 };
 
-export const fetchCustomsEvents = async (trackingNumber: string, type: TrackingType): Promise<TrackingEvent[]> => {
+/** Looks up UNI-PASS in two waves under one deadline and classifies the outcome. Never rejects. */
+export const lookupCustomsEvents = async (
+  trackingNumber: string,
+  type: CustomsLookupType,
+  options: CustomsLookupOptions
+): Promise<CustomsLookupResult> => {
   const apiKey = process.env.UNIPASS_API_KEY;
-  const apiUrl =
-    process.env.UNIPASS_API_URL ||
-    "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo";
-
-  if (apiKey) {
-    const directResult = await fetchDirectCustomsEvents(buildCustomsRequestUrlBatches(apiUrl, apiKey, trackingNumber, type));
-    if (directResult.events.length > 0) {
-      return dedupeEvents(directResult.events).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
-    }
-
-    if (directResult.reachedDirectApi) {
-      return [];
-    }
+  if (!apiKey) {
+    options.onFirstWaveEmpty?.();
+    return lookupViaProxy(trackingNumber, type, options, { kind: "notConfigured" });
   }
+  const request: WaveRequest = {
+    apiUrl: process.env.UNIPASS_API_URL || DEFAULT_UNIPASS_URL,
+    apiKey,
+    trackingNumber,
+    type,
+    year: new Date().getFullYear()
+  };
+  const direct = await lookupDirect(request, options);
+  return direct.kind === "unavailable" ? lookupViaProxy(trackingNumber, type, options, direct) : direct;
+};
 
-  const proxyEvents = await fetchProxyCustomsEvents(trackingNumber, type);
-  return dedupeEvents(proxyEvents).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+/** Transitional pre-R4 signature kept only until Task A5 switches app/api/track/route.ts; Task A5 deletes it. */
+export const fetchCustomsEvents = async (trackingNumber: string, type: TrackingType): Promise<TrackingEvent[]> => {
+  if (type === "UNKNOWN") return [];
+  const deadline = createLookupDeadline();
+  try {
+    const result = await lookupCustomsEvents(trackingNumber, type, { deadline });
+    return result.kind === "found" ? result.events : [];
+  } finally {
+    deadline.cancel();
+  }
 };

@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { lookupCustomsEvents, type CustomsLookupType } from "@/lib/services/customs";
+import { createLookupDeadline } from "@/lib/services/lookup-budget";
 import {
+  STUB_YEAR,
   callTrack,
   dataOf,
   errorCodeOf,
@@ -267,6 +270,113 @@ test.describe("POST /api/track latency (approval 5)", () => {
         expect(result.status).toBe(200);
         expect(dataOf(result)?.delivery.lookupUnavailable).toBe(true);
       }
+    );
+  });
+});
+
+const runCustoms = async (number: string, type: CustomsLookupType, budgetMs?: number) => {
+  const deadline = createLookupDeadline(budgetMs);
+  const outcomes: string[] = [];
+  let firstWaveEmpty = 0;
+  const startedAt = Date.now();
+  try {
+    const result = await lookupCustomsEvents(number, type, {
+      deadline,
+      onUnipassCall: (outcome) => {
+        outcomes.push(outcome);
+      },
+      onFirstWaveEmpty: () => {
+        firstWaveEmpty += 1;
+      }
+    });
+    return {
+      result,
+      ms: Date.now() - startedAt,
+      ok: outcomes.filter((outcome) => outcome === "ok").length,
+      fail: outcomes.filter((outcome) => outcome === "fail").length,
+      firstWaveEmpty
+    };
+  } finally {
+    deadline.cancel();
+  }
+};
+
+test.describe("customs lookup (two waves under one deadline)", () => {
+  test("the first wave asks only the current and last year", async () => {
+    const number = stubNumber("HBL", 301);
+    await withUpstreams(
+      [{ number, unipass: { mode: "ok", latencyMs: 300 }, found: { param: "hblNo", yearOffset: 0 } }],
+      async (stub) => {
+        const run = await runCustoms(number, "HBL");
+        expect(run.result.kind).toBe("found");
+        expect(run.ms).toBeLessThan(1_000);
+        expect(run.ok).toBe(4);
+        expect(run.firstWaveEmpty).toBe(0);
+        const calls = stub.calls(number);
+        expect([...calls.unipassYears].sort((a, b) => a - b)).toEqual([
+          STUB_YEAR - 1,
+          STUB_YEAR - 1,
+          STUB_YEAR,
+          STUB_YEAR
+        ]);
+        expect(calls.proxy).toBe(0);
+      },
+      { proxy: true }
+    );
+  });
+
+  test("a confirmed empty answer is asked once per year and parameter", async () => {
+    const number = stubNumber("HBL", 302);
+    await withUpstreams([{ number, unipass: { mode: "ok", latencyMs: 50 } }], async (stub) => {
+      const run = await runCustoms(number, "HBL");
+      expect(run.result).toEqual({ kind: "empty", complete: true });
+      expect(run.ok).toBe(12);
+      expect(run.fail).toBe(0);
+      expect(run.firstWaveEmpty).toBe(1);
+      expect(stub.calls(number).unipass).toBe(12);
+    });
+  });
+
+  test("when every call fails the result is unavailable, not empty", async () => {
+    const number = stubNumber("HBL", 303);
+    await withUpstreams([{ number, unipass: { mode: "http500", latencyMs: 50 } }], async (stub) => {
+      const run = await runCustoms(number, "HBL");
+      expect(run.result).toEqual({ kind: "unavailable", timedOut: false });
+      expect(run.fail).toBe(4);
+      expect(stub.calls(number).unipass).toBe(4);
+    });
+  });
+
+  test("timeouts are reported as timed out and stop at the deadline", async () => {
+    const number = stubNumber("HBL", 304);
+    await withUpstreams([{ number, unipass: { mode: "timeout", latencyMs: 0 } }], async (stub) => {
+      const run = await runCustoms(number, "HBL", 1_500);
+      expect(run.result).toEqual({ kind: "unavailable", timedOut: true });
+      expect(run.ms).toBeLessThanOrEqual(2_500);
+      expect(stub.calls(number).unipassAborted).toBe(4);
+    });
+  });
+
+  test("a stalled UNI-PASS body counts as a timeout", async () => {
+    const number = stubNumber("HBL", 305);
+    await withUpstreams([{ number, unipass: { mode: "bodyStall", latencyMs: 0 } }], async () => {
+      const run = await runCustoms(number, "HBL", 1_500);
+      expect(run.result).toEqual({ kind: "unavailable", timedOut: true });
+      expect(run.ms).toBeLessThanOrEqual(2_500);
+    });
+  });
+
+  test("without an API key and a proxy the lookup is notConfigured", async () => {
+    const number = stubNumber("HBL", 306);
+    await withUpstreams(
+      [{ number, unipass: { mode: "ok", latencyMs: 50 } }],
+      async (stub) => {
+        const run = await runCustoms(number, "HBL");
+        expect(run.result).toEqual({ kind: "notConfigured" });
+        expect(run.firstWaveEmpty).toBe(1);
+        expect(stub.calls(number).unipass).toBe(0);
+      },
+      { apiKey: false }
     );
   });
 });
