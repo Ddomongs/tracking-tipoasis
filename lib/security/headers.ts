@@ -80,7 +80,13 @@ export function buildSecurityHeaders(options: SecurityHeaderOptions = {}): Heade
     },
     {
       source: NUMBER_ROUTE_SOURCE,
-      headers: [{ key: "X-Robots-Tag", value: NOINDEX }]
+      headers: [
+        { key: "X-Robots-Tag", value: NOINDEX },
+        // S11: number-route documents never post CSP reports — a report would carry the number in its document-uri.
+        ...(options.reportUri
+          ? [{ key: "Content-Security-Policy-Report-Only", value: reportOnlyCsp({ ...options, reportUri: null }) }]
+          : [])
+      ]
     },
     {
       source: INTERNAL_ROUTES_SOURCE,

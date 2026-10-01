@@ -12,6 +12,10 @@ import {
 } from "@/lib/security/csp-report";
 import type { CspReportSummary } from "@/lib/security/csp-report";
 import { FAKE } from "../fixtures/tracking-fixtures";
+import { NUMBER_ROUTE_SOURCE, buildSecurityHeaders } from "@/lib/security/headers";
+import type { HeaderRule } from "@/lib/security/headers";
+import nextConfig from "@/next.config";
+import * as route from "@/app/api/csp-report/route";
 
 const PAGE = "https://tracking.tipoasis.com";
 const AD_SCRIPT = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-x&url=${encodeURIComponent(`${PAGE}/${FAKE.domestic}`)}`;
@@ -157,5 +161,30 @@ test.describe("CSP report endpoint (S11)", () => {
       expect(response.status).toBe(204);
     }
     expect(lines).toEqual([]);
+  });
+});
+
+const reportOnlyOf = (rule: HeaderRule | undefined): string =>
+  rule?.headers.find((header) => header.key === "Content-Security-Policy-Report-Only")?.value ?? "";
+
+test("the route exports only POST", () => {
+  expect(Object.keys(route).sort()).toEqual(["POST"]);
+});
+
+test.describe("report-uri wiring (S11)", () => {
+  test("next.config.ts sends reports to the endpoint from every page except number routes", async () => {
+    const rules = (await nextConfig.headers?.()) ?? [];
+    const [allRoutes] = rules;
+    const numberRoute = rules.find((rule) => rule.source === NUMBER_ROUTE_SOURCE);
+    expect(reportOnlyOf(allRoutes)).toContain(`report-uri ${CSP_REPORT_PATH}`);
+    expect(reportOnlyOf(numberRoute)).toContain("default-src 'self'");
+    expect(reportOnlyOf(numberRoute)).not.toContain("report-uri");
+  });
+
+  test("the number-route override exists only when a report URI is set", () => {
+    const numberRule = (rules: HeaderRule[]): HeaderRule | undefined => rules.find((rule) => rule.source === NUMBER_ROUTE_SOURCE);
+    expect(reportOnlyOf(numberRule(buildSecurityHeaders()))).toBe("");
+    const withUri = buildSecurityHeaders({ reportUri: CSP_REPORT_PATH, extraScriptHashes: ["'sha256-abc='"] });
+    expect(reportOnlyOf(numberRule(withUri))).toBe(reportOnlyOf(withUri[0]).replace(`; report-uri ${CSP_REPORT_PATH}`, ""));
   });
 });

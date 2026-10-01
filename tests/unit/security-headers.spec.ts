@@ -5,6 +5,7 @@ import { modifyRouteRegex } from "next/dist/lib/redirect-status";
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import nextConfig from "@/next.config";
 import { PREPAINT_CSP_SOURCE } from "@/lib/style/prepaint";
+import { CSP_REPORT_PATH } from "@/lib/security/csp-report";
 import {
   ALL_ROUTES_SOURCE,
   INTERNAL_ROUTES_SOURCE,
@@ -115,7 +116,8 @@ test("next.config.ts serves these rules and drops the X-Powered-By header", asyn
   expect(nextConfig.output).toBe("standalone");
   expect(nextConfig.allowedDevOrigins).toEqual(["127.0.0.1"]);
   // S08: next.config.ts passes the pre-paint script's hash into the Report-Only script-src.
+  // S11: and the CSP report address (next.config.ts CSP_REPORT_URI, equal to CSP_REPORT_PATH).
   expect(await nextConfig.headers?.()).toEqual(
-    buildSecurityHeaders({ extraScriptHashes: [PREPAINT_CSP_SOURCE] }).map((rule) => ({ source: rule.source, headers: [...rule.headers] }))
+    buildSecurityHeaders({ extraScriptHashes: [PREPAINT_CSP_SOURCE], reportUri: CSP_REPORT_PATH }).map((rule) => ({ source: rule.source, headers: [...rule.headers] }))
   );
 });
