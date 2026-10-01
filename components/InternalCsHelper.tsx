@@ -155,6 +155,7 @@ export const InternalCsHelper = () => {
       content,
       trackingMemo: trackingMemo.trim(),
       templateKey,
+      status: "draft",
       createdAt: new Date().toISOString()
     };
     if (!saveRecords([record, ...records])) return;

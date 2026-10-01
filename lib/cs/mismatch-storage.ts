@@ -6,6 +6,16 @@ export const MISMATCH_LEGACY_KEY = "tracking-tipoasis:customs-mismatch-records";
 /** Customer phone numbers stay in this browser at most this long (spec §10; approval-14 fallback). */
 export const MISMATCH_TTL_DAYS = 14;
 
+/** Progress of one mismatch notice (spec §10 상태: 작성·발송·회신·완료). Staff set it by hand; the tool never sends anything. */
+export const MISMATCH_STATUSES = ["draft", "sent", "replied", "done"] as const;
+export type MismatchStatus = (typeof MISMATCH_STATUSES)[number];
+export const MISMATCH_STATUS_LABELS: Readonly<Record<MismatchStatus, string>> = {
+  draft: "작성",
+  sent: "발송",
+  replied: "회신",
+  done: "완료"
+};
+
 const PAYLOAD_VERSION = 1;
 const DAY_MS = 86_400_000;
 const TTL_MS = MISMATCH_TTL_DAYS * DAY_MS;
@@ -16,6 +26,7 @@ export interface MismatchRecord {
   readonly content: string;
   readonly trackingMemo: string;
   readonly templateKey: CustomsMismatchTemplateKey;
+  readonly status: MismatchStatus;
   readonly createdAt: string;
   readonly updatedAt?: string;
 }
@@ -34,6 +45,8 @@ const MismatchRecordSchema = z.object({
   content: z.string(),
   trackingMemo: z.string(),
   templateKey: z.enum(TEMPLATE_KEYS),
+  // Records saved before statuses existed read as 작성 (the rewrite on subscribe then stores the field).
+  status: z.enum(MISMATCH_STATUSES).default("draft"),
   createdAt: z.string().datetime({ offset: true }),
   updatedAt: z.string().datetime({ offset: true }).optional()
 });
@@ -45,6 +58,20 @@ const EMPTY_RECORDS: readonly MismatchRecord[] = [];
 export const createRecordId = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 export const normalizePhone = (value: string): string => value.replace(/[^\d-]/g, "").trim();
+
+export function isMismatchStatus(value: unknown): value is MismatchStatus {
+  return typeof value === "string" && MISMATCH_STATUSES.some((status) => status === value);
+}
+
+/** A copy of `records` with one record's status changed and `updatedAt` set; every other record is the same object. */
+export function withRecordStatus(
+  records: readonly MismatchRecord[],
+  id: string,
+  status: MismatchStatus,
+  now: Date
+): readonly MismatchRecord[] {
+  return records.map((record) => (record.id === id ? { ...record, status, updatedAt: now.toISOString() } : record));
+}
 
 export function serializeMismatchPayload(records: readonly MismatchRecord[]): string {
   return JSON.stringify({ v: PAYLOAD_VERSION, records });

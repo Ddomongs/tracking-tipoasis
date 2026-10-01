@@ -1,9 +1,13 @@
 import { expect, test } from "@playwright/test";
 import {
   MISMATCH_LEGACY_KEY,
+  MISMATCH_STATUSES,
+  MISMATCH_STATUS_LABELS,
   MISMATCH_TTL_DAYS,
+  isMismatchStatus,
   parseMismatchPayload,
   serializeMismatchPayload,
+  withRecordStatus,
   type MismatchRecord
 } from "@/lib/cs/mismatch-storage";
 import { CUSTOMS_MISMATCH_TEMPLATES, type CustomsMismatchTemplateKey } from "@/lib/cs/mismatch-templates";
@@ -18,6 +22,7 @@ const record = (id: string, createdAt: string, templateKey: CustomsMismatchTempl
   content: "통관부호 확인 부탁드립니다.",
   trackingMemo: "ORDER-1",
   templateKey,
+  status: "draft",
   createdAt
 });
 
@@ -82,4 +87,43 @@ test("every template key survives a round trip", () => {
   const keys = Object.keys(CUSTOMS_MISMATCH_TEMPLATES) as CustomsMismatchTemplateKey[];
   const records = keys.map((key, index) => record(`k${index}`, isoDaysAgo(1), key));
   expect(parseMismatchPayload(serializeMismatchPayload(records), NOW).records).toEqual(records);
+});
+
+test("the four statuses keep their order and Korean labels", () => {
+  expect(MISMATCH_STATUSES).toEqual(["draft", "sent", "replied", "done"]);
+  expect(MISMATCH_STATUS_LABELS).toEqual({ draft: "작성", sent: "발송", replied: "회신", done: "완료" });
+  expect(isMismatchStatus("replied")).toBe(true);
+  expect(isMismatchStatus("shipped")).toBe(false);
+  expect(isMismatchStatus(undefined)).toBe(false);
+});
+
+test("records saved before statuses existed read as 작성 and are rewritten once", () => {
+  const old = {
+    id: "old",
+    phone: FAKE.phone,
+    content: "통관부호 확인 부탁드립니다.",
+    trackingMemo: "ORDER-1",
+    templateKey: "default",
+    createdAt: isoDaysAgo(1)
+  };
+  const parsed = parseMismatchPayload(JSON.stringify({ v: 1, records: [old] }), NOW);
+  expect(parsed.records).toEqual([{ ...old, status: "draft" }]);
+  expect(parsed.needsRewrite).toBe(true);
+  expect(parseMismatchPayload(serializeMismatchPayload(parsed.records), NOW).needsRewrite).toBe(false);
+});
+
+test("an unknown status drops the record", () => {
+  const raw = JSON.stringify({ v: 1, records: [{ ...record("odd", isoDaysAgo(1)), status: "shipped" }, record("kept", isoDaysAgo(1))] });
+  expect(parseMismatchPayload(raw, NOW).records.map((item) => item.id)).toEqual(["kept"]);
+});
+
+test("withRecordStatus changes one record, stamps updatedAt and leaves the others and the input untouched", () => {
+  const first = record("a", isoDaysAgo(2));
+  const second = record("b", isoDaysAgo(1));
+  const input: readonly MismatchRecord[] = [first, second];
+  const next = withRecordStatus(input, "b", "sent", FIXTURE_NOW);
+  expect(next[0]).toBe(first);
+  expect(next[1]).toEqual({ ...second, status: "sent", updatedAt: FIXTURE_NOW.toISOString() });
+  expect(input[1].status).toBe("draft");
+  expect(parseMismatchPayload(serializeMismatchPayload(next), NOW).needsRewrite).toBe(false);
 });
