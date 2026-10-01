@@ -94,7 +94,7 @@ test("internal helper turns a failed lookup into a CS reply, never the server me
 
 test("internal helper stores customs mismatch drafts locally", async ({ page }) => {
   await page.goto("/internal/cs-helper");
-  await page.getByRole("button", { name: "통관부호 불일치" }).click();
+  await page.getByRole("tab", { name: "통관부호 불일치" }).click();
 
   await page.getByLabel("휴대폰 번호").fill(FAKE.phone);
   await page.getByLabel("운송장/주문 메모").fill("ORDER-1");
@@ -106,7 +106,7 @@ test("internal helper stores customs mismatch drafts locally", async ({ page }) 
   await expect(page.getByRole("button", { name: "알림톡 준비중" })).toBeDisabled();
 
   await page.reload();
-  await page.getByRole("button", { name: "통관부호 불일치" }).click();
+  await page.getByRole("tab", { name: "통관부호 불일치" }).click();
   await expect(page.getByText(FAKE.phone)).toBeVisible();
 });
 
@@ -128,7 +128,7 @@ test("internal helper keeps mismatch drafts for 14 days and can clear them all",
     JSON.stringify([fresh, expired])
   ] as const);
   await page.reload();
-  await page.getByRole("button", { name: "통관부호 불일치" }).click();
+  await page.getByRole("tab", { name: "통관부호 불일치" }).click();
 
   await expect(page.getByText("ORDER-2", { exact: false })).toBeVisible();
   await expect(page.getByText("ORDER-OLD", { exact: false })).toHaveCount(0);
@@ -164,7 +164,7 @@ test("internal helper still works when the browser refuses storage", async ({ pa
   }, MISMATCH_LEGACY_KEY);
 
   await page.goto("/internal/cs-helper");
-  await page.getByRole("button", { name: "통관부호 불일치" }).click();
+  await page.getByRole("tab", { name: "통관부호 불일치" }).click();
   await expect(page.getByText("저장된 통관부호 불일치 안내가 없습니다.")).toBeVisible();
 
   await page.getByLabel("휴대폰 번호").fill(FAKE.phone);

@@ -56,8 +56,8 @@ const copyText = async (text: string): Promise<boolean> => {
   return true;
 };
 
-export const InternalCsHelper = () => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("delivery");
+export const InternalCsHelper = ({ section }: { readonly section?: ActiveTab }) => {
+  const [activeTab, setActiveTab] = useState<ActiveTab>(section ?? "delivery");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [guide, setGuide] = useState<DeliveryGuide | null>(null);
   const [loading, setLoading] = useState(false);
@@ -174,7 +174,8 @@ export const InternalCsHelper = () => {
   };
 
   return (
-    <main className="pointer-events-auto mx-auto min-h-screen w-full max-w-6xl px-4 pb-20 pt-8 sm:px-6 lg:px-8">
+    <div className="pointer-events-auto mx-auto w-full max-w-6xl px-4 pb-20 pt-8 sm:px-6 lg:px-8">
+      {section !== undefined ? null : (
       <section className="mb-5 flex flex-col gap-4 border-b border-slate-700/70 pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">Internal CS Desk</p>
@@ -212,6 +213,7 @@ export const InternalCsHelper = () => {
           </button>
         </div>
       </section>
+      )}
 
       {error ? (
         <div className="mb-4 rounded-xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
@@ -438,6 +440,6 @@ export const InternalCsHelper = () => {
           </Card>
         </section>
       )}
-    </main>
+    </div>
   );
 };
