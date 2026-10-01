@@ -7,13 +7,16 @@ import {
   initialBulkRows,
   parseBulkInput,
   sortBulkRows,
+  runBulkLookup,
   summarizeBulkView,
+  type BulkFetcher,
   type BulkRow
 } from "@/lib/cs/bulk-lookup";
+import type { FetchTrackResult } from "@/lib/tracking/fetch-track";
 import { deriveTrackingView } from "@/lib/tracking/derive-view";
 import { buildInquiryCopy } from "@/lib/tracking/inquiry-copy";
 import { formatKstDateTight } from "@/lib/tracking/time";
-import type { EtaDate, Tone, TrackingViewModel } from "@/lib/tracking/types";
+import type { EtaDate, LookupOutcome, LookupRequest, Tone, TrackingViewModel } from "@/lib/tracking/types";
 import { customsWaitingData, deliveredData, pendingData, success } from "../fixtures/derive-scenarios";
 import { FAKE, FAKE_GROUPED, FIXTURE_NOW } from "../fixtures/tracking-fixtures";
 
@@ -156,5 +159,218 @@ test.describe("summarizeBulkView", () => {
       "지금은 도착 예상일을 안내하기 어려워요"
     );
     expect(cell({ kind: "unknown", label: "도착 예상", text: "아직 예상일을 계산할 기록이 없어요" }).text).toBe("아직 예상일을 계산할 기록이 없어요");
+  });
+});
+
+test.describe("runBulkLookup", () => {
+  const DELIVERED: FetchTrackResult = { kind: "success", data: deliveredData() };
+  const WAITING: FetchTrackResult = { kind: "success", data: customsWaitingData() };
+  const NOT_FOUND: FetchTrackResult = { kind: "failure", input: { kind: "http", status: 404, code: "NOT_FOUND", isJson: true } };
+  const FALLBACK: FetchTrackResult = { kind: "failure", input: { kind: "timeout" } };
+
+  interface Harness {
+    readonly now: () => Date;
+    readonly wait: (ms: number) => Promise<void>;
+    readonly fetcher: BulkFetcher;
+    readonly starts: readonly number[];
+    readonly requests: readonly LookupRequest[];
+    readonly waits: readonly number[];
+  }
+
+  /** A fake clock: every answer takes `latencyMs` and `wait` advances the clock, so spacing is exact and no real time passes. */
+  function harness(answers: readonly FetchTrackResult[], latencyMs: number): Harness {
+    let clock = FIXTURE_NOW.getTime();
+    const starts: number[] = [];
+    const requests: LookupRequest[] = [];
+    const waits: number[] = [];
+    return {
+      now: () => new Date(clock),
+      wait: async (ms) => {
+        waits.push(ms);
+        if (ms > 0) clock += ms;
+      },
+      fetcher: async (request) => {
+        starts.push(clock);
+        requests.push(request);
+        clock += latencyMs;
+        return answers[requests.length - 1] ?? FALLBACK;
+      },
+      starts,
+      requests,
+      waits
+    };
+  }
+
+  function recorder(): { readonly events: string[]; readonly rows: Map<number, BulkRow>; readonly onRow: (index: number, row: BulkRow) => void } {
+    const events: string[] = [];
+    const rows = new Map<number, BulkRow>();
+    return {
+      events,
+      rows,
+      onRow: (index, row) => {
+        events.push(`${index}:${row.status}`);
+        rows.set(index, row);
+      }
+    };
+  }
+
+  test("looks numbers up one by one, 1000 ms apart, reporting running then done", async () => {
+    const run = harness([DELIVERED, WAITING, NOT_FOUND], 300);
+    const seen = recorder();
+    await runBulkLookup([FAKE.domestic, FAKE.hbl, FAKE.domesticAlt], "AUTO", {
+      signal: new AbortController().signal,
+      now: run.now,
+      wait: run.wait,
+      fetcher: run.fetcher,
+      onRow: seen.onRow
+    });
+    expect(seen.events).toEqual(["0:running", "0:done", "1:running", "1:done", "2:running", "2:done"]);
+    expect(run.starts.map((start) => start - run.starts[0])).toEqual([0, BULK_MIN_INTERVAL_MS, 2 * BULK_MIN_INTERVAL_MS]);
+    expect(run.waits).toEqual([BULK_MIN_INTERVAL_MS - 300, BULK_MIN_INTERVAL_MS - 300]);
+    const second = seen.rows.get(1);
+    if (second === undefined || second.outcome === null) throw new Error("row 1 did not settle");
+    expect(second.outcome).toEqual({
+      kind: "success",
+      request: { number: FAKE.hbl, carrier: "AUTO", entry: "manual" },
+      data: customsWaitingData()
+    });
+    expect(second.view).toEqual(deriveTrackingView(second.outcome, new Date(run.starts[1] + 300), siteConfig));
+    expect(seen.rows.get(2)?.outcome).toEqual({
+      kind: "failure",
+      request: { number: FAKE.domesticAlt, carrier: "AUTO", entry: "manual" },
+      cause: "notFound",
+      consecutiveFailures: 1
+    });
+  });
+
+  test("a slow answer is not followed by an extra wait", async () => {
+    const run = harness([DELIVERED, DELIVERED, DELIVERED], 1500);
+    await runBulkLookup([FAKE.domestic, FAKE.hbl, FAKE.domesticAlt], "AUTO", {
+      signal: new AbortController().signal,
+      now: run.now,
+      wait: run.wait,
+      fetcher: run.fetcher,
+      onRow: () => undefined
+    });
+    expect(run.starts.map((start) => start - run.starts[0])).toEqual([0, 1500, 3000]);
+    expect(run.waits.every((ms) => ms <= 0)).toBe(true);
+  });
+
+  test("every request carries the chosen carrier, and only the first 20 numbers run", async () => {
+    const numbers = Array.from({ length: BULK_MAX + 1 }, (_, index) => fakeNumber(index + 1));
+    const run = harness(numbers.map(() => DELIVERED), 0);
+    await runBulkLookup(numbers, "CJ", {
+      signal: new AbortController().signal,
+      now: run.now,
+      wait: run.wait,
+      fetcher: run.fetcher,
+      onRow: () => undefined
+    });
+    expect(run.requests.map((request) => request.number)).toEqual(numbers.slice(0, BULK_MAX));
+    expect(run.requests.every((request) => request.carrier === "CJ" && request.entry === "manual")).toBe(true);
+  });
+
+  test("stopping mid-request puts that row back in the queue and looks nothing else up", async () => {
+    const controller = new AbortController();
+    const run = harness([DELIVERED], 100);
+    const fetcher: BulkFetcher = async (request, options) => {
+      if (request.number !== FAKE.hbl) return run.fetcher(request, options);
+      controller.abort();
+      return { kind: "aborted" };
+    };
+    const seen = recorder();
+    await runBulkLookup([FAKE.domestic, FAKE.hbl, FAKE.domesticAlt], "AUTO", {
+      signal: controller.signal,
+      now: run.now,
+      wait: run.wait,
+      fetcher,
+      onRow: seen.onRow
+    });
+    expect(seen.events).toEqual(["0:running", "0:done", "1:running", "1:queued"]);
+    expect(seen.rows.get(1)).toEqual({ number: FAKE.hbl, status: "queued", outcome: null, view: null });
+  });
+
+  test("stopping during the wait looks nothing else up", async () => {
+    const controller = new AbortController();
+    const run = harness([DELIVERED, DELIVERED], 100);
+    const seen = recorder();
+    await runBulkLookup([FAKE.domestic, FAKE.hbl], "AUTO", {
+      signal: controller.signal,
+      now: run.now,
+      wait: async () => {
+        controller.abort();
+      },
+      fetcher: run.fetcher,
+      onRow: seen.onRow
+    });
+    expect(seen.events).toEqual(["0:running", "0:done"]);
+    expect(run.requests).toHaveLength(1);
+  });
+
+  test("failures become failure outcomes with one failure each", async () => {
+    const run = harness(
+      [
+        { kind: "failure", input: { kind: "timeout" } },
+        { kind: "failure", input: { kind: "network", online: false } }
+      ],
+      50
+    );
+    const seen = recorder();
+    await runBulkLookup([FAKE.domestic, FAKE.hbl], "AUTO", {
+      signal: new AbortController().signal,
+      now: run.now,
+      wait: run.wait,
+      fetcher: run.fetcher,
+      onRow: seen.onRow
+    });
+    expect(seen.rows.get(0)?.outcome).toMatchObject({ kind: "failure", cause: "clientTimeout", consecutiveFailures: 1 });
+    expect(seen.rows.get(1)?.outcome).toMatchObject({ kind: "failure", cause: "offline", consecutiveFailures: 1 });
+    expect(seen.rows.get(1)?.view?.mode).toBe("error");
+  });
+
+  test("a custom derive builds every settled row's view", async () => {
+    const run = harness([DELIVERED, NOT_FOUND], 10);
+    const derive = (outcome: LookupOutcome, now: Date): TrackingViewModel => ({
+      ...deriveTrackingView(outcome, now, siteConfig),
+      title: "시험용 제목"
+    });
+    const seen = recorder();
+    await runBulkLookup([FAKE.domestic, FAKE.hbl], "AUTO", {
+      signal: new AbortController().signal,
+      now: run.now,
+      wait: run.wait,
+      fetcher: run.fetcher,
+      derive,
+      onRow: seen.onRow
+    });
+    expect([seen.rows.get(0)?.view?.title, seen.rows.get(1)?.view?.title]).toEqual(["시험용 제목", "시험용 제목"]);
+  });
+
+  test("the default wait keeps real requests at least 1000 ms apart", async () => {
+    const starts: number[] = [];
+    await runBulkLookup([FAKE.domestic, FAKE.hbl], "AUTO", {
+      signal: new AbortController().signal,
+      now: () => new Date(),
+      fetcher: async () => {
+        starts.push(Date.now());
+        return DELIVERED;
+      },
+      onRow: () => undefined
+    });
+    expect(starts[1] - starts[0]).toBeGreaterThanOrEqual(BULK_MIN_INTERVAL_MS - 5);
+  });
+
+  test("the default wait ends at once when stopped", async () => {
+    const controller = new AbortController();
+    const startedAt = Date.now();
+    await runBulkLookup([FAKE.domestic, FAKE.hbl], "AUTO", {
+      signal: controller.signal,
+      now: () => new Date(),
+      fetcher: async () => DELIVERED,
+      onRow: (_, row) => {
+        if (row.status === "done") controller.abort();
+      }
+    });
+    expect(Date.now() - startedAt).toBeLessThan(500);
   });
 });

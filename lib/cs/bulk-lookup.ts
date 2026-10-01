@@ -1,7 +1,12 @@
+import { siteConfig } from "@/config/site.config";
+import { classifyFailure } from "@/lib/tracking/classify-failure";
+import { deriveTrackingView } from "@/lib/tracking/derive-view";
+import { fetchTrack, type FetchTrackResult } from "@/lib/tracking/fetch-track";
 import { parseInquiryCopy } from "@/lib/tracking/inquiry-copy";
 import { normalizeInput, precheckNumber } from "@/lib/tracking/number-input";
 import { formatKstDateTight } from "@/lib/tracking/time";
-import type { EtaView, LookupOutcome, Tone, TrackingViewModel } from "@/lib/tracking/types";
+import type { EtaView, LookupOutcome, LookupRequest, Tone, TrackingViewModel } from "@/lib/tracking/types";
+import type { DeliveryCarrierCode } from "@/lib/types";
 
 // Internal-only (contract §11.1 rule 4): the CS desk's 배송 안내 tab (spec §10 ①). Up to 20 numbers per run, looked up
 // one at a time so the per-IP limit of 60 per minute holds.
@@ -23,6 +28,25 @@ export interface BulkParseResult {
   readonly rejected: readonly string[];
   /** True when more than BULK_MAX numbers were pasted. */
   readonly truncated: boolean;
+}
+
+export type BulkFetcher = (
+  request: LookupRequest,
+  options: { readonly signal: AbortSignal; readonly timeoutMs: number }
+) => Promise<FetchTrackResult>;
+
+export interface BulkRunOptions {
+  readonly signal: AbortSignal;
+  readonly onRow: (index: number, row: BulkRow) => void;
+  readonly now: () => Date;
+  /** Default fetchTrack (the only /api/track caller); tests inject answers. */
+  readonly fetcher?: BulkFetcher;
+  /** Default: a setTimeout that ends early when `signal` aborts. */
+  readonly wait?: (ms: number, signal: AbortSignal) => Promise<void>;
+  /** Default deriveTrackingView with the shipped config; the desk passes deriveResultView (the customer page's view). */
+  readonly derive?: (outcome: LookupOutcome, now: Date) => TrackingViewModel;
+  /** Default siteConfig.lookup.timeoutMs. */
+  readonly timeoutMs?: number;
 }
 
 /** Line breaks, commas, semicolons and tabs separate entries. */
@@ -70,6 +94,66 @@ export function queuedRow(number: string): BulkRow {
 
 export function initialBulkRows(numbers: readonly string[]): readonly BulkRow[] {
   return numbers.map(queuedRow);
+}
+
+/** An abortable pause; resolves at once for ms ≤ 0 or an aborted signal. */
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (ms <= 0 || signal.aborted) {
+      resolve();
+      return;
+    }
+    const finish = (): void => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", finish);
+      resolve();
+    };
+    const timer = setTimeout(finish, ms);
+    signal.addEventListener("abort", finish, { once: true });
+  });
+}
+
+const deriveWithSiteConfig = (outcome: LookupOutcome, now: Date): TrackingViewModel => deriveTrackingView(outcome, now, siteConfig);
+
+function toOutcome(request: LookupRequest, result: Exclude<FetchTrackResult, { kind: "aborted" }>): LookupOutcome {
+  return result.kind === "success"
+    ? { kind: "success", request, data: result.data }
+    : { kind: "failure", request, cause: classifyFailure(result.input), consecutiveFailures: 1 };
+}
+
+/**
+ * Looks the numbers up in order, one request at a time, starting requests at least BULK_MIN_INTERVAL_MS apart.
+ * Reports each row as running, then done with its outcome and view (or queued again when stopped mid-request).
+ * Resolves when every number ran or `signal` aborted; never rejects.
+ */
+export async function runBulkLookup(
+  numbers: readonly string[],
+  carrier: DeliveryCarrierCode,
+  options: BulkRunOptions
+): Promise<void> {
+  const fetcher = options.fetcher ?? fetchTrack;
+  const wait = options.wait ?? pause;
+  const derive = options.derive ?? deriveWithSiteConfig;
+  const timeoutMs = options.timeoutMs ?? siteConfig.lookup.timeoutMs;
+  const batch = numbers.slice(0, BULK_MAX);
+  let previousStart: number | null = null;
+  for (let index = 0; index < batch.length; index += 1) {
+    const number = batch[index];
+    if (previousStart !== null) {
+      await wait(previousStart + BULK_MIN_INTERVAL_MS - options.now().getTime(), options.signal);
+    }
+    if (options.signal.aborted) return;
+    previousStart = options.now().getTime();
+    options.onRow(index, { number, status: "running", outcome: null, view: null });
+    const request: LookupRequest = { number, carrier, entry: "manual" };
+    const result = await fetcher(request, { signal: options.signal, timeoutMs });
+    if (result.kind === "aborted") {
+      options.onRow(index, queuedRow(number));
+      return;
+    }
+    const outcome = toOutcome(request, result);
+    options.onRow(index, { number, status: "done", outcome, view: derive(outcome, options.now()) });
+  }
 }
 
 /** 문제 first, then 확인 필요, then every other settled row, then rows still waiting; the pasted order inside each group. */
