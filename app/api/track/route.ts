@@ -56,6 +56,8 @@ interface LookupTarget {
 interface CustomsOutcome {
   readonly unipass: CustomsLookupResult;
   readonly events: TrackingEvent[];
+  /** UNI-PASS answered "no record" on every call and customstrack answered too: only then may "nothing" be cached. */
+  readonly answeredEmpty: boolean;
 }
 
 const errorResponse = (error: ApiError, status: number): Response =>
@@ -129,13 +131,19 @@ const settleDelivery = (target: LookupTarget, deadline: LookupDeadline): Promise
   return Promise.race([lookup, expired]);
 };
 
-const fetchCustomstrackWithin = async (number: string, deadline: LookupDeadline): Promise<TrackingEvent[]> => {
+interface FallbackResult {
+  readonly events: TrackingEvent[];
+  /** False when customstrack timed out or failed: its "no events" is then not an answer. */
+  readonly ok: boolean;
+}
+
+const fetchCustomstrackWithin = async (number: string, deadline: LookupDeadline): Promise<FallbackResult> => {
   const capMs = Math.min(LOOKUP_TIMING.customstrackMs, deadline.remainingMs());
-  if (capMs <= 0) return [];
+  if (capMs <= 0) return { events: [], ok: false };
   try {
-    return await fetchCustomstrackCustomsEvents(number, { timeoutMs: capMs, signal: deadline.signal(capMs) });
+    return { events: await fetchCustomstrackCustomsEvents(number, { timeoutMs: capMs, signal: deadline.signal(capMs) }), ok: true };
   } catch {
-    return [];
+    return { events: [], ok: false };
   }
 };
 
@@ -145,8 +153,8 @@ const lookupCustomsWithFallback = async (
   deadline: LookupDeadline,
   tally: UnipassTally
 ): Promise<CustomsOutcome> => {
-  let fallback: Promise<TrackingEvent[]> | null = null;
-  const startFallback = (): Promise<TrackingEvent[]> => {
+  let fallback: Promise<FallbackResult> | null = null;
+  const startFallback = (): Promise<FallbackResult> => {
     const current = fallback ?? fetchCustomstrackWithin(target.number, deadline);
     fallback = current;
     return current;
@@ -158,8 +166,13 @@ const lookupCustomsWithFallback = async (
       void startFallback();
     }
   });
-  if (unipass.kind === "found") return { unipass, events: unipass.events };
-  return { unipass, events: await startFallback() };
+  if (unipass.kind === "found") return { unipass, events: unipass.events, answeredEmpty: false };
+  const fallbackResult = await startFallback();
+  return {
+    unipass,
+    events: fallbackResult.events,
+    answeredEmpty: unipass.kind === "empty" && unipass.complete && fallbackResult.ok
+  };
 };
 
 const successOutcome = (
@@ -182,7 +195,7 @@ const successOutcome = (
 
 const pendingOutcome = (target: LookupTarget, customs: CustomsOutcome, deliveryLookup: DeliveryLookupResult): RouteOutcome => {
   const data = normalizeTrackingData({ trackingNumber: target.number, type: target.type, customsEvents: [], deliveryLookup });
-  if (customs.unipass.kind === "empty" && customs.unipass.complete) {
+  if (customs.answeredEmpty) {
     setCache(target.cacheKey, data, LOOKUP_CACHE_SECONDS.pending);
   }
   return { response: successResponse(data), kind: "pending", code: null };
@@ -192,7 +205,7 @@ const resolveCustomsOnly = async (target: LookupTarget, deadline: LookupDeadline
   const customs = await lookupCustomsWithFallback(target, deadline, tally);
   if (customs.events.length > 0) return successOutcome(target, customs.events, autoDelivery(), "found");
   if (customs.unipass.kind === "unavailable") return allFailedOutcome(customs.unipass.timedOut);
-  if (customs.unipass.kind === "empty" && customs.unipass.complete) {
+  if (customs.answeredEmpty) {
     setCache(notFoundCacheKey(target.cacheKey), true, LOOKUP_CACHE_SECONDS.notFound);
   }
   return notFoundOutcome("notFound");
@@ -221,9 +234,8 @@ const resolveDomestic = async (target: LookupTarget, deadline: LookupDeadline, t
     customsLookup,
     Math.min(LOOKUP_TIMING.customsGraceAfterCarrierMs, deadline.remainingMs())
   );
-  return customs === null
-    ? successOutcome(target, [], deliveryLookup, "carrierFirst")
-    : successOutcome(target, customs.events, deliveryLookup, "found");
+  const customsEvents = customs?.events ?? [];
+  return successOutcome(target, customsEvents, deliveryLookup, customsEvents.length > 0 ? "found" : "carrierFirst");
 };
 
 const readTarget = async (request: Request): Promise<LookupTarget | null> => {

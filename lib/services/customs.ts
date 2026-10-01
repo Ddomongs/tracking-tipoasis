@@ -1,7 +1,7 @@
 import { parseStringPromise } from "xml2js";
 import type { TrackingEvent, TrackingType } from "@/lib/types";
 import { toIsoOrNow } from "@/lib/utils";
-import { postJsonWithTimeout, readTextWithLimit } from "@/lib/services/http";
+import { readTextWithLimit } from "@/lib/services/http";
 import { LOOKUP_TIMING, type LookupDeadline } from "@/lib/services/lookup-budget";
 import type { UnipassCallOutcome } from "@/lib/services/lookup-log";
 
@@ -184,9 +184,17 @@ const eventsFromParsedXml = (parsed: unknown): TrackingEvent[] => {
 };
 
 /** A UNI-PASS answer is "confirmed" only when it carries the cargCsclPrgsInfoQryRtnVo envelope. */
+/** Error answers (wrong or expired key, call quota) arrive in the same envelope with a negative tCnt. */
+const isErrorAnswer = (envelope: unknown): boolean => {
+  const node = toRecord(Array.isArray(envelope) ? envelope[0] : envelope);
+  const count = node ? getString(node, "tCnt") : undefined;
+  return count !== undefined && Number(count) < 0;
+};
+
 const readUnipassXml = async (xml: string): Promise<{ readonly confirmed: boolean; readonly events: TrackingEvent[] }> => {
   const parsed: unknown = await parseStringPromise(xml, { explicitArray: false, trim: true });
-  return { confirmed: toRecord(parsed)?.cargCsclPrgsInfoQryRtnVo !== undefined, events: eventsFromParsedXml(parsed) };
+  const envelope = toRecord(parsed)?.cargCsclPrgsInfoQryRtnVo;
+  return { confirmed: envelope !== undefined && !isErrorAnswer(envelope), events: eventsFromParsedXml(parsed) };
 };
 
 const errorName = (error: unknown): string =>
@@ -294,8 +302,13 @@ const lookupViaProxy = async (
   if (capMs <= 0) return proxyMissed(direct, true);
   const startedAt = Date.now();
   try {
-    const response = await postJsonWithTimeout(proxyUrl, { trackingNumber, type }, capMs, {
-      [PROXY_SECRET_HEADER]: proxySecret
+    // The deadline's signal: the proxy call ends with the request (e.g. after a carrier-first answer), not only at its cap.
+    const response = await fetch(proxyUrl, {
+      method: "POST",
+      body: JSON.stringify({ trackingNumber, type }),
+      signal: options.deadline.signal(capMs),
+      cache: "no-store",
+      headers: { "content-type": "application/json", "user-agent": USER_AGENT, [PROXY_SECRET_HEADER]: proxySecret }
     });
     if (!response.ok) return proxyMissed(direct, false);
     const text = await readTextWithLimit(response, MAX_XML_BYTES, Math.max(1, capMs - (Date.now() - startedAt)));

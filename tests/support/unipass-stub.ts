@@ -15,7 +15,7 @@ export const STUB_PROXY_URL = "https://proxy.stub/functions/unipass-proxy";
 export const STUB_PROXY_SECRET = "stub-proxy-secret";
 export const STUB_YEAR = new Date().getFullYear();
 
-export type UnipassMode = "ok" | "timeout" | "http500" | "refused" | "bodyStall";
+export type UnipassMode = "ok" | "timeout" | "http500" | "refused" | "bodyStall" | "errorAnswer";
 export type UnipassParam = "hblNo" | "mblNo" | "cargMtNo";
 export type StubNumberKind = "HBL" | "DOMESTIC" | "CARGO";
 
@@ -33,6 +33,7 @@ export interface UpstreamCalls {
   readonly unipassAborted: number;
   readonly unipassYears: readonly number[];
   readonly proxy: number;
+  readonly proxyAborted: number;
   readonly customstrack: number;
   readonly carriers: number;
 }
@@ -56,6 +57,9 @@ const FOUND_XML =
   "<cargCsclPrgsInfoDtlQryVo><cargTrcnRelaBsopTpcd>입항보고 수리</cargTrcnRelaBsopTpcd><prcsDttm>2026-09-22 08:40:00</prcsDttm><shedNm>인천공항</shedNm></cargCsclPrgsInfoDtlQryVo>" +
   "<cargCsclPrgsInfoDtlQryVo><cargTrcnRelaBsopTpcd>수입신고수리</cargTrcnRelaBsopTpcd><prcsDttm>2026-09-23 10:05:00</prcsDttm><shedNm>인천공항</shedNm></cargCsclPrgsInfoDtlQryVo>" +
   "</cargCsclPrgsInfoQryRtnVo>";
+/** UNI-PASS error answers (wrong or expired key, quota) come in the same envelope with a negative tCnt. */
+const ERROR_XML =
+  '<?xml version="1.0" encoding="UTF-8"?><cargCsclPrgsInfoQryRtnVo><tCnt>-1</tCnt><ntceInfo>[E00] 인증키 오류</ntceInfo></cargCsclPrgsInfoQryRtnVo>';
 const EMPTY_XML =
   '<?xml version="1.0" encoding="UTF-8"?><cargCsclPrgsInfoQryRtnVo><tCnt>0</tCnt><ntceInfo>[N00] 조회결과가 없습니다.</ntceInfo></cargCsclPrgsInfoQryRtnVo>';
 const CJ_FOUND = JSON.stringify({
@@ -81,6 +85,7 @@ interface MutableCalls {
   unipassAborted: number;
   unipassYears: number[];
   proxy: number;
+  proxyAborted: number;
   customstrack: number;
   carriers: number;
 }
@@ -134,7 +139,7 @@ export function installUpstreamStub(scenarios: readonly UpstreamScenario[], opti
   const record = (number: string): MutableCalls => {
     const existing = calls.get(number);
     if (existing) return existing;
-    const created: MutableCalls = { unipass: 0, unipassAborted: 0, unipassYears: [], proxy: 0, customstrack: 0, carriers: 0 };
+    const created: MutableCalls = { unipass: 0, unipassAborted: 0, unipassYears: [], proxy: 0, proxyAborted: 0, customstrack: 0, carriers: 0 };
     calls.set(number, created);
     return created;
   };
@@ -162,6 +167,9 @@ export function installUpstreamStub(scenarios: readonly UpstreamScenario[], opti
       throw error;
     }
     if (mode === "refused") throw new TypeError("fetch failed");
+    if (mode === "errorAnswer") {
+      return new Response(ERROR_XML, { status: 200, headers: { "content-type": "application/xml" } });
+    }
     if (mode === "http500" || failYearOffsets.includes(year - STUB_YEAR)) {
       return new Response("Internal Server Error", { status: 500 });
     }
@@ -177,9 +185,15 @@ export function installUpstreamStub(scenarios: readonly UpstreamScenario[], opti
         ? parsed.trackingNumber
         : "";
     const scenario = scenarioFor(number);
-    record(number).proxy += 1;
+    const counter = record(number);
+    counter.proxy += 1;
     const { mode, latencyMs } = scenario.proxy ?? DEFAULT_PROXY;
-    await delay(mode === "timeout" ? FOREVER_MS : latencyMs, init?.signal);
+    try {
+      await delay(mode === "timeout" ? FOREVER_MS : latencyMs, init?.signal);
+    } catch (error) {
+      counter.proxyAborted += 1;
+      throw error;
+    }
     return new Response("No backend services available for app", { status: 503 });
   };
 

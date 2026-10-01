@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { lookupCustomsEvents, type CustomsLookupType } from "@/lib/services/customs";
 import { createLookupDeadline } from "@/lib/services/lookup-budget";
+import { setLookupLogSink } from "@/lib/services/lookup-log";
 import {
   STUB_YEAR,
   callTrack,
@@ -378,5 +379,77 @@ test.describe("customs lookup (two waves under one deadline)", () => {
       },
       { apiKey: false }
     );
+  });
+});
+
+test.describe("review fixes (S10)", () => {
+  test("a UNI-PASS error answer (negative tCnt) is a failed call, not NOT_FOUND", async () => {
+    const number = stubNumber("HBL", 501);
+    await withUpstreams([{ number, unipass: { mode: "errorAnswer", latencyMs: 50 } }], async () => {
+      const result = await callTrack(number);
+      expect(result.status).toBe(503);
+      expect(errorCodeOf(result)).toBe("API_TIMEOUT");
+    });
+  });
+
+  test("a NOT_FOUND whose customstrack fallback failed is not cached", async () => {
+    const number = stubNumber("HBL", 502);
+    await withUpstreams(
+      [{ number, unipass: { mode: "ok", latencyMs: 50 }, customstrack: { mode: "timeout", latencyMs: 0 } }],
+      async (stub) => {
+        expect((await callTrack(number)).status).toBe(404);
+        expect((await callTrack(number)).status).toBe(404);
+        expect(stub.calls(number).unipass).toBe(24);
+      }
+    );
+  });
+
+  test("the proxy call is aborted once a carrier-first answer is sent", async () => {
+    const number = stubNumber("DOMESTIC", 503);
+    await withUpstreams(
+      [
+        {
+          number,
+          unipass: { mode: "http500", latencyMs: 50 },
+          proxy: { mode: "timeout", latencyMs: 0 },
+          carriers: { mode: "ok", latencyMs: 800, cjFound: true }
+        }
+      ],
+      async (stub) => {
+        const result = await callTrack(number);
+        expect(result.status).toBe(200);
+        expect(result.ms).toBeLessThanOrEqual(3_500);
+        expect(stub.calls(number).proxy).toBe(1);
+        // The proxy's own 5 s cap would end it later; the end of the request must end it now.
+        await expect.poll(() => stub.calls(number).proxyAborted, { timeout: 1_000 }).toBe(1);
+      },
+      { proxy: true }
+    );
+  });
+
+  test("a carrier answer with customs empty inside the grace period is logged as carrierFirst", async () => {
+    const number = stubNumber("DOMESTIC", 504);
+    const lines: string[] = [];
+    setLookupLogSink((line) => {
+      lines.push(line);
+    });
+    try {
+      await withUpstreams(
+        [
+          {
+            number,
+            unipass: { mode: "ok", latencyMs: 50 },
+            customstrack: { mode: "empty", latencyMs: 50 },
+            carriers: { mode: "ok", latencyMs: 800, cjFound: true }
+          }
+        ],
+        async () => {
+          expect((await callTrack(number)).status).toBe(200);
+        }
+      );
+    } finally {
+      setLookupLogSink(null);
+    }
+    expect(lines.some((line) => line.includes('"resultKind":"carrierFirst"'))).toBe(true);
   });
 });
