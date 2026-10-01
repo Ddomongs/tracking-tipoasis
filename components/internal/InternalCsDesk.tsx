@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { InternalCsHelper } from "@/components/InternalCsHelper";
+import { MismatchTab } from "./MismatchTab";
 import { DEFAULT_INTERNAL_TAB, INTERNAL_TAB_IDS, INTERNAL_TAB_LABELS, type InternalTabId } from "./tabs";
 import { HELP_CLASS } from "./ui";
 
@@ -35,7 +36,7 @@ function TabContent({ id }: { readonly id: InternalTabId }): React.JSX.Element {
     case "delivery":
       return <InternalCsHelper section="delivery" />;
     case "mismatch":
-      return <InternalCsHelper section="mismatch" />;
+      return <MismatchTab />;
   }
 }
 
