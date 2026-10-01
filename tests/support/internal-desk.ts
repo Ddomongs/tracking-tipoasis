@@ -4,6 +4,7 @@ import { INTERNAL_TAB_LABELS, type InternalTabId } from "@/components/internal/t
 declare global {
   interface Window {
     __ttCopied?: string[];
+    __ttTrackStarts?: number[];
   }
 }
 
@@ -32,4 +33,33 @@ export async function recordClipboard(page: Page): Promise<void> {
 
 export async function copiedTexts(page: Page): Promise<readonly string[]> {
   return page.evaluate(() => window.__ttCopied ?? []);
+}
+
+/** A clipboard that refuses every write (the API rejects, execCommand('copy') fails), like a locked-down browser. */
+export async function blockClipboard(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: (): Promise<void> => Promise.reject(new DOMException("blocked", "NotAllowedError")) }
+    });
+    document.execCommand = (): boolean => false;
+  });
+}
+
+/** Records performance.now() whenever the page starts a request to /api/track. */
+export async function recordTrackStarts(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const starts: number[] = [];
+    window.__ttTrackStarts = starts;
+    const original = window.fetch.bind(window);
+    window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes("/api/track")) starts.push(performance.now());
+      return original(input, init);
+    };
+  });
+}
+
+export async function trackStarts(page: Page): Promise<readonly number[]> {
+  return page.evaluate(() => window.__ttTrackStarts ?? []);
 }

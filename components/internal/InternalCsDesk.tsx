@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { InternalCsHelper } from "@/components/InternalCsHelper";
+import { DeliveryGuideTab } from "./DeliveryGuideTab";
 import { MismatchTab } from "./MismatchTab";
 import { DEFAULT_INTERNAL_TAB, INTERNAL_TAB_IDS, INTERNAL_TAB_LABELS, type InternalTabId } from "./tabs";
 import { HELP_CLASS } from "./ui";
@@ -34,7 +34,7 @@ function targetIndex(key: string, index: number, last: number): number | null {
 function TabContent({ id }: { readonly id: InternalTabId }): React.JSX.Element {
   switch (id) {
     case "delivery":
-      return <InternalCsHelper section="delivery" />;
+      return <DeliveryGuideTab />;
     case "mismatch":
       return <MismatchTab />;
   }
