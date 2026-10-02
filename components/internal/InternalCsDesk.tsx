@@ -5,6 +5,7 @@ import { DeliveryGuideTab } from "./DeliveryGuideTab";
 import { MismatchTab } from "./MismatchTab";
 import { NoticeStatusTab } from "./NoticeStatusTab";
 import { PreviewTab } from "./PreviewTab";
+import { SiteSettingsTab } from "./SiteSettingsTab";
 import { DEFAULT_INTERNAL_TAB, INTERNAL_TAB_IDS, INTERNAL_TAB_LABELS, type InternalTabId } from "./tabs";
 import { HELP_CLASS } from "./ui";
 
@@ -52,6 +53,8 @@ function TabContent({ id, now }: { readonly id: InternalTabId; readonly now: Dat
       return <PreviewTab now={now} />;
     case "notices":
       return <NoticeStatusTab now={now} />;
+    case "site":
+      return <SiteSettingsTab />;
   }
 }
 

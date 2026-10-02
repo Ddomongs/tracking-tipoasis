@@ -1,6 +1,6 @@
 import { FailureFallback } from "@/components/lookup/FailureFallback";
 import { buttonClassName } from "@/components/primitives/Button";
-import { STORE_SHEET_ID, STORE_SHEET_OPEN_LABEL } from "@/components/supplementary/store-sheet";
+import { STORE_SHEET_ID } from "@/components/supplementary/store-sheet";
 
 export const SHORTCUT_REGION_LABEL = "상담·스토어 바로가기";
 const OPEN_CLASS = buttonClassName("secondary", "md", "w-full");
@@ -32,7 +32,7 @@ function StoreIcon(): React.JSX.Element {
  * fixed panel beside the column, so the button hides (app/globals.css). While the number is invalid only 톡톡 stays — as
  * the error CTA block, so the screen keeps one 톡톡 place besides the header and the footer (spec §8 "화면당 최대 3곳").
  */
-export function ShortcutRow({ mode }: { readonly mode: "full" | "talkOnly" }): React.JSX.Element {
+export function ShortcutRow({ mode, openLabel }: { readonly mode: "full" | "talkOnly"; readonly openLabel: string }): React.JSX.Element {
   if (mode === "talkOnly") {
     return (
       <section aria-label={SHORTCUT_REGION_LABEL} data-shortcut-row="talkOnly">
@@ -52,7 +52,7 @@ export function ShortcutRow({ mode }: { readonly mode: "full" | "talkOnly" }): R
         className={OPEN_CLASS}
       >
         <StoreIcon />
-        {STORE_SHEET_OPEN_LABEL}
+        {openLabel}
       </button>
     </section>
   );

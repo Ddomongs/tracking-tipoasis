@@ -80,7 +80,7 @@ test("a panel keeps what staff typed while another tab is shown", async ({ page 
   await expect(page.getByLabel("운송장/주문 메모", { exact: true })).toHaveValue("ORDER-KEEP");
 });
 
-test("the desk has the four tabs of spec §10, in order", () => {
-  expect(INTERNAL_TAB_IDS).toEqual(["delivery", "mismatch", "preview", "notices"]);
-  expect(INTERNAL_TAB_IDS.map((id) => INTERNAL_TAB_LABELS[id])).toEqual(["배송 안내", "통관부호 불일치", "안내표 미리보기", "공지 현황"]);
+test("the desk has the four tabs of spec §10 and the site-settings tab (10월 2일), in order", () => {
+  expect(INTERNAL_TAB_IDS).toEqual(["delivery", "mismatch", "preview", "notices", "site"]);
+  expect(INTERNAL_TAB_IDS.map((id) => INTERNAL_TAB_LABELS[id])).toEqual(["배송 안내", "통관부호 불일치", "안내표 미리보기", "공지 현황", "사이트 문구·링크"]);
 });

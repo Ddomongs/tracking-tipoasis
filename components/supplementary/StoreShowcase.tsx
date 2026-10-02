@@ -1,23 +1,21 @@
 import { AffiliateLinkGroup } from "@/components/primitives/AffiliateLinkGroup";
 import { ButtonLink } from "@/components/primitives/ButtonLink";
 import { STORE_SHEET_ID } from "@/components/supplementary/store-sheet";
-import { channels, disclosures, resultCopy } from "@/config/site.config";
-import type { StoreChannelId } from "@/lib/config/types";
+import { channels, disclosures } from "@/config/site.config";
+import type { SiteSettings } from "@/lib/site-settings/settings";
 import type { StoreLinksView } from "@/lib/tracking/types";
 
 const TITLE_ID = "store-showcase-title";
-const STORE_ORDER: readonly StoreChannelId[] = ["naver", "coupang"];
-const INTRO = "베스트 상품과 특가는 스토어에서 바로 볼 수 있어요.";
 const CLOSE_LABEL = "닫기";
 
-function showcaseLinks(): StoreLinksView {
-  const links = STORE_ORDER.map((id) => {
-    const store = channels[id];
-    return { channel: id, label: store.linkLabel, href: store.urls.showcase, isAffiliate: store.isAffiliate, weight: "secondary" as const };
-  });
+function showcaseLinks(settings: SiteSettings): StoreLinksView {
+  const links = [
+    { channel: "naver" as const, label: settings.naverLabel, href: settings.naverUrl, isAffiliate: channels.naver.isAffiliate, weight: "secondary" as const },
+    { channel: "coupang" as const, label: settings.coupangLabel, href: settings.coupangUrl, isAffiliate: channels.coupang.isAffiliate, weight: "secondary" as const }
+  ];
   return {
     placement: "showcase",
-    intro: INTRO,
+    intro: settings.storeIntro,
     disclosure: links.some((link) => link.isAffiliate) ? disclosures.coupang : null,
     links
   };
@@ -28,9 +26,9 @@ function showcaseLinks(): StoreLinksView {
  * and the operator's YouTube channel once configured. One element serves both layouts (app/globals.css): a native
  * popover sheet opened by '스토어·추천 상품 보기' on narrow screens, a fixed panel right of the column from 1260 px.
  * A server component that TrackingPage passes as an idle extra, so it never shows in loading, result or error modes.
+ * Words and links come from the staff-edited site settings (lib/site-settings, defaults in config/site.config.ts).
  */
-export function StoreShowcase(): React.JSX.Element {
-  const youtube = channels.youtube;
+export function StoreShowcase({ settings }: { readonly settings: SiteSettings }): React.JSX.Element {
   return (
     <section
       id={STORE_SHEET_ID}
@@ -41,7 +39,7 @@ export function StoreShowcase(): React.JSX.Element {
     >
       <div className="flex items-center justify-between gap-2">
         <h2 id={TITLE_ID} className="m-0 text-tt-lg font-bold [word-break:keep-all]">
-          {resultCopy.showcaseTitle}
+          {settings.storeTitle}
         </h2>
         <button
           type="button"
@@ -53,10 +51,10 @@ export function StoreShowcase(): React.JSX.Element {
           {CLOSE_LABEL}
         </button>
       </div>
-      <AffiliateLinkGroup stores={showcaseLinks()} layout="row" />
-      {youtube.url === null ? null : (
+      <AffiliateLinkGroup stores={showcaseLinks(settings)} layout="row" />
+      {settings.youtubeUrl === "" ? null : (
         <div data-youtube-channel="true">
-          <ButtonLink href={youtube.url} variant="secondary" external label={youtube.linkLabel} />
+          <ButtonLink href={settings.youtubeUrl} variant="secondary" external label={settings.youtubeLabel} />
         </div>
       )}
     </section>

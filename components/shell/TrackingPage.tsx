@@ -3,6 +3,8 @@ import { TypicalDurations } from "@/components/lookup/TypicalDurations";
 import { StoreShowcase } from "@/components/supplementary/StoreShowcase";
 import { ShowcaseReachedSignal } from "@/components/ads/ShowcaseReachedSignal";
 import { lookup, notices } from "@/config/site.config";
+import { readSiteSettings } from "@/lib/site-settings/store";
+import type { SiteSettings } from "@/lib/site-settings/settings";
 import { pickNotice, toNoticeView } from "@/lib/tracking/notices";
 import type { NoticeView, TrackingEntry } from "@/lib/tracking/types";
 
@@ -17,8 +19,9 @@ function currentHomeNotice(): NoticeView | null {
  * `entry`: home; a valid deep link (painted as the number bar + '조회하고 있어요'); an INVALID deep link (the form with
  * the error, no API call). Without JavaScript a deep link says why no result appears (spec §3 noscript).
  */
-export function TrackingPage({ entry }: { readonly entry: TrackingEntry }): React.JSX.Element {
+export async function TrackingPage({ entry }: { readonly entry: TrackingEntry }): Promise<React.JSX.Element> {
   const homeNotice = entry.kind === "home" ? currentHomeNotice() : null;
+  const { settings } = await readSiteSettings();
   return (
     <main
       id="main-content"
@@ -36,21 +39,22 @@ export function TrackingPage({ entry }: { readonly entry: TrackingEntry }): Reac
       <LookupController
         entry={entry}
         homeNotice={homeNotice}
-        idleExtras={<IdleExtras />}
+        idleExtras={<IdleExtras settings={settings} />}
+        storeSheetLabel={settings.storeButtonLabel}
       />
     </main>
   );
 }
 
 /** Below the first view, idle mode only (spec §4 order): typical durations, then the store showcase. */
-function IdleExtras(): React.JSX.Element {
+function IdleExtras({ settings }: { readonly settings: SiteSettings }): React.JSX.Element {
   return (
     <>
       <div className="px-[var(--tt-gutter)] pb-6">
         <TypicalDurations />
       </div>
       <ShowcaseReachedSignal />
-      <StoreShowcase />
+      <StoreShowcase settings={settings} />
     </>
   );
 }

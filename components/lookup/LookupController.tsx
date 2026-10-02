@@ -41,6 +41,7 @@ export interface LookupControllerProps {
   readonly entry: TrackingEntry;
   readonly homeNotice: NoticeView | null; // server-picked; re-filtered with KST after mount (Task 8)
   readonly idleExtras: React.ReactNode;   // server-rendered below-the-fold blocks, rendered only in idle mode
+  readonly storeSheetLabel: string;       // the store-sheet button words (staff-edited site settings, 10월 2일 요청)
 }
 
 const LOADING_CONFIG: LoadingConfig = { lookup: lookupConfig, notices };
@@ -115,7 +116,7 @@ function pageTitleOf(display: LookupDisplay, loadingLike: boolean): string | nul
  * The one client island of the tracking page (spec §3, §14): mode as component state, lookups through S04's useLookup,
  * candidate B and restore (S02), focus/live/title rules (spec §5). [다른 번호 조회] is a state reset, never a navigation.
  */
-export function LookupController({ entry, homeNotice, idleExtras }: LookupControllerProps): React.JSX.Element {
+export function LookupController({ entry, homeNotice, idleExtras, storeSheetLabel }: LookupControllerProps): React.JSX.Element {
   const announce = useAnnounce();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
@@ -417,7 +418,7 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
           ) : (
             <NumberBar number={numberViewOf(display.request.number)} carrierLabel={carrierLabel} actions={numberBarAction} />
           )}
-          {display.kind === "form" && !display.busy ? <ShortcutRow mode={display.invalid === null ? "full" : "talkOnly"} /> : null}
+          {display.kind === "form" && !display.busy ? <ShortcutRow mode={display.invalid === null ? "full" : "talkOnly"} openLabel={storeSheetLabel} /> : null}
           {/* Always mounted: while the form shows it renders nothing, but focus in the form preloads the result module. */}
           <div
             data-result-area="true"

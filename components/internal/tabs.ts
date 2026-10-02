@@ -1,14 +1,15 @@
-// The CS desk's tabs (spec §10 탭 4개). A plain module (no "use client"): the server page validates ?tab= with it
+// The CS desk's tabs (spec §10 탭 4개, 10월 2일 요청으로 '사이트 문구·링크' 추가). A plain module (no "use client"): the server page validates ?tab= with it
 // and the client desk renders it.
 
-export const INTERNAL_TAB_IDS = ["delivery", "mismatch", "preview", "notices"] as const;
+export const INTERNAL_TAB_IDS = ["delivery", "mismatch", "preview", "notices", "site"] as const;
 export type InternalTabId = (typeof INTERNAL_TAB_IDS)[number];
 
 export const INTERNAL_TAB_LABELS: Readonly<Record<InternalTabId, string>> = {
   delivery: "배송 안내",
   mismatch: "통관부호 불일치",
   preview: "안내표 미리보기",
-  notices: "공지 현황"
+  notices: "공지 현황",
+  site: "사이트 문구·링크"
 };
 
 export const DEFAULT_INTERNAL_TAB: InternalTabId = "delivery";

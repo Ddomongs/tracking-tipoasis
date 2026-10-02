@@ -4,3 +4,4 @@
  */
 export const STORE_SHEET_ID = "store-sheet";
 export const STORE_SHEET_OPEN_LABEL = "스토어·추천 상품 보기";
+export const STORE_SHEET_INTRO = "베스트 상품과 특가는 스토어에서 바로 볼 수 있어요.";
