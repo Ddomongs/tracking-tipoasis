@@ -12,8 +12,6 @@ export const LOOKUP_TIMING = {
   unipassCallMs: 8_000,
   /** customstrack fallback, headers and body together. */
   customstrackMs: 4_000,
-  /** InsForge proxy call (removed with approval 12). */
-  proxyMs: 5_000,
   /** DOMESTIC: once a carrier answered with events, wait at most this long for customs. */
   customsGraceAfterCarrierMs: 2_000
 } as const;

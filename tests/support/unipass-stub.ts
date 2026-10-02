@@ -12,7 +12,6 @@ import type { DeliveryCarrierCode } from "@/lib/types";
 
 export const STUB_UNIPASS_URL = "https://unipass.stub/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo";
 export const STUB_PROXY_URL = "https://proxy.stub/functions/unipass-proxy";
-export const STUB_PROXY_SECRET = "stub-proxy-secret";
 export const STUB_YEAR = new Date().getFullYear();
 
 export type UnipassMode = "ok" | "timeout" | "http500" | "refused" | "bodyStall" | "errorAnswer";
@@ -33,7 +32,6 @@ export interface UpstreamCalls {
   readonly unipassAborted: number;
   readonly unipassYears: readonly number[];
   readonly proxy: number;
-  readonly proxyAborted: number;
   readonly customstrack: number;
   readonly carriers: number;
 }
@@ -85,7 +83,6 @@ interface MutableCalls {
   unipassAborted: number;
   unipassYears: number[];
   proxy: number;
-  proxyAborted: number;
   customstrack: number;
   carriers: number;
 }
@@ -139,7 +136,7 @@ export function installUpstreamStub(scenarios: readonly UpstreamScenario[], opti
   const record = (number: string): MutableCalls => {
     const existing = calls.get(number);
     if (existing) return existing;
-    const created: MutableCalls = { unipass: 0, unipassAborted: 0, unipassYears: [], proxy: 0, proxyAborted: 0, customstrack: 0, carriers: 0 };
+    const created: MutableCalls = { unipass: 0, unipassAborted: 0, unipassYears: [], proxy: 0, customstrack: 0, carriers: 0 };
     calls.set(number, created);
     return created;
   };
@@ -185,15 +182,9 @@ export function installUpstreamStub(scenarios: readonly UpstreamScenario[], opti
         ? parsed.trackingNumber
         : "";
     const scenario = scenarioFor(number);
-    const counter = record(number);
-    counter.proxy += 1;
+    record(number).proxy += 1;
     const { mode, latencyMs } = scenario.proxy ?? DEFAULT_PROXY;
-    try {
-      await delay(mode === "timeout" ? FOREVER_MS : latencyMs, init?.signal);
-    } catch (error) {
-      counter.proxyAborted += 1;
-      throw error;
-    }
+    await delay(mode === "timeout" ? FOREVER_MS : latencyMs, init?.signal);
     return new Response("No backend services available for app", { status: 503 });
   };
 
@@ -234,14 +225,12 @@ export function installUpstreamStub(scenarios: readonly UpstreamScenario[], opti
   const saved = {
     key: process.env.UNIPASS_API_KEY,
     url: process.env.UNIPASS_API_URL,
-    proxy: process.env.UNIPASS_PROXY_URL,
-    secret: process.env.UNIPASS_PROXY_SECRET
+    proxy: process.env.UNIPASS_PROXY_URL
   };
   const originalFetch = globalThis.fetch;
   setEnv("UNIPASS_API_KEY", options.apiKey === false ? undefined : "stub-key-not-real");
   setEnv("UNIPASS_API_URL", STUB_UNIPASS_URL);
   setEnv("UNIPASS_PROXY_URL", options.proxy === true ? STUB_PROXY_URL : undefined);
-  setEnv("UNIPASS_PROXY_SECRET", options.proxy === true ? STUB_PROXY_SECRET : undefined);
   globalThis.fetch = stubFetch;
 
   return {
@@ -254,7 +243,6 @@ export function installUpstreamStub(scenarios: readonly UpstreamScenario[], opti
       setEnv("UNIPASS_API_KEY", saved.key);
       setEnv("UNIPASS_API_URL", saved.url);
       setEnv("UNIPASS_PROXY_URL", saved.proxy);
-      setEnv("UNIPASS_PROXY_SECRET", saved.secret);
     }
   };
 }

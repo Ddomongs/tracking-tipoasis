@@ -129,7 +129,6 @@ const dedupeEvents = (events: TrackingEvent[]): TrackingEvent[] => {
 
 const DEFAULT_UNIPASS_URL = "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo";
 const USER_AGENT = "Mozilla/5.0 tracking.tipoasis.com";
-const PROXY_SECRET_HEADER = "x-proxy-secret";
 const MAX_XML_BYTES = 1_048_576;
 /** Offsets from the current year. The first wave runs alone; the second only when the first found nothing. */
 const FIRST_WAVE_YEAR_OFFSETS: readonly number[] = [0, -1];
@@ -150,7 +149,7 @@ export type CustomsLookupResult =
   | { readonly kind: "empty"; readonly complete: boolean }
   /** No confirmed UNI-PASS answer at all (timeouts, network errors, non-2xx, unreadable bodies). */
   | { readonly kind: "unavailable"; readonly timedOut: boolean }
-  /** No UNIPASS_API_KEY and no proxy: local development. */
+  /** No UNIPASS_API_KEY: local development. */
   | { readonly kind: "notConfigured" };
 
 export interface CustomsLookupOptions {
@@ -276,51 +275,6 @@ const lookupDirect = async (request: WaveRequest, options: CustomsLookupOptions)
   return { kind: "empty", complete: countAnswered(all) === countCalls(all) };
 };
 
-const getProxyXml = (payload: unknown): string | null => {
-  const node = toRecord(payload);
-  return typeof node?.xml === "string" ? node.xml : null;
-};
-
-type DirectMiss = Extract<CustomsLookupResult, { kind: "unavailable" } | { kind: "notConfigured" }>;
-
-const proxyMissed = (direct: DirectMiss, timedOut: boolean): CustomsLookupResult =>
-  direct.kind === "unavailable"
-    ? { kind: "unavailable", timedOut: direct.timedOut || timedOut }
-    : { kind: "unavailable", timedOut };
-
-/** InsForge proxy: only after every direct call failed (or without a key), bounded by the deadline. Approval 12 removes it. */
-const lookupViaProxy = async (
-  trackingNumber: string,
-  type: CustomsLookupType,
-  options: CustomsLookupOptions,
-  direct: DirectMiss
-): Promise<CustomsLookupResult> => {
-  const proxyUrl = process.env.UNIPASS_PROXY_URL;
-  const proxySecret = process.env.UNIPASS_PROXY_SECRET;
-  const capMs = Math.min(LOOKUP_TIMING.proxyMs, options.deadline.remainingMs());
-  if (!proxyUrl || !proxySecret) return direct;
-  if (capMs <= 0) return proxyMissed(direct, true);
-  const startedAt = Date.now();
-  try {
-    // The deadline's signal: the proxy call ends with the request (e.g. after a carrier-first answer), not only at its cap.
-    const response = await fetch(proxyUrl, {
-      method: "POST",
-      body: JSON.stringify({ trackingNumber, type }),
-      signal: options.deadline.signal(capMs),
-      cache: "no-store",
-      headers: { "content-type": "application/json", "user-agent": USER_AGENT, [PROXY_SECRET_HEADER]: proxySecret }
-    });
-    if (!response.ok) return proxyMissed(direct, false);
-    const text = await readTextWithLimit(response, MAX_XML_BYTES, Math.max(1, capMs - (Date.now() - startedAt)));
-    const xml = getProxyXml(JSON.parse(text) as unknown);
-    const answer = xml ? await readUnipassXml(xml) : null;
-    if (answer && answer.events.length > 0) return toFound(answer.events);
-    return answer?.confirmed ? { kind: "empty", complete: false } : proxyMissed(direct, false);
-  } catch (error) {
-    return proxyMissed(direct, isTimeoutError(error));
-  }
-};
-
 /** Looks up UNI-PASS in two waves under one deadline and classifies the outcome. Never rejects. */
 export const lookupCustomsEvents = async (
   trackingNumber: string,
@@ -330,15 +284,16 @@ export const lookupCustomsEvents = async (
   const apiKey = process.env.UNIPASS_API_KEY;
   if (!apiKey) {
     options.onFirstWaveEmpty?.();
-    return lookupViaProxy(trackingNumber, type, options, { kind: "notConfigured" });
+    return { kind: "notConfigured" };
   }
-  const request: WaveRequest = {
-    apiUrl: process.env.UNIPASS_API_URL || DEFAULT_UNIPASS_URL,
-    apiKey,
-    trackingNumber,
-    type,
-    year: new Date().getFullYear()
-  };
-  const direct = await lookupDirect(request, options);
-  return direct.kind === "unavailable" ? lookupViaProxy(trackingNumber, type, options, direct) : direct;
+  return lookupDirect(
+    {
+      apiUrl: process.env.UNIPASS_API_URL || DEFAULT_UNIPASS_URL,
+      apiKey,
+      trackingNumber,
+      type,
+      year: new Date().getFullYear()
+    },
+    options
+  );
 };

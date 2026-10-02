@@ -20,9 +20,6 @@ test("the request budget is 15 s and every fallback path fits inside it", () => 
   expect(
     LOOKUP_TIMING.unipassCallMs + LOOKUP_TIMING.customstrackMs + LOOKUP_TIMING.responseMarginMs
   ).toBeLessThanOrEqual(LOOKUP_TIMING.budgetMs);
-  expect(LOOKUP_TIMING.unipassCallMs + LOOKUP_TIMING.proxyMs + LOOKUP_TIMING.responseMarginMs).toBeLessThanOrEqual(
-    LOOKUP_TIMING.budgetMs
-  );
   expect(LOOKUP_TIMING.customsGraceAfterCarrierMs).toBeLessThanOrEqual(3_000);
 });
 

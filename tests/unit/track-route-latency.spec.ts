@@ -94,7 +94,7 @@ test.describe("POST /api/track latency (approval 5)", () => {
         const calls = stub.calls(number);
         expect(calls.unipass).toBe(4);
         expect(calls.customstrack).toBe(1);
-        expect(calls.proxy).toBe(1);
+        expect(calls.proxy).toBe(0);
       },
       { proxy: true }
     );
@@ -367,6 +367,19 @@ test.describe("customs lookup (two waves under one deadline)", () => {
     });
   });
 
+  test("the proxy URL is ignored after the InsForge retirement", async () => {
+    const number = stubNumber("HBL", 307);
+    await withUpstreams(
+      [{ number, unipass: { mode: "http500", latencyMs: 50 } }],
+      async (stub) => {
+        const run = await runCustoms(number, "HBL");
+        expect(run.result).toEqual({ kind: "unavailable", timedOut: false });
+        expect(stub.calls(number).proxy).toBe(0);
+      },
+      { proxy: true }
+    );
+  });
+
   test("without an API key and a proxy the lookup is notConfigured", async () => {
     const number = stubNumber("HBL", 306);
     await withUpstreams(
@@ -401,29 +414,6 @@ test.describe("review fixes (S10)", () => {
         expect((await callTrack(number)).status).toBe(404);
         expect(stub.calls(number).unipass).toBe(24);
       }
-    );
-  });
-
-  test("the proxy call is aborted once a carrier-first answer is sent", async () => {
-    const number = stubNumber("DOMESTIC", 503);
-    await withUpstreams(
-      [
-        {
-          number,
-          unipass: { mode: "http500", latencyMs: 50 },
-          proxy: { mode: "timeout", latencyMs: 0 },
-          carriers: { mode: "ok", latencyMs: 800, cjFound: true }
-        }
-      ],
-      async (stub) => {
-        const result = await callTrack(number);
-        expect(result.status).toBe(200);
-        expect(result.ms).toBeLessThanOrEqual(3_500);
-        expect(stub.calls(number).proxy).toBe(1);
-        // The proxy's own 5 s cap would end it later; the end of the request must end it now.
-        await expect.poll(() => stub.calls(number).proxyAborted, { timeout: 1_000 }).toBe(1);
-      },
-      { proxy: true }
     );
   });
 
