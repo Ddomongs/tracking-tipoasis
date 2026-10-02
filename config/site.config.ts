@@ -142,7 +142,7 @@ export const lookup = {
     body: "관세청 통관 정보와 택배사 배송 정보를 함께 확인해요",
     started: "조회를 시작했어요",
     longWait: "해외 화물은 여러 해의 기록을 찾아서 조금 더 걸려요. 보통 10초 안에 끝나요.",
-    veryLongWait: "기록이 없는 번호는 30초 가까이 걸릴 수 있어요. 번호가 맞는지 한 번 봐 주세요.",
+    veryLongWait: "기록이 없는 번호는 15초 가까이 걸릴 수 있어요. 번호가 맞는지 한 번 봐 주세요.", // R4 뒤 서버가 15초 안에 답함(10월 2일 운영자 결정)
     elapsed: "{seconds}초째",
     cancel: "조회 취소",
     carrierOfficialFirst: "택배사 공식 조회로 먼저 보기",

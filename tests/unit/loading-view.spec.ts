@@ -52,7 +52,7 @@ test("3 s: the long-wait sentence and [조회 취소]; no cause is claimed", () 
 
 test("8 s: the very-long sentence is announced; the elapsed text steps every 5 s", () => {
   const model = view(8000);
-  expect(model.extra).toBe("기록이 없는 번호는 30초 가까이 걸릴 수 있어요. 번호가 맞는지 한 번 봐 주세요.");
+  expect(model.extra).toBe("기록이 없는 번호는 15초 가까이 걸릴 수 있어요. 번호가 맞는지 한 번 봐 주세요.");
   expect(model.announcement).toBe(model.extra);
   expect(model.carrierOfficial).toBeNull();
   expect([8000, 12999, 13000, 30500].map((ms) => view(ms).elapsedText)).toEqual(["8초째", "8초째", "13초째", "28초째"]);

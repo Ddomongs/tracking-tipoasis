@@ -63,7 +63,7 @@ test.describe("shipped config", () => {
     expect(lookup.copy.body).toBe("관세청 통관 정보와 택배사 배송 정보를 함께 확인해요");
     expect(lookup.copy.started).toBe("조회를 시작했어요");
     expect(lookup.copy.longWait).toBe("해외 화물은 여러 해의 기록을 찾아서 조금 더 걸려요. 보통 10초 안에 끝나요.");
-    expect(lookup.copy.veryLongWait).toBe("기록이 없는 번호는 30초 가까이 걸릴 수 있어요. 번호가 맞는지 한 번 봐 주세요.");
+    expect(lookup.copy.veryLongWait).toBe("기록이 없는 번호는 15초 가까이 걸릴 수 있어요. 번호가 맞는지 한 번 봐 주세요.");
     expect(lookup.copy.elapsed).toBe("{seconds}초째");
     expect(lookup.copy.cancel).toBe("조회 취소");
     expect(lookup.copy.carrierOfficialFirst).toBe("택배사 공식 조회로 먼저 보기");
