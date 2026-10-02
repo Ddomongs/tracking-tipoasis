@@ -24,7 +24,7 @@ function TalkBubbleIcon(): React.JSX.Element {
 /**
  * The one 톡톡 link style (spec §8: at most 3 places per screen — header, one state place, footer).
  * Weight "text" is the usual one; "secondary" and "primary" (problem states only) use the same shape at more weight.
- * Always a new tab with the name `${label} 새 창으로 열기`; the speech bubble is left out in the compact header link.
+ * Always a new tab with the name `${label} 새 창으로 열기`, always with the speech bubble (the header one too since 10월 2일).
  */
 export function TalkLink({
   href,
@@ -39,7 +39,7 @@ export function TalkLink({
 }): React.JSX.Element {
   return (
     <ButtonLink href={href} variant={weight} external label={label} placement={placement}>
-      {placement === "header" ? null : <TalkBubbleIcon />}
+      <TalkBubbleIcon />
       <span>{label}</span>
     </ButtonLink>
   );

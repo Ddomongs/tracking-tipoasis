@@ -628,7 +628,7 @@ test.describe("TalkLink and AffiliateLinkGroup", () => {
     await openKit(page);
     const talk = channels.talk;
     for (const [demo, variant, placement, label, icons] of [
-      ["talk-header", "text", "header", talk.labels.header, 0],
+      ["talk-header", "secondary", "header", talk.labels.header, 1],
       ["talk-state", "text", "state", talk.labels.cta, 1],
       ["talk-secondary", "secondary", "state", talk.labels.cta, 1],
       ["talk-primary", "primary", "state", talk.labels.cta, 1],

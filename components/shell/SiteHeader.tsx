@@ -1,6 +1,7 @@
 import { channels } from "@/config/site.config";
 import { HomeLink } from "@/components/shell/HomeLink";
 import { TalkLink } from "@/components/primitives/TalkLink";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 
 const SITE_NAME = "통관·배송 조회";
 const SKIP_LINK_LABEL = "본문으로 건너뛰기";
@@ -27,7 +28,11 @@ export function SiteHeader(): React.JSX.Element {
           >
             {SITE_NAME}
           </HomeLink>
-          <TalkLink href={channels.talk.url} label={channels.talk.labels.header} weight="text" placement="header" />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            {/* An outlined button with the bubble (10월 2일 요청: the text link looked too small). */}
+            <TalkLink href={channels.talk.url} label={channels.talk.labels.header} weight="secondary" placement="header" />
+          </div>
         </div>
       </header>
     </>

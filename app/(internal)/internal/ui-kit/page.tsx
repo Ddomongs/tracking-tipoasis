@@ -459,7 +459,7 @@ function LinkSection(): React.JSX.Element {
       </p>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3 bg-tt-surface p-4">
         <span data-demo="talk-header">
-          <TalkLink href={talk.url} label={talk.labels.header} weight="text" placement="header" />
+          <TalkLink href={talk.url} label={talk.labels.header} weight="secondary" placement="header" />
         </span>
         <span data-demo="talk-state">
           <TalkLink href={talk.url} label={talk.labels.cta} weight="text" placement="state" />

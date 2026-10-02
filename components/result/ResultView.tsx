@@ -13,6 +13,7 @@ import { LastEventLine } from "./LastEventLine";
 import { NextActionBlock, type HelpLink } from "./NextActionBlock";
 import { SideColumn } from "./SideColumn";
 import { StatusCard } from "./StatusCard";
+import { StickySummary } from "./StickySummary";
 
 export interface ResultViewProps {
   readonly view: TrackingViewModel;
@@ -188,6 +189,8 @@ export function ResultView({
       {view.mode === "error" ? null : (
         <SideColumn view={view} frame={frame} historyId={`${baseId}-history`} help={otherHelp} helpIdPrefix={baseId} />
       )}
+      {/* The band under the sticky header (10월 2일 요청); lives in this lazy chunk, never in the CS preview. */}
+      {readOnly || frame === "mobile" || view.mode === "error" ? null : <StickySummary view={view} />}
     </div>
   );
 }

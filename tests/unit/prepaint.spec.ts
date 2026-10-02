@@ -96,7 +96,9 @@ test("only the root layout, the style modules and the picker read or write the s
     "lib/style/styles.ts",
     "lib/style/prepaint.ts",
     "lib/style/style-choice.ts",
-    "components/shell/StylePicker.tsx"
+    "components/shell/StylePicker.tsx",
+    // The header's round day/night switch (10월 2일 요청) uses the same style-choice module as the picker.
+    "components/shell/ThemeToggle.tsx"
   ]);
   const STYLE_ACCESS = /data-style|dataset\.style|STYLE_STORAGE_KEY|tt:style|applyStyleChoice|readAppliedStyle/;
   const stripComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");

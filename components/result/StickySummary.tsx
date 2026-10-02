@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { disclosures } from "@/config/site.config";
 import type { EtaView, StoreLinksView, TrackingViewModel } from "@/lib/tracking/types";
 
@@ -33,6 +34,7 @@ export function etaSummaryText(eta: EtaView): string | null {
  * states that already offer stores (delivered lead, pending purchase choices), the same store links with the definitive
  * disclosure. 톡톡 stays in the sticky header, so the screen keeps at most three 톡톡 places (spec §8). Fixed under the
  * header and mounted only while the card is out of view, so it moves nothing in the page (CLS) and is absent at the top.
+ * It renders only after an IntersectionObserver callback (client only), so the portal never runs on the server.
  */
 export function StickySummary({ view }: { readonly view: TrackingViewModel }): React.JSX.Element | null {
   const [cardHidden, setCardHidden] = useState(false);
@@ -58,7 +60,8 @@ export function StickySummary({ view }: { readonly view: TrackingViewModel }): R
 
   if (!hasContent || !cardHidden) return null;
   const hasAffiliate = stores?.links.some((link) => link.isAffiliate) ?? false;
-  return (
+  // A portal to <body>: the band is a fixed overlay, not part of the result's structure (S08 style-independence scan).
+  return createPortal(
     <aside
       aria-label={BAND_LABEL}
       data-sticky-summary="true"
@@ -90,6 +93,7 @@ export function StickySummary({ view }: { readonly view: TrackingViewModel }): R
           </>
         )}
       </div>
-    </aside>
+    </aside>,
+    document.body
   );
 }
