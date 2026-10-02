@@ -1,4 +1,4 @@
-# 사이트 문구·링크 저장소 연결 (Vercel Edge Config)
+# 사이트 문구·링크 저장소 연결 (Vercel Global Config, 옛 이름 Edge Config)
 
 2026-10-02 요청. 관리자 화면 `/internal/cs-helper?tab=site`('사이트 문구·링크')에서 첫 화면 스토어 칸의
 버튼 문구, 제목, 안내 한 줄, 네이버·쿠팡·유튜브 버튼 문구와 링크를 바꿉니다. 저장소를 연결하기 전에는 화면이 보기 전용이고,
@@ -6,9 +6,10 @@
 
 ## 1. Edge Config 저장소 만들기 (한 번)
 
-1. Vercel → 팀 → **Storage** → **Create Database** → **Edge Config** → 이름 `tracking-site-settings` → Create.
+1. Vercel → 팀 → **Storage** → **Create Database** → **Global Config**(옛 이름 Edge Config) → Create.
 2. 만든 저장소 화면 → **Projects** → **Connect Project** → `tracking-tipoasis` → Production(필요하면 Preview도) 선택 → Connect.
-   - 이때 Vercel이 환경변수 `EDGE_CONFIG`(읽기용 연결 주소)를 자동으로 넣습니다.
+   - 이때 Vercel이 환경변수 `GLOBAL_CONFIG`(읽기용 연결 주소)를 자동으로 넣습니다. 예전 방식의 `EDGE_CONFIG`도 읽습니다.
+   - 2026-10-02 연결 완료: 저장소 `ecfg_dpdhzlwhloqzwenukb9jyvlcygfl`, 환경변수 `GLOBAL_CONFIG`(Production·Preview). 저장소의 `greeting` 항목은 기본 예시라 지워도 됩니다.
 
 ## 2. 저장용 토큰 넣기 (한 번)
 

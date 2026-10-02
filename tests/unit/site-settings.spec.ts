@@ -10,7 +10,8 @@ import {
 import { readSiteSettings, saveSiteSettings } from "@/lib/site-settings/store";
 
 /** 10월 2일 요청: 관리자 화면에서 첫 화면 스토어 칸의 링크·버튼 문구를 고치고 Vercel Edge Config에 저장합니다. */
-const CONNECTION = "https://edge-config.vercel.com/ecfg_testid?token=read-token";
+const CONNECTION = "https://global-config.vercel.com/ecfg_testid?token=read-token";
+const OLD_CONNECTION = "https://edge-config.vercel.com/ecfg_testid?token=read-token";
 
 test("defaults come from config/site.config.ts", () => {
   expect(DEFAULT_SITE_SETTINGS).toEqual({
@@ -54,7 +55,8 @@ test("merge: stored values win field by field; unknown or broken fields fall bac
 });
 
 test("the Edge Config connection string gives the store id and the read token", () => {
-  expect(edgeConfigFromConnection(CONNECTION)).toEqual({ id: "ecfg_testid", token: "read-token" });
+  expect(edgeConfigFromConnection(CONNECTION)).toEqual({ id: "ecfg_testid", token: "read-token", host: "global-config.vercel.com" });
+  expect(edgeConfigFromConnection(OLD_CONNECTION)).toEqual({ id: "ecfg_testid", token: "read-token", host: "edge-config.vercel.com" });
   expect(edgeConfigFromConnection(undefined)).toBeNull();
   expect(edgeConfigFromConnection("https://example.com/ecfg_x?token=t")).toBeNull();
   expect(edgeConfigFromConnection("https://edge-config.vercel.com/ecfg_x")).toBeNull();
@@ -68,10 +70,12 @@ test("read: no store → defaults without a request; a stored item is merged; an
   };
   expect(await readSiteSettings({ env: {}, fetcher: fetcher(() => new Response("{}")) })).toEqual({ settings: DEFAULT_SITE_SETTINGS, source: "defaults" });
   expect(calls).toEqual([]);
-  const env = { EDGE_CONFIG: CONNECTION };
+  const env = { GLOBAL_CONFIG: CONNECTION };
   const stored = await readSiteSettings({ env, fetcher: fetcher(() => Response.json({ storeTitle: "저장된 제목" })) });
   expect(stored).toEqual({ settings: { ...DEFAULT_SITE_SETTINGS, storeTitle: "저장된 제목" }, source: "edgeConfig" });
-  expect(calls[0]?.url).toBe(`https://edge-config.vercel.com/ecfg_testid/item/${SITE_SETTINGS_KEY}`);
+  expect(calls[0]?.url).toBe(`https://global-config.vercel.com/ecfg_testid/item/${SITE_SETTINGS_KEY}`);
+  await readSiteSettings({ env: { EDGE_CONFIG: OLD_CONNECTION }, fetcher: fetcher(() => Response.json({})) });
+  expect(calls.at(-1)?.url).toBe(`https://edge-config.vercel.com/ecfg_testid/item/${SITE_SETTINGS_KEY}`);
   expect(new Headers(calls[0]?.init?.headers).get("authorization")).toBe("Bearer read-token");
   await readSiteSettings({ env, fresh: true, fetcher: fetcher(() => Response.json({})) });
   expect(calls.at(-1)?.init?.cache).toBe("no-store");
@@ -120,11 +124,11 @@ test("save: needs the store and a Vercel API token, then upserts one item", asyn
     request = { url, init };
     return Response.json({ status: "ok" });
   };
-  const env = { EDGE_CONFIG: CONNECTION, VERCEL_API_TOKEN: "api-token", VERCEL_TEAM_ID: "team_x" };
+  const env = { GLOBAL_CONFIG: CONNECTION, VERCEL_API_TOKEN: "api-token", VERCEL_TEAM_ID: "team_x" };
   expect(await saveSiteSettings(value, { env, fetcher })).toEqual({ ok: true });
   expect(request).not.toBeNull();
   const sent = request as unknown as { url: string; init: RequestInit };
-  expect(sent.url).toBe("https://api.vercel.com/v1/edge-config/ecfg_testid/items?teamId=team_x");
+  expect(sent.url).toBe("https://api.vercel.com/v1/global-config/ecfg_testid/items?teamId=team_x");
   expect(sent.init.method).toBe("PATCH");
   expect(new Headers(sent.init.headers).get("authorization")).toBe("Bearer api-token");
   expect(JSON.parse(String(sent.init.body))).toEqual({ items: [{ operation: "upsert", key: SITE_SETTINGS_KEY, value }] });

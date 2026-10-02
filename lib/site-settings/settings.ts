@@ -4,7 +4,7 @@ import { channels, resultCopy } from "@/config/site.config";
 
 /**
  * Words and links of the home store sheet that staff edit on /internal/cs-helper?tab=site (10월 2일 요청), stored as one
- * Vercel Edge Config item. config/site.config.ts gives the defaults; a missing, unreadable or invalid stored field falls
+ * Vercel Global Config (formerly Edge Config) item. config/site.config.ts gives the defaults; a missing, unreadable or invalid stored field falls
  * back to its default, so a bad save can never break the page.
  */
 export const SITE_SETTINGS_KEY = "siteSettings";
@@ -101,15 +101,20 @@ export function mergeSiteSettings(stored: unknown): SiteSettings {
   return merged;
 }
 
-/** EDGE_CONFIG ('https://edge-config.vercel.com/ecfg_…?token=…', set by Vercel when a store is connected). */
-export function edgeConfigFromConnection(connection: string | undefined): { readonly id: string; readonly token: string } | null {
+/** Read hosts: Vercel renamed Edge Config to Global Config (GLOBAL_CONFIG, global-config.vercel.com); both still answer. */
+const CONFIG_HOSTS = new Set(["global-config.vercel.com", "edge-config.vercel.com"]);
+
+/** The connection string Vercel adds when a store is connected: 'https://global-config.vercel.com/ecfg_…?token=…'. */
+export function edgeConfigFromConnection(
+  connection: string | undefined
+): { readonly id: string; readonly token: string; readonly host: string } | null {
   if (connection === undefined) return null;
   try {
     const url = new URL(connection);
     const id = url.pathname.replace(/^\//, "");
     const token = url.searchParams.get("token");
-    if (url.hostname !== "edge-config.vercel.com" || !/^ecfg_[A-Za-z0-9]+$/.test(id) || token === null || token === "") return null;
-    return { id, token };
+    if (!CONFIG_HOSTS.has(url.hostname) || !/^ecfg_[A-Za-z0-9]+$/.test(id) || token === null || token === "") return null;
+    return { id, token, host: url.hostname };
   } catch {
     return null;
   }

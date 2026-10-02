@@ -6,7 +6,7 @@ import { canSaveSiteSettings, readSiteSettings, saveSiteSettings } from "@/lib/s
 /**
  * The CS desk's site-settings endpoint (10월 2일 요청). Behind the /internal basic auth (proxy.ts). GET: the current
  * values, the defaults and whether saving is possible. POST (same origin only): validate the whole form, save it to
- * Edge Config and refresh the public pages so the change shows at once.
+ * Global Config and refresh the public pages so the change shows at once.
  */
 export const dynamic = "force-dynamic";
 

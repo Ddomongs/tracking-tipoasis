@@ -6,7 +6,7 @@ import type { SiteSettings, SiteSettingsField } from "@/lib/site-settings/settin
 import { ERROR_CLASS, FIELD_CLASS, HELP_CLASS, LABEL_CLASS, PANEL_CLASS, SECTION_TITLE_CLASS } from "./ui";
 
 /**
- * '사이트 문구·링크' (10월 2일 요청): staff edit the home store sheet's words and links. Saved to Vercel Edge Config
+ * '사이트 문구·링크' (10월 2일 요청): staff edit the home store sheet's words and links. Saved to Vercel Global Config (formerly Edge Config)
  * through /internal/site-settings; the public pages pick the change up at once. Without the store the form explains
  * what to connect (docs/ops/site-settings.md).
  */
@@ -56,7 +56,7 @@ type Errors = Partial<Record<SiteSettingsField | "form", string>>;
 const READ_FAILED = "저장된 값을 불러오지 못해 기본값이 보이고 있어요. 이대로 저장하면 저장된 값이 모두 바뀌니 새로고침한 뒤 다시 시도해 주세요.";
 
 const REASONS: Readonly<Record<string, string>> = {
-  notConfigured: "저장소(Edge Config)가 아직 연결되지 않아 저장할 수 없어요.",
+  notConfigured: "저장소(Global Config)나 저장용 토큰이 아직 없어 저장할 수 없어요.",
   rejected: "Vercel이 저장을 거절했어요. 토큰과 팀 설정을 확인해 주세요.",
   network: "Vercel에 연결하지 못했어요. 잠시 뒤 다시 저장해 주세요.",
   forbidden: "이 화면에서만 저장할 수 있어요. 새로고침 뒤 다시 시도해 주세요."
@@ -127,7 +127,7 @@ export function SiteSettingsTab(): React.JSX.Element {
       <p className={HELP_CLASS}>첫 화면 스토어 칸(모바일 팝업·PC 오른쪽 칸)의 버튼 문구와 링크를 바꿔요. 다른 문구는 설정 파일에서 바꿔요.</p>
       {loaded !== null && !loaded.writable ? (
         <p className={ERROR_CLASS} data-site-settings-readonly="true">
-          저장소(Vercel Edge Config)가 아직 연결되지 않아 지금은 볼 수만 있어요. 연결 방법은 docs/ops/site-settings.md에 있어요.
+          저장소(Vercel Global Config) 연결이나 저장용 토큰(VERCEL_API_TOKEN)이 없어 지금은 볼 수만 있어요. 연결 방법은 docs/ops/site-settings.md에 있어요.
         </p>
       ) : null}
       {readFailed ? (

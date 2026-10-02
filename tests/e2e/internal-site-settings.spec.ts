@@ -18,7 +18,7 @@ test("the tab shows the current values; without a store it says so and a save ex
   );
   await expect(panel.locator("[data-site-settings-readonly]")).toBeVisible();
   await panel.getByRole("button", { name: "저장" }).click();
-  await expect(panel.getByRole("status")).toHaveText("저장소(Edge Config)가 아직 연결되지 않아 저장할 수 없어요.");
+  await expect(panel.getByRole("status")).toHaveText("저장소(Global Config)나 저장용 토큰이 아직 없어 저장할 수 없어요.");
 });
 
 test("invalid values are checked before saving and point at the field", async ({ page }) => {
