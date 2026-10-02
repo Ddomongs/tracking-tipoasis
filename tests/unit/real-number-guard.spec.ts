@@ -86,7 +86,7 @@ test.describe("number patterns (contract §11.4)", () => {
 
 // ---- Repository scan (spec §14 item 5, roadmap §11.4 scope) ----
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
-const SCAN_DIRS = ["app", "components", "lib", "config", "tests", "docs", "design-system", "insforge", "public", ".github"] as const;
+const SCAN_DIRS = ["app", "components", "lib", "config", "tests", "docs", "design-system", "public", ".github"] as const;
 const TEXT_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".css", ".html", ".md", ".json", ".yml", ".yaml", ".txt"]);
 const SKIPPED_DIRS = new Set(["node_modules", ".next", "test-results", "playwright-report", "test-artifacts"]);
 const SKIPPED_FILES = new Set(["package-lock.json"]);

@@ -138,9 +138,7 @@ test("every response writes one number-free lookup log line", async () => {
   const lines: string[] = [];
   const originalFetch = globalThis.fetch;
   const savedKey = process.env.UNIPASS_API_KEY;
-  const savedProxy = process.env.UNIPASS_PROXY_URL;
   Reflect.deleteProperty(process.env, "UNIPASS_API_KEY");
-  Reflect.deleteProperty(process.env, "UNIPASS_PROXY_URL");
   setLookupLogSink((line) => {
     lines.push(line);
   });
@@ -177,6 +175,5 @@ test("every response writes one number-free lookup log line", async () => {
     globalThis.fetch = originalFetch;
     setLookupLogSink(null);
     if (savedKey !== undefined) process.env.UNIPASS_API_KEY = savedKey;
-    if (savedProxy !== undefined) process.env.UNIPASS_PROXY_URL = savedProxy;
   }
 });

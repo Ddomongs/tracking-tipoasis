@@ -94,9 +94,7 @@ test.describe("POST /api/track latency (approval 5)", () => {
         const calls = stub.calls(number);
         expect(calls.unipass).toBe(4);
         expect(calls.customstrack).toBe(1);
-        expect(calls.proxy).toBe(0);
-      },
-      { proxy: true }
+      }
     );
   });
 
@@ -320,9 +318,7 @@ test.describe("customs lookup (two waves under one deadline)", () => {
           STUB_YEAR,
           STUB_YEAR
         ]);
-        expect(calls.proxy).toBe(0);
-      },
-      { proxy: true }
+      }
     );
   });
 
@@ -380,7 +376,7 @@ test.describe("customs lookup (two waves under one deadline)", () => {
     );
   });
 
-  test("without an API key and a proxy the lookup is notConfigured", async () => {
+  test("without an API key the lookup is notConfigured", async () => {
     const number = stubNumber("HBL", 306);
     await withUpstreams(
       [{ number, unipass: { mode: "ok", latencyMs: 50 } }],
