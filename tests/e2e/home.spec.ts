@@ -55,7 +55,7 @@ const HOME_H1 = "통관부터 국내 배송까지 한 번에 확인";
 const RESULT_READY = { name: "다시 볼 링크 복사" } as const;
 
 test.describe("home first view (S06)", () => {
-  test("one h1 and the lookup form come first; the hero decorations are gone", async ({ page }) => {
+  test("one h1 and the lookup form come first; the old hero decorations are gone", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(HOME_H1);
@@ -202,7 +202,7 @@ test.describe("상담·스토어 바로가기 row (S06, approval 1)", () => {
     }
   });
 
-  test("the row ends by 550 px at 375×667 (about 500 px at 375×812)", async ({ page }) => {
+  test("the row ends by 550 px at 375×667 and 375×812", async ({ page }) => {
     for (const viewport of [
       { width: 375, height: 667 },
       { width: 375, height: 812 }

@@ -70,7 +70,7 @@ const StoreChannelSchema = z.object({
   urls: z.object({ shortcut: UrlSchema, showcase: UrlSchema, pending: UrlSchema, deliveredLead: UrlSchema }).strict()
 }).strict();
 
-const YoutubeChannelSchema = z.object({ name: TextSchema, linkLabel: TextSchema, url: TextSchema.nullable() }).strict();
+const YoutubeChannelSchema = z.object({ linkLabel: TextSchema, url: TextSchema.nullable() }).strict();
 
 const ChannelsSchema = z.object({
   talk: TalkChannelSchema,

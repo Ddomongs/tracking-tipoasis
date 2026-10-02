@@ -73,7 +73,7 @@ html {
   overflow: auto;
   border-top: 2px solid var(--tt-ink);
 }
-[data-store-showcase]::backdrop { background: color-mix(in srgb, var(--tt-ink) 50%, transparent); }
+[data-store-showcase]::backdrop { background: rgb(0 0 0 / 0.5); }
 [data-store-showcase] [data-affiliate-group] > div:last-child { grid-template-columns: minmax(0, 1fr); }
 [data-youtube-channel] > a { width: 100%; }
 @media (min-width: 1260px) {
@@ -90,6 +90,9 @@ html {
     padding: 20px;
     border: 2px solid var(--tt-ink);
   }
+  /* 좁을 때 연 시트가 창을 넓힌 뒤에도 열려 있으면 고정 칸 모양으로 바뀌므로 바깥 어둡게 하기만 지웁니다. */
+  [data-store-showcase]:popover-open { inset: auto; width: 300px; border: 2px solid var(--tt-ink); }
+  [data-store-showcase]::backdrop { background: transparent; }
   [data-shortcut-row="full"],
   [data-store-sheet-close] { display: none; }
 }

@@ -24,7 +24,6 @@ export interface StoreChannel {
 }
 /** The operator's YouTube channel on the home store sheet; url null hides it. */
 export interface YoutubeChannel {
-  readonly name: string;
   readonly linkLabel: string;
   readonly url: string | null;
 }

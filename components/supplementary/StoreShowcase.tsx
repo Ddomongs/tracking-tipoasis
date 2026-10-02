@@ -26,7 +26,7 @@ function showcaseLinks(): StoreLinksView {
 /**
  * Home only (spec §4 "첫 화면 아래", §7 idle; 10월 2일 요청으로 자리 이동): the two stores behind the definitive disclosure,
  * and the operator's YouTube channel once configured. One element serves both layouts (app/globals.css): a native
- * popover sheet opened by '스토어·추천 상품 보기' on narrow screens, a fixed panel right of the column from 1200 px.
+ * popover sheet opened by '스토어·추천 상품 보기' on narrow screens, a fixed panel right of the column from 1260 px.
  * A server component that TrackingPage passes as an idle extra, so it never shows in loading, result or error modes.
  */
 export function StoreShowcase(): React.JSX.Element {

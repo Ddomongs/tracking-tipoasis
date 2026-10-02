@@ -135,7 +135,7 @@
 
 - 포커스: `.tt-focus` 한 클래스. `outline: var(--tt-focus-width) solid var(--tt-focus)`, `outline-offset: var(--tt-focus-offset)`. 색면 안에서는 링 색이 `--field-fg`로 바뀝니다.
 - 모션 토큰: `--tt-motion-fast` 150ms(버튼 색 전환), `--tt-motion-base` 200ms, `--tt-motion-slow` 250ms, `--tt-ease` `cubic-bezier(0.2, 0, 0, 1)`.
-- 움직이는 것은 두 가지뿐입니다: `tt-paint`(결과 상태 색면이 한 번 칠해짐, 200ms)와 `tt-grow`(척추의 지금 칸이 한 번 자람, 250ms). 2026-10-02(요청 ③④)부터 첫 화면 맨 위에 배송 장면 그림(`public/art/hero.svg`, 좁은 화면 `hero-m.svg`)이 있습니다. 그림 파일 안에서 비행기 도착 → 통관 도장 → 트럭 이동 → 집 도착을 약 4초 한 번 재생하고 멈추며(WCAG 2.2.2의 5초 안), 줄인 모션이면 처음부터 마지막 장면입니다. 날짜 숫자는 세어 올라가지 않습니다. `opacity: 0`에서 시작하는 모션은 쓰지 않습니다.
+- 움직이는 것은 두 가지뿐입니다: `tt-paint`(결과 상태 색면이 한 번 칠해짐, 200ms)와 `tt-grow`(척추의 지금 칸이 한 번 자람, 250ms). 2026-10-02(요청 ③④)부터 첫 화면 맨 위에 배송 장면 그림(`public/art/hero.svg`, 좁은 화면 `hero-m.svg`)이 있습니다. 그림 파일 안에서 비행기 도착 → 통관 도장 → 트럭 이동 → 집 도착을 약 4초 한 번 재생하고 멈추며(WCAG 2.2.2의 5초 안), 줄인 모션이면 처음부터 마지막 장면입니다. 날짜 숫자는 세어 올라가지 않습니다. `opacity: 0`에서 시작하는 모션은 쓰지 않습니다(장면 그림도 마찬가지이고, 비행기가 착륙하며 사라지는 것만 끝 모습이 투명합니다).
 - 줄인 모션: `prefers-reduced-motion: reduce`이면 세 모션 토큰이 모두 0ms입니다(`:root, [data-style][data-style]` 규칙이라 스타일 파일이 되살릴 수 없음).
 
 framer-motion 대체(패키지 제거는 S06):
@@ -224,7 +224,7 @@ framer-motion 대체(패키지 제거는 S06):
 ## 13. 보조 영역과 광고 시점
 
 - **추천**(`components/supplementary/RecommendationList.tsx`, 규칙은 `lib/tracking/recommendations.ts`): 결과가 허용할 때만(`view.revenue.recommendations`가 `none`이 아닐 때) 결과 흐름 뒤에 둡니다. 배송 완료는 `data-primary-end` 바로 뒤, 그 밖에는 처리 내역 뒤입니다. 상품의 `contexts`에 그 상태가 있고 유효기간 안에 있을 때만 보이고, 0개면 묶음이 없습니다. 승인 10 전에는 '운영자 추천' 창으로만 열고 가격·할인·'이번 주'를 쓰지 않습니다. 승인 10 뒤에는 인라인 목록이고, 상품 상세 링크가 필수이며, '이번 주'는 유효기간 7일 이하, 가격은 확인일 7일 이내일 때만 씁니다.
-- **쇼케이스**(`components/supplementary/StoreShowcase.tsx`, `data-store-showcase`): 홈 조회 전 화면에서만, '보통 이렇게 걸려요' 아래에 둡니다. 확정형 고지가 첫 줄이고 네이버·쿠팡 두 링크가 보조 무게로 옵니다.
+- **쇼케이스**(`components/supplementary/StoreShowcase.tsx`, `data-store-showcase`): 홈 조회 전 화면에서만 둡니다. 2026-10-02부터 1260px 미만에서는 [조회하기] 아래 '스토어·추천 상품 보기' 버튼으로 여는 아래쪽 시트(네이티브 popover), 1260px 이상에서는 가운데 열 오른쪽의 고정 칸입니다. 확정형 고지가 첫 줄이고 네이버·쿠팡 두 링크가 보조 무게로 오며, `channels.youtube.url`이 있으면 유튜브 링크가 붙습니다.
 - **수동 광고 자리**(`components/ads/ManualAdSlot.tsx`, `data-ad-slot="manual"`): 페이지당 1개, `<main>`의 마지막(푸터 묶음 바로 앞)입니다. 홈과 광고가 허용된 결과에서만 그리고, 높이를 미리 잡아 둡니다(휴대폰 280px, 768px 이상 250px, `config.ads`). 광고 단위 ID(`ads.manualSlotId`, 승인 15)가 없으면 그리지 않습니다. 조회 중과 문제 상태에는 없습니다.
 - **하단 여백**: `html { scroll-padding-bottom: var(--tt-anchor-reserve) }`. 값은 `ads.anchorReservePx`(64px)와 같습니다.
 - **푸터**(`components/shell/SiteFooter.tsx`): 안내 문장, '개인정보처리방침', 톡톡 한 곳(배치 `footer`). 톡톡은 화면당 최대 3곳입니다.

@@ -36,7 +36,7 @@ export const channels = {
     name: "네이버 스토어",
     linkLabel: "네이버 스토어 보기",
     isAffiliate: false,
-    // 배치: shortcut 홈 바로가기 행, showcase 홈 쇼케이스, pending 국내 도착 전 구매처 선택지(승인 4), deliveredLead 배송 완료 선두
+    // 배치: shortcut 예전 홈 바로가기 행(10월 2일부터 쓰지 않음, 홈은 showcase 링크 하나로 시트·오른쪽 칸에 보임), showcase 홈 쇼케이스, pending 국내 도착 전 구매처 선택지(승인 4), deliveredLead 배송 완료 선두
     urls: { shortcut: NAVER_STORE_HOME, showcase: NAVER_STORE_HOME, pending: NAVER_STORE_HOME, deliveredLead: NAVER_STORE_HOME }
   },
   coupang: {
@@ -47,7 +47,7 @@ export const channels = {
   },
   // 운영하는 유튜브 채널(10월 2일 요청). 주소를 넣으면 첫 화면의 스토어 칸(PC 오른쪽·모바일 팝업)에 '유튜브 채널 보기'가 생깁니다.
   // 예: "https://www.youtube.com/@채널이름". null이면 숨깁니다.
-  youtube: { name: "유튜브 채널", linkLabel: "유튜브 채널 보기", url: null },
+  youtube: { linkLabel: "유튜브 채널 보기", url: null },
   // 링크에 쓸 수 있는 호스트. 새 주소를 쓰려면 여기에도 추가합니다.
   allowedHosts: ["talk.naver.com", "mkt.shopping.naver.com", "smartstore.naver.com", "link.coupang.com", "www.coupang.com", "www.youtube.com", "youtube.com"]
 } satisfies ChannelsConfig;
