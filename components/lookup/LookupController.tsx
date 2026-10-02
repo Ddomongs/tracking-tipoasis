@@ -7,6 +7,7 @@ import { InputAssist } from "@/components/lookup/InputAssist";
 import { LookupForm } from "@/components/lookup/LookupForm";
 import { computeDisplay, stillActiveHomeNotice, viewModeOf, type InvalidInput, type LookupDisplay } from "@/components/lookup/lookup-display";
 import { ShortcutRow } from "@/components/lookup/ShortcutRow";
+import { StickySummary } from "@/components/lookup/StickySummary";
 import { HOME_RESET_EVENT, getClientNowSnapshot, getRestoreSnapshot, getServerNowSnapshot, getServerRestoreSnapshot, isLookupHistoryEntry, markRestoreConsumed, pushLookupHistoryEntry, subscribeToNothing } from "@/components/lookup/session";
 import { useLookup } from "@/components/lookup/useLookup";
 import { Button } from "@/components/primitives/Button";
@@ -436,6 +437,7 @@ export function LookupController({ entry, homeNotice, idleExtras }: LookupContro
           </div>
         </section>
       </div>
+      {currentView !== null && currentView.mode === "settled" ? <StickySummary view={currentView} /> : null}
       {viewMode === "idle" ? idleExtras : null}
       <ManualAdSlot allowed={manualSlot !== "none"} slotId={ads.manualSlotId} />
     </>
