@@ -132,5 +132,7 @@ test("save: needs the store and a Vercel API token, then upserts one item", asyn
   expect(sent.init.method).toBe("PATCH");
   expect(new Headers(sent.init.headers).get("authorization")).toBe("Bearer api-token");
   expect(JSON.parse(String(sent.init.body))).toEqual({ items: [{ operation: "upsert", key: SITE_SETTINGS_KEY, value }] });
-  expect(await saveSiteSettings(value, { env, fetcher: async () => new Response("no", { status: 403 }) })).toEqual({ ok: false, reason: "rejected" });
+  expect(await saveSiteSettings(value, { env, fetcher: async () => new Response("no", { status: 403 }) })).toEqual({ ok: false, reason: "rejected", detail: "403" });
+  const refused = async (): Promise<Response> => Response.json({ error: { code: "forbidden", message: "Not authorized", invalidToken: true } }, { status: 403 });
+  expect(await saveSiteSettings(value, { env, fetcher: refused })).toEqual({ ok: false, reason: "rejected", detail: "403 forbidden invalidToken" });
 });

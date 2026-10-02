@@ -50,7 +50,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   const checked = validateSiteSettings(body);
   if (!checked.ok) return NextResponse.json({ ok: false, reason: "invalid", errors: checked.errors }, { status: 400 });
   const saved = await saveSiteSettings(checked.value);
-  if (!saved.ok) return NextResponse.json({ ok: false, reason: saved.reason }, { status: saved.reason === "notConfigured" ? 503 : 502 });
+  if (!saved.ok) {
+    const detail = saved.reason === "rejected" ? saved.detail : undefined;
+    return NextResponse.json({ ok: false, reason: saved.reason, detail }, { status: saved.reason === "notConfigured" ? 503 : 502 });
+  }
   revalidatePath("/", "layout");
   return NextResponse.json({ ok: true, values: checked.value });
 }

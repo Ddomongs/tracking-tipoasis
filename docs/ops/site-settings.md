@@ -39,3 +39,11 @@
 - 저장 화면과 저장 주소(`/internal/site-settings`)는 `/internal` 기본 인증 뒤에 있고, 다른 사이트에서 보낸 저장 요청은 거절합니다.
 - 저장된 값 중 형식이 틀린 칸은 무시하고 기본값을 씁니다. 저장소가 응답하지 않아도 사이트는 기본값으로 정상 동작합니다.
 - 토큰을 지우거나 만료되면 저장만 안 되고(화면에 이유 표시), 사이트 표시는 마지막 저장값을 그대로 씁니다.
+
+## 저장이 거절될 때 (화면의 "Vercel 응답: …")
+
+| 응답 | 뜻 | 할 일 |
+| --- | --- | --- |
+| `403 forbidden invalidToken` | 토큰 값이 틀렸거나 만료·삭제됨 | 토큰을 새로 만들어 `VERCEL_API_TOKEN`을 앞뒤 공백 없이 다시 붙여 넣고 Redeploy |
+| `403 forbidden` | 토큰 범위(Scope)가 이 팀이 아님 | 토큰 Scope를 `sos8457-8054's projects`로 다시 만들기 |
+| `404 …` | 저장소 ID 또는 `VERCEL_TEAM_ID`가 다른 팀 | `VERCEL_TEAM_ID`=`team_MNsFPszrqXW8f3h9bdp26E0D` 확인 |

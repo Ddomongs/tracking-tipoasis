@@ -48,7 +48,22 @@ export async function readSiteSettings(
   }
 }
 
-export type SaveResult = { readonly ok: true } | { readonly ok: false; readonly reason: "notConfigured" | "rejected" | "network" };
+export type SaveResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: "notConfigured" | "network" }
+  /** detail: Vercel's HTTP status and error code (e.g. "403 forbidden invalidToken"), never the token or the body. */
+  | { readonly ok: false; readonly reason: "rejected"; readonly detail: string };
+
+/** A short, safe summary of a refusal from the Vercel API. */
+async function refusalDetail(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { error?: { code?: unknown; invalidToken?: unknown } };
+    const code = typeof body.error?.code === "string" && /^[\w.-]{1,40}$/.test(body.error.code) ? ` ${body.error.code}` : "";
+    return `${response.status}${code}${body.error?.invalidToken === true ? " invalidToken" : ""}`;
+  } catch {
+    return String(response.status);
+  }
+}
 
 export function canSaveSiteSettings(env: Env = process.env): boolean {
   return connectionOf(env) !== null && Boolean(env.VERCEL_API_TOKEN);
@@ -70,8 +85,9 @@ export async function saveSiteSettings(value: SiteSettings, options: StoreOption
       signal: AbortSignal.timeout(8000)
     });
     if (response.ok) return { ok: true };
-    console.warn(`site_settings_save {"status":${response.status}}`);
-    return { ok: false, reason: "rejected" };
+    const detail = await refusalDetail(response);
+    console.warn(`site_settings_save {"refused":"${detail}"}`);
+    return { ok: false, reason: "rejected", detail };
   } catch {
     console.warn('site_settings_save {"status":"network"}');
     return { ok: false, reason: "network" };

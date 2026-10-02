@@ -57,7 +57,7 @@ const READ_FAILED = "저장된 값을 불러오지 못해 기본값이 보이고
 
 const REASONS: Readonly<Record<string, string>> = {
   notConfigured: "저장소(Global Config)나 저장용 토큰이 아직 없어 저장할 수 없어요.",
-  rejected: "Vercel이 저장을 거절했어요. 토큰과 팀 설정을 확인해 주세요.",
+  rejected: "Vercel이 저장을 거절했어요. 토큰과 팀 설정을 확인해 주세요(docs/ops/site-settings.md).",
   network: "Vercel에 연결하지 못했어요. 잠시 뒤 다시 저장해 주세요.",
   forbidden: "이 화면에서만 저장할 수 있어요. 새로고침 뒤 다시 시도해 주세요."
 };
@@ -101,14 +101,17 @@ export function SiteSettingsTab(): React.JSX.Element {
     setStatus("저장하고 있어요…");
     try {
       const response = await fetch(ENDPOINT, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(form) });
-      const data = (await response.json()) as { ok: boolean; reason?: string; errors?: Errors; values?: SiteSettings };
+      const data = (await response.json()) as { ok: boolean; reason?: string; detail?: string; errors?: Errors; values?: SiteSettings };
       if (data.ok && data.values !== undefined) {
         setErrors({});
         setForm(data.values);
         setStatus("저장했어요. 사이트에 바로 반영돼요(늦어도 1분).");
       } else {
         setErrors(data.errors ?? {});
-        setStatus(data.reason === "invalid" ? "고칠 칸이 있어요. 빨간 안내를 확인해 주세요." : (REASONS[data.reason ?? ""] ?? "저장하지 못했어요."));
+        const reason = REASONS[data.reason ?? ""] ?? "저장하지 못했어요.";
+        setStatus(
+          data.reason === "invalid" ? "고칠 칸이 있어요. 빨간 안내를 확인해 주세요." : data.detail ? `${reason} (Vercel 응답: ${data.detail})` : reason
+        );
         // After the errors render, take the keyboard to the first field to fix.
         requestAnimationFrame(() => formRef.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus());
       }
