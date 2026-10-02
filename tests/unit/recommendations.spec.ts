@@ -149,7 +149,7 @@ test.describe("supplementary copy in the config (S08)", () => {
     expect(resultCopy.recommendationsOpen).toBe("운영자 추천 상품 보기");
     expect(resultCopy.recommendationsClose).toBe("닫기");
     expect(resultCopy.recommendationPriceChecked).toBe("{date} 확인");
-    expect(resultCopy.showcaseTitle).toBe("판매 중인 상품 둘러보기");
+    expect(resultCopy.showcaseTitle).toBe("스토어·추천 상품");
     expect(resultCopy.footerNote.length).toBeGreaterThan(10);
     expect(resultCopy.adSlotLabel).toBe("광고");
     const parsed = SiteConfigSchema.safeParse(siteConfig);

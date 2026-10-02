@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { channels, disclosures, durations, lookup } from "@/config/site.config";
+import { STORE_SHEET_OPEN_LABEL } from "@/components/supplementary/store-sheet";
 import { FAKE, FIXTURE_NOW, mockTrack, successBody, trackData } from "../fixtures/tracking-fixtures";
 
 test.describe("site header (S06)", () => {
@@ -189,9 +190,15 @@ test.describe("상담·스토어 바로가기 row (S06, approval 1)", () => {
       await expect(row, size).toHaveAttribute("data-shortcut-row", "full");
       await expect(row, size).toBeInViewport({ ratio: 1 });
       await page.getByRole("button", { name: "조회하기" }).click({ trial: true });
-      for (const name of ["톡톡 상담", "네이버 스토어", "쿠팡 스토어"]) {
-        await row.getByRole("link", { name: `${name} 새 창으로 열기` }).click({ trial: true });
+      // 10월 2일 요청: the row is one button that opens the store sheet; 톡톡 stays in the header and the footer.
+      await row.getByRole("button", { name: STORE_SHEET_OPEN_LABEL }).click();
+      const sheet = page.locator("[data-store-showcase]");
+      await expect(sheet, size).toBeVisible();
+      for (const store of [channels.naver, channels.coupang]) {
+        await sheet.getByRole("link", { name: `${store.linkLabel} 새 창으로 열기` }).click({ trial: true });
       }
+      await page.keyboard.press("Escape");
+      await expect(sheet, size).toBeHidden();
     }
   });
 
@@ -211,25 +218,40 @@ test.describe("상담·스토어 바로가기 row (S06, approval 1)", () => {
     }
   });
 
-  test("the definitive disclosure comes before the coupang link, and only affiliate links are sponsored", async ({ page }) => {
+  test("the store sheet: the definitive disclosure comes before the coupang link, and only affiliate links are sponsored", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/");
     const row = page.getByRole("region", SHORTCUT_REGION);
-    await expect(row.locator("p, a").first()).toHaveAttribute("data-affiliate-disclosure", "coupang");
-    await expect(row.locator('[data-affiliate-disclosure="coupang"]')).toHaveText(disclosures.coupang);
+    await expect(row.getByRole("link")).toHaveCount(0);
+    const open = row.getByRole("button", { name: STORE_SHEET_OPEN_LABEL });
+    expect((await open.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+    await open.click();
+    const sheet = page.locator("[data-store-showcase]");
+    await expect(sheet.locator("p, a").first()).toHaveAttribute("data-affiliate-disclosure", "coupang");
+    await expect(sheet.locator('[data-affiliate-disclosure="coupang"]')).toHaveText(disclosures.coupang);
     const relFor = (isAffiliate: boolean): string => (isAffiliate ? "sponsored nofollow noopener noreferrer" : "noopener noreferrer");
-    const links = [
-      { name: "톡톡 상담", href: channels.talk.url, rel: relFor(false) },
-      { name: "네이버 스토어", href: channels.naver.urls.shortcut, rel: relFor(channels.naver.isAffiliate) },
-      { name: "쿠팡 스토어", href: channels.coupang.urls.shortcut, rel: relFor(channels.coupang.isAffiliate) }
-    ];
-    for (const link of links) {
-      const anchor = row.getByRole("link", { name: `${link.name} 새 창으로 열기` });
-      await expect(anchor, link.name).toHaveAttribute("href", link.href);
-      await expect(anchor, link.name).toHaveAttribute("rel", link.rel);
-      await expect(anchor, link.name).toHaveAttribute("target", "_blank");
-      await expect(anchor, link.name).toHaveAttribute("data-link-placement", "shortcut");
-      expect((await anchor.boundingBox())?.height ?? 0, link.name).toBeGreaterThanOrEqual(44);
+    for (const store of [channels.naver, channels.coupang]) {
+      const anchor = sheet.getByRole("link", { name: `${store.linkLabel} 새 창으로 열기` });
+      await expect(anchor, store.name).toHaveAttribute("href", store.urls.showcase);
+      await expect(anchor, store.name).toHaveAttribute("rel", relFor(store.isAffiliate));
+      await expect(anchor, store.name).toHaveAttribute("target", "_blank");
+      expect((await anchor.boundingBox())?.height ?? 0, store.name).toBeGreaterThanOrEqual(44);
     }
+    await sheet.getByRole("button", { name: "닫기" }).click();
+    await expect(sheet).toBeHidden();
+    await expect(open).toBeFocused();
+  });
+
+  test("wide screens show the store panel beside the column and hide the sheet button", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/");
+    const panel = page.locator("[data-store-showcase]");
+    await expect(panel).toBeVisible();
+    await expect(page.getByRole("button", { name: STORE_SHEET_OPEN_LABEL })).toBeHidden();
+    const column = await page.locator("main").boundingBox();
+    const box = await panel.boundingBox();
+    expect(box?.x ?? 0).toBeGreaterThanOrEqual((column?.x ?? 0) + (column?.width ?? 0));
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(1440);
   });
 
   test("only 톡톡 stays while the number is invalid; the row is gone in loading and results", async ({ page }) => {

@@ -208,6 +208,7 @@ function checkHosts(config: SiteConfig, report: Report): void {
       checkUrl(url, ["channels", channel, "urls", placement]);
     }
   }
+  if (config.channels.youtube.url !== null) checkUrl(config.channels.youtube.url, ["channels", "youtube", "url"]);
   config.featuredProducts.forEach((item, index) => checkUrl(item.href, ["featuredProducts", index, "href"]));
 }
 

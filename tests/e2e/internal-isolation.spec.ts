@@ -71,7 +71,7 @@ test("public pages still load the AdSense loader (control)", async ({ page }) =>
   await recordAdRequests(page);
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
-  await page.locator("[data-store-showcase]").scrollIntoViewIfNeeded();
+  await page.locator('[data-ad-scroll-sentinel="showcase"]').scrollIntoViewIfNeeded();
   await page.evaluate(() => window.scrollBy(0, 1));
   await expect(page.locator(AD_SCRIPT)).toHaveCount(1);
 });

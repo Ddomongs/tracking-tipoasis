@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0,0,560,150">
+<!-- 첫 화면 배송 장면(10월 2일 요청 ③④). 비행기 도착 → 세관 통관 도장 → 트럭 이동 → 집 도착, 약 4초 한 번 재생 후 멈춥니다.
+     모든 요소의 기본 모양이 마지막 장면이고, 애니메이션은 시작 모습(from)만 정합니다. 줄인 모션이면 처음부터 마지막 장면입니다. -->
+<defs>
+<linearGradient id="sky" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2A4FE0"/><stop offset="1" stop-color="#1A33A8"/></linearGradient>
+<pattern id="dots" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#FFFFFF" fill-opacity="0.14"/></pattern>
+</defs>
+<style>
+.w{fill:none;stroke:#FFFFFF;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.trail{fill:none;stroke:#FFFFFF;stroke-opacity:0.7;stroke-width:2.5;stroke-linecap:round;stroke-dasharray:1,9}
+.road{fill:none;stroke:#FFFFFF;stroke-opacity:0.45;stroke-width:2;stroke-linecap:round;stroke-dasharray:10,8}
+.y{fill:#F4BC00}
+.cloud{fill:#FFFFFF;fill-opacity:0.12}
+@keyframes drift{from{transform:translateX(-24px)}}
+@keyframes reveal{from{clip-path:inset(0 100% 0 0)}}
+@keyframes fly{from{offset-distance:0%}}
+@keyframes land{from{opacity:1;transform:scale(1)}}
+@keyframes stamp{0%{transform:scale(0)}70%{transform:scale(1.18)}100%{transform:scale(1)}}
+@keyframes drive{from{transform:translateX(-150px)}}
+@keyframes spin{from{transform:rotate(-720deg)}}
+@keyframes glow{from{fill-opacity:0}}
+@keyframes drop{0%{transform:translateY(-28px);opacity:0}60%{transform:translateY(3px);opacity:1}100%{transform:translateY(0)}}
+.c1{animation:drift 4s cubic-bezier(.2,0,0,1) both}
+.c2{animation:drift 4s cubic-bezier(.2,0,0,1) .3s both}
+.tr{animation:reveal 1.3s cubic-bezier(.4,0,.2,1) both}
+.plane{offset-path:path("M30,112C80,40,150,24,206,62");offset-rotate:auto;offset-distance:100%;opacity:0;transform:scale(.6);transform-box:fill-box;transform-origin:center;
+ animation:fly 1.3s cubic-bezier(.4,0,.2,1) both,land .25s ease-in 1.3s both}
+.badge{transform-box:fill-box;transform-origin:center;animation:stamp .45s cubic-bezier(.2,0,0,1) 1.45s both}
+.rd{animation:reveal 1.3s linear 1.8s both}
+.truck{animation:drive 1.4s cubic-bezier(.45,0,.2,1) 1.85s both}
+.wheel{transform-box:fill-box;transform-origin:center;animation:spin 1.4s cubic-bezier(.45,0,.2,1) 1.85s both}
+.win{fill-opacity:1;animation:glow .4s ease-out 3.2s both}
+.pin{transform-box:fill-box;transform-origin:center bottom;animation:drop .55s cubic-bezier(.2,0,0,1) 3.3s both}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<rect width="560" height="150" fill="url(#sky)"/>
+<rect width="560" height="150" fill="url(#dots)"/>
+<g class="c1"><ellipse class="cloud" cx="330" cy="34" rx="46" ry="11"/><ellipse class="cloud" cx="352" cy="26" rx="24" ry="10"/></g>
+<g class="c2"><ellipse class="cloud" cx="110" cy="30" rx="34" ry="8"/></g>
+<path class="road" d="M16,124H544"/>
+<path class="trail tr" d="M30,112C80,40,150,24,206,62"/>
+<g class="plane"><path fill="#FFFFFF" d="M-14,-2L10,-2C15,-2,17,0,17,1C17,2,15,3,10,3L-14,3Z M-2,-2L-9,-12L-5,-12L5,-2Z M-2,3L-9,13L-5,13L5,3Z M-13,-2L-16,-8L-13,-8L-9,-2Z"/></g>
+<g class="w"><path d="M182,82L214,64L246,82Z M182,124H246 M186,88H242 M192,94V118 M203,94V118 M214,94V118 M225,94V118 M236,94V118"/></g>
+<g class="badge"><circle class="y" cx="252" cy="66" r="12"/><path d="M246,66L250.5,70.5L258,62" fill="none" stroke="#1A33A8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></g>
+<path class="road rd" d="M262,124H440" stroke-opacity="0.9"/>
+<g class="truck">
+<path class="w" d="M404,90H436V118H404Z M436,98H450L460,108V118H436"/>
+<path d="M440,101H448L454,107H440Z" fill="#FFFFFF" fill-opacity="0.85"/>
+<g class="wheel"><circle cx="414" cy="120" r="5.5" fill="#1A33A8" stroke="#FFFFFF" stroke-width="2.5"/><path d="M414,116V124" stroke="#FFFFFF" stroke-width="1.5"/></g>
+<g class="wheel"><circle cx="448" cy="120" r="5.5" fill="#1A33A8" stroke="#FFFFFF" stroke-width="2.5"/><path d="M448,116V124" stroke="#FFFFFF" stroke-width="1.5"/></g>
+</g>
+<g class="w"><path d="M478,94L508,70L538,94 M484,89V124H532V89 M502,124V106H514V124"/></g>
+<rect class="y win" x="519" y="98" width="8" height="8" rx="1"/>
+<rect class="y win" x="489" y="98" width="8" height="8" rx="1"/>
+<g class="pin"><path class="y" d="M508,58C508,58,520,46,520,38A12,12,0,1,0,496,38C496,46,508,58,508,58Z"/><circle cx="508" cy="38" r="4.5" fill="#1A33A8"/></g>
+</svg>

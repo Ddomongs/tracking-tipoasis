@@ -38,41 +38,58 @@ html {
 }
 
 /*
- * 첫 화면 제목(10월 2일 요청 ③ 디자인 고급화). HTML은 그대로 두고(‘/’ HTML 35 KB 예산) CSS만으로 그립니다.
- * - 모든 폭: 제목 뒤에 강조색을 아주 옅게 깐 바탕. 높이는 그대로라 375px에서도 바로가기 줄이 550px 안에 끝납니다(승인 1).
- * - 768px 이상: 제목 위 배송 경로 그림(public/art/route.svg 마스크, 색은 --tt-accent)과 더 큰 제목.
- *   그림은 왼쪽에서 오른쪽으로 한 번 그려지고(tt-route), 줄인 모션이면 처음부터 다 보입니다.
+ * 첫 화면 배송 장면과 제목(10월 2일 요청 ③④). 장면은 public/art/hero.svg(640px 이상)·hero-m.svg(그보다 좁을 때)의
+ * 장식 그림으로, 그림 파일 안에서 약 4초 한 번 재생하고 멈춥니다(줄인 모션이면 처음부터 마지막 장면).
  */
-#tracking[data-view-state="idle"] > h1 {
-  letter-spacing: -0.02em;
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--tt-accent) 9%, var(--tt-surface)), var(--tt-surface));
-}
+[data-home-hero] img { display: block; width: 100%; height: auto; }
+/* 모바일: 장면 바로 아래라 제목 위 여백을 줄여 바로가기 버튼이 375×667에서도 550px 안에 끝나게 합니다(승인 1). */
+#tracking[data-view-state="idle"] > h1 { padding-top: 4px; letter-spacing: -0.02em; }
 @media (min-width: 768px) {
   #tracking[data-view-state="idle"] > h1 {
-    padding-top: 28px;
-    padding-bottom: 4px;
+    padding-top: 20px;
     font-size: 32px;
     line-height: 1.25;
   }
-  #tracking[data-view-state="idle"] > h1::before {
-    content: "";
-    display: block;
-    aspect-ratio: 5 / 1;
-    max-height: 96px;
-    margin-bottom: 16px;
-    background-color: var(--tt-accent);
-    -webkit-mask: url("/art/route.svg") left center / contain no-repeat;
-    mask: url("/art/route.svg") left center / contain no-repeat;
-    animation: tt-route calc(var(--tt-motion-slow) * 3) var(--tt-ease) 1 both;
+}
+
+/*
+ * 첫 화면 스토어 칸(10월 2일 요청): 한 요소가 두 모양을 가집니다(components/supplementary/StoreShowcase.tsx).
+ * - 1260px 미만: '스토어·추천 상품 보기'로 여는 아래쪽 시트(네이티브 popover, 바깥을 누르거나 Esc로 닫힘).
+ * - 1260px 이상: 가운데 열 오른쪽에 고정된 칸. 여는 버튼과 닫기 버튼은 숨깁니다.
+ */
+[data-store-showcase] {
+  margin: 0;
+  border: 0;
+  padding: 20px var(--tt-gutter) calc(24px + env(safe-area-inset-bottom));
+  color: var(--tt-ink);
+}
+[data-store-showcase]:popover-open {
+  display: flex;
+  position: fixed;
+  inset: auto 0 0 0;
+  width: 100%;
+  max-width: none;
+  max-height: 85dvh;
+  overflow: auto;
+  border-top: 2px solid var(--tt-ink);
+}
+[data-store-showcase]::backdrop { background: color-mix(in srgb, var(--tt-ink) 50%, transparent); }
+[data-store-showcase] [data-affiliate-group] > div:last-child { grid-template-columns: minmax(0, 1fr); }
+[data-youtube-channel] > a { width: 100%; }
+@media (min-width: 1260px) {
+  [data-store-showcase] {
+    display: flex;
+    position: fixed;
+    inset: auto;
+    top: calc(var(--tt-header-h) + 24px);
+    left: calc(50% + var(--tt-column) / 2 + 24px);
+    z-index: 20;
+    width: 300px;
+    max-height: calc(100dvh - var(--tt-header-h) - 48px);
+    overflow: auto;
+    padding: 20px;
+    border: 2px solid var(--tt-ink);
   }
-}
-@media (min-width: 768px) and (prefers-reduced-motion: reduce) {
-  #tracking[data-view-state="idle"] > h1::before { animation: none; }
-}
-@media (min-width: 768px) and (forced-colors: active) {
-  #tracking[data-view-state="idle"] > h1::before { background-color: CanvasText; forced-color-adjust: none; }
-}
-@keyframes tt-route {
-  from { clip-path: inset(0 100% 0 0); }
-  to { clip-path: inset(0 0 0 0); }
+  [data-shortcut-row="full"],
+  [data-store-sheet-close] { display: none; }
 }

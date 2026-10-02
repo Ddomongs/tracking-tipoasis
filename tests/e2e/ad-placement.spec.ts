@@ -234,7 +234,7 @@ test.describe("ad timing (S08, approval 7)", () => {
     await page.goto("/");
     await waitForIdle(page);
     expect(await loaderCount(loader)).toBe(0);
-    await page.locator("[data-store-showcase]").scrollIntoViewIfNeeded();
+    await page.locator('[data-ad-scroll-sentinel="showcase"]').scrollIntoViewIfNeeded();
     await page.evaluate(() => window.scrollBy(0, 1));
     await expect.poll(() => loaderCount(loader), { timeout: 10_000 }).toBe(1);
     expectCleanInsertions(loader);

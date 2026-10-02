@@ -22,10 +22,17 @@ export interface StoreChannel {
   readonly isAffiliate: boolean; // naver false, coupang true
   readonly urls: Readonly<Record<StorePlacementId, string>>; // per-placement link ids for partner dashboards
 }
+/** The operator's YouTube channel on the home store sheet; url null hides it. */
+export interface YoutubeChannel {
+  readonly name: string;
+  readonly linkLabel: string;
+  readonly url: string | null;
+}
 export interface ChannelsConfig {
   readonly talk: TalkChannel;
   readonly naver: StoreChannel;
   readonly coupang: StoreChannel;
+  readonly youtube: YoutubeChannel;
   readonly allowedHosts: readonly string[];
 }
 export interface DisclosuresConfig { readonly coupang: string }

@@ -33,11 +33,30 @@ export function TrackingPage({ entry }: { readonly entry: TrackingEntry }): Reac
         </noscript>
       )}
       {/* LookupController keeps the transitional #tracking-panel wrapper (Addition 11) around its lookup section. */}
-      <LookupController entry={entry} homeNotice={homeNotice} idleExtras={<IdleExtras />} />
+      <LookupController
+        entry={entry}
+        homeNotice={homeNotice}
+        idleExtras={<IdleExtras />}
+        idleHero={entry.kind === "home" ? <HomeHero /> : null}
+      />
     </main>
   );
 }
 
+/**
+ * The home delivery scene (10월 2일 요청 ③④): a decorative animated SVG that plays about 4 s once inside the image file
+ * (reduced motion: the last frame at once). Width and height on each source keep the space reserved (no layout shift).
+ */
+function HomeHero(): React.JSX.Element {
+  return (
+    <div data-home-hero="true">
+      <picture>
+        <source media="(min-width: 640px)" srcSet="/art/hero.svg" width={560} height={150} />
+        <img src="/art/hero-m.svg" alt="" width={560} height={86} fetchPriority="high" />
+      </picture>
+    </div>
+  );
+}
 
 /** Below the first view, idle mode only (spec §4 order): typical durations, then the store showcase. */
 function IdleExtras(): React.JSX.Element {

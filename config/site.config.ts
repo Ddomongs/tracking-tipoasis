@@ -45,8 +45,11 @@ export const channels = {
     isAffiliate: true, // true면 링크에 rel="sponsored nofollow"와 아래 고지 문구가 자동으로 붙습니다
     urls: { shortcut: COUPANG_STORE_HOME, showcase: COUPANG_STORE_HOME, pending: COUPANG_STORE_HOME, deliveredLead: COUPANG_STORE_HOME }
   },
+  // 운영하는 유튜브 채널(10월 2일 요청). 주소를 넣으면 첫 화면의 스토어 칸(PC 오른쪽·모바일 팝업)에 '유튜브 채널 보기'가 생깁니다.
+  // 예: "https://www.youtube.com/@채널이름". null이면 숨깁니다.
+  youtube: { name: "유튜브 채널", linkLabel: "유튜브 채널 보기", url: null },
   // 링크에 쓸 수 있는 호스트. 새 주소를 쓰려면 여기에도 추가합니다.
-  allowedHosts: ["talk.naver.com", "mkt.shopping.naver.com", "smartstore.naver.com", "link.coupang.com", "www.coupang.com"]
+  allowedHosts: ["talk.naver.com", "mkt.shopping.naver.com", "smartstore.naver.com", "link.coupang.com", "www.coupang.com", "www.youtube.com", "youtube.com"]
 } satisfies ChannelsConfig;
 
 /** 2) 제휴 고지 — 제휴 링크 묶음의 첫 줄에 자동으로 붙습니다. 승인 9(법무 확인)로 확정한 문언입니다. */
@@ -484,7 +487,7 @@ export const resultCopy = {
   recommendationsClose: "닫기",
   recommendationPriceChecked: "{date} 확인",
   // 홈 첫 화면 아래 스토어 묶음 제목, 푸터 안내 문장, 수동 광고 자리의 이름(화면 읽기용)
-  showcaseTitle: "판매 중인 상품 둘러보기",
+  showcaseTitle: "스토어·추천 상품",
   footerNote: "입력한 번호로 관세청 통관 정보와 택배사 배송 정보를 함께 조회해요. 정보가 반영되는 시점에 따라 실제와 조금 다를 수 있어요.",
   adSlotLabel: "광고"
 } satisfies ResultCopyConfig;

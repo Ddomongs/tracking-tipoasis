@@ -1,13 +1,11 @@
-import { channels, disclosures } from "@/config/site.config";
 import { FailureFallback } from "@/components/lookup/FailureFallback";
 import { buttonClassName } from "@/components/primitives/Button";
+import { STORE_SHEET_ID, STORE_SHEET_OPEN_LABEL } from "@/components/supplementary/store-sheet";
 
 export const SHORTCUT_REGION_LABEL = "상담·스토어 바로가기";
-const NEW_WINDOW_SUFFIX = " 새 창으로 열기";
-/** The button slot's secondary look (44 px outline), with the tighter padding three links need in one row at 360 px. */
-const LINK_CLASS = buttonClassName("secondary", "md", "!px-1 !text-tt-sm");
+const OPEN_CLASS = buttonClassName("secondary", "md", "w-full");
 
-function TalkBubbleIcon(): React.JSX.Element {
+function StoreIcon(): React.JSX.Element {
   return (
     <svg
       aria-hidden="true"
@@ -17,50 +15,22 @@ function TalkBubbleIcon(): React.JSX.Element {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={2.5}
-      strokeLinecap="square"
-      strokeLinejoin="miter"
+      strokeWidth={2.25}
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className="shrink-0"
     >
-      <path d="M4 5h16v11H10l-6 4z" />
+      <path d="M4,8H20L19,20H5Z M8.5,8V6.5A3.5,3.5,0,0,1,15.5,6.5V8" />
     </svg>
   );
 }
 
-function ShortcutLink({
-  href,
-  label,
-  sponsored,
-  icon
-}: {
-  readonly href: string;
-  readonly label: string;
-  readonly sponsored: boolean;
-  readonly icon: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel={sponsored ? "sponsored nofollow noopener noreferrer" : "noopener noreferrer"}
-      aria-label={`${label}${NEW_WINDOW_SUFFIX}`}
-      data-slot="button"
-      data-variant="secondary"
-      data-size="md"
-      data-link-placement="shortcut"
-      className={LINK_CLASS}
-    >
-      {icon}
-      <span>{label}</span>
-    </a>
-  );
-}
-
 /**
- * Region '상담·스토어 바로가기' right under [조회하기] (spec §4, approval 1): the definitive disclosure first, then
- * [톡톡 상담][네이버 스토어][쿠팡 스토어] as 44 px outlines, lighter than the one filled button. `isAffiliate` alone decides
- * the disclosure and rel="sponsored nofollow" (spec §8). While the number is invalid only 톡톡 stays — as the error CTA
- * block, so the screen keeps one 톡톡 place besides the header and the footer (spec §8 "화면당 최대 3곳").
+ * Region '상담·스토어 바로가기' right under [조회하기] (spec §4, approval 1 — 10월 2일 요청으로 간소화): one secondary
+ * button that opens the store sheet (a native popover, no script: components/supplementary/StoreShowcase.tsx) with the
+ * definitive disclosure before the store links. 톡톡 stays in the header and the footer. On wide screens the sheet is a
+ * fixed panel beside the column, so the button hides (app/globals.css). While the number is invalid only 톡톡 stays — as
+ * the error CTA block, so the screen keeps one 톡톡 place besides the header and the footer (spec §8 "화면당 최대 3곳").
  */
 export function ShortcutRow({ mode }: { readonly mode: "full" | "talkOnly" }): React.JSX.Element {
   if (mode === "talkOnly") {
@@ -70,17 +40,20 @@ export function ShortcutRow({ mode }: { readonly mode: "full" | "talkOnly" }): R
       </section>
     );
   }
-  const stores = [channels.naver, channels.coupang];
-  const hasAffiliate = stores.some((store) => store.isAffiliate);
   return (
-    <section aria-label={SHORTCUT_REGION_LABEL} data-shortcut-row="full" className="flex flex-col gap-2 px-[var(--tt-gutter)]">
-      {hasAffiliate ? <p data-affiliate-disclosure="coupang">{disclosures.coupang}</p> : null}
-      <div className="grid grid-cols-3 gap-2">
-        <ShortcutLink href={channels.talk.url} label={channels.talk.labels.shortcut} sponsored={false} icon={<TalkBubbleIcon />} />
-        {stores.map((store) => (
-          <ShortcutLink key={store.name} href={store.urls.shortcut} label={store.name} sponsored={store.isAffiliate} icon={null} />
-        ))}
-      </div>
+    <section aria-label={SHORTCUT_REGION_LABEL} data-shortcut-row="full" className="px-[var(--tt-gutter)]">
+      <button
+        type="button"
+        popoverTarget={STORE_SHEET_ID}
+        data-store-sheet-open="true"
+        data-slot="button"
+        data-variant="secondary"
+        data-size="md"
+        className={OPEN_CLASS}
+      >
+        <StoreIcon />
+        {STORE_SHEET_OPEN_LABEL}
+      </button>
     </section>
   );
 }
