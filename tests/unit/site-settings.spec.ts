@@ -23,7 +23,10 @@ test("defaults come from config/site.config.ts", () => {
     coupangLabel: channels.coupang.linkLabel,
     coupangUrl: channels.coupang.urls.showcase,
     youtubeLabel: channels.youtube.linkLabel,
-    youtubeUrl: channels.youtube.url ?? ""
+    youtubeUrl: channels.youtube.url ?? "",
+    loadingTitle: "해외 구매, 직접 하기 번거로우셨죠?",
+    loadingBody: "구매대행·해외 직구가 필요하면 언제든 편하게 물어보세요.",
+    loadingButtonLabel: "톡톡으로 상담하기"
   });
 });
 

@@ -16,7 +16,7 @@ import type {
   TrackingViewModel
 } from "@/lib/tracking/types";
 import { interactedBeforeHydration, watchFirstInput } from "./early-interaction";
-import { LoadingCard } from "./LoadingCard";
+import { LoadingCard, type LoadingPromo } from "./LoadingCard";
 import { loadResultModule, preloadResultModule, type ResultModule } from "./load-result-module";
 
 export interface ResultSlotProps {
@@ -29,6 +29,8 @@ export interface ResultSlotProps {
   /** Called once per settled view, after it is on screen (ad signals, the number bar's carrier label, S08 extras). */
   readonly onView?: (view: TrackingViewModel) => void;
   readonly renderRecommendations?: (view: TrackingViewModel, outcome: LookupOutcome) => React.ReactNode;
+  /** The 톡톡 invitation shown in the loading card (10월 2일 요청); null keeps the plain skeleton. */
+  readonly loadingPromo?: LoadingPromo | null;
 }
 
 type SettledState = Extract<LookupState, { readonly phase: "settled" | "error" }>;
@@ -126,7 +128,8 @@ export function ResultSlot({
   onAction,
   headingRef,
   onView,
-  renderRecommendations
+  renderRecommendations,
+  loadingPromo = null
 }: ResultSlotProps): React.JSX.Element | null {
   const [shown, setShown] = useState<Shown | null>(null);
   const [failed, setFailed] = useState<SettledState | null>(null);
@@ -214,5 +217,5 @@ export function ResultSlot({
     return failed === state ? <ModuleFailure /> : <PendingPlaceholder />;
   }
   const card = visibleLoading(state, loading) ?? firstPaintLoading(entry, state, loadingConfig);
-  return card === null ? null : <LoadingCard loading={card} onCancel={() => onAction({ kind: "cancel" })} />;
+  return card === null ? null : <LoadingCard loading={card} promo={loadingPromo} onCancel={() => onAction({ kind: "cancel" })} />;
 }

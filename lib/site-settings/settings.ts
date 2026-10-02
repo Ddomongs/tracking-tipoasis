@@ -3,7 +3,7 @@ import { STORE_SHEET_INTRO, STORE_SHEET_OPEN_LABEL } from "@/components/suppleme
 import { channels, resultCopy } from "@/config/site.config";
 
 /**
- * Words and links of the home store sheet that staff edit on /internal/cs-helper?tab=site (10월 2일 요청), stored as one
+ * Words and links of the home store sheet and the loading card that staff edit on /internal/cs-helper?tab=site (10월 2일 요청), stored as one
  * Vercel Global Config (formerly Edge Config) item. config/site.config.ts gives the defaults; a missing, unreadable or invalid stored field falls
  * back to its default, so a bad save can never break the page.
  */
@@ -20,6 +20,10 @@ export interface SiteSettings {
   readonly youtubeLabel: string;
   /** "" hides the YouTube link. */
   readonly youtubeUrl: string;
+  /** The card shown while a lookup runs (10월 2일 요청): title, one sentence and the 톡톡 button. */
+  readonly loadingTitle: string;
+  readonly loadingBody: string;
+  readonly loadingButtonLabel: string;
 }
 
 export type SiteSettingsField = keyof SiteSettings;
@@ -33,7 +37,10 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   coupangLabel: channels.coupang.linkLabel,
   coupangUrl: channels.coupang.urls.showcase,
   youtubeLabel: channels.youtube.linkLabel,
-  youtubeUrl: channels.youtube.url ?? ""
+  youtubeUrl: channels.youtube.url ?? "",
+  loadingTitle: "해외 구매, 직접 하기 번거로우셨죠?",
+  loadingBody: "구매대행·해외 직구가 필요하면 언제든 편하게 물어보세요.",
+  loadingButtonLabel: "톡톡으로 상담하기"
 };
 
 const ALLOWED_HOSTS = new Set<string>(channels.allowedHosts);
@@ -65,7 +72,10 @@ const FIELD_SCHEMAS = {
   coupangLabel: label(30),
   coupangUrl: link,
   youtubeLabel: label(30),
-  youtubeUrl: z.union([z.literal(""), link])
+  youtubeUrl: z.union([z.literal(""), link]),
+  loadingTitle: label(40),
+  loadingBody: label(120),
+  loadingButtonLabel: label(20)
 } satisfies Record<SiteSettingsField, z.ZodType<string>>;
 
 const SiteSettingsSchema = z.object(FIELD_SCHEMAS).strict();

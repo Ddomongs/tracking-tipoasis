@@ -41,6 +41,7 @@ export async function TrackingPage({ entry }: { readonly entry: TrackingEntry })
         homeNotice={homeNotice}
         idleExtras={<IdleExtras settings={settings} />}
         storeSheetLabel={settings.storeButtonLabel}
+        loadingPromo={{ title: settings.loadingTitle, body: settings.loadingBody, buttonLabel: settings.loadingButtonLabel }}
       />
     </main>
   );

@@ -13,6 +13,7 @@ import { Button } from "@/components/primitives/Button";
 import { useAnnounce } from "@/components/primitives/LiveAnnouncer";
 import { NumberBar } from "@/components/primitives/NumberBar";
 import { NoticeBanner } from "@/components/primitives/NoticeBanner";
+import type { LoadingPromo } from "@/components/result/LoadingCard";
 import { ResultSlot } from "@/components/result/ResultSlot";
 import { ManualAdSlot } from "@/components/ads/ManualAdSlot";
 import { useAdGateState } from "@/components/ads/useAdGateState";
@@ -42,6 +43,7 @@ export interface LookupControllerProps {
   readonly homeNotice: NoticeView | null; // server-picked; re-filtered with KST after mount (Task 8)
   readonly idleExtras: React.ReactNode;   // server-rendered below-the-fold blocks, rendered only in idle mode
   readonly storeSheetLabel: string;       // the store-sheet button words (staff-edited site settings, 10월 2일 요청)
+  readonly loadingPromo: LoadingPromo;    // the 톡톡 invitation in the loading card (staff-edited site settings)
 }
 
 const LOADING_CONFIG: LoadingConfig = { lookup: lookupConfig, notices };
@@ -116,7 +118,7 @@ function pageTitleOf(display: LookupDisplay, loadingLike: boolean): string | nul
  * The one client island of the tracking page (spec §3, §14): mode as component state, lookups through S04's useLookup,
  * candidate B and restore (S02), focus/live/title rules (spec §5). [다른 번호 조회] is a state reset, never a navigation.
  */
-export function LookupController({ entry, homeNotice, idleExtras, storeSheetLabel }: LookupControllerProps): React.JSX.Element {
+export function LookupController({ entry, homeNotice, idleExtras, storeSheetLabel, loadingPromo }: LookupControllerProps): React.JSX.Element {
   const announce = useAnnounce();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
@@ -434,6 +436,7 @@ export function LookupController({ entry, homeNotice, idleExtras, storeSheetLabe
               headingRef={headingRef}
               onView={handleView}
               renderRecommendations={renderRecommendations}
+              loadingPromo={loadingPromo}
             />
           </div>
         </section>

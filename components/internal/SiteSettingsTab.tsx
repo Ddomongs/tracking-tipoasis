@@ -36,6 +36,14 @@ const GROUPS: ReadonlyArray<{ readonly title: string; readonly fields: ReadonlyA
     ]
   },
   {
+    title: "조회 중 상담 안내",
+    fields: [
+      { id: "loadingTitle", label: "제목", help: "조회 결과를 기다리는 동안 결과 자리에 보이는 카드" },
+      { id: "loadingBody", label: "안내 한 줄" },
+      { id: "loadingButtonLabel", label: "톡톡 버튼 문구", help: "누르면 톡톡 상담이 새 창으로 열려요" }
+    ]
+  },
+  {
     title: "유튜브",
     fields: [
       { id: "youtubeLabel", label: "버튼 문구" },
@@ -127,7 +135,7 @@ export function SiteSettingsTab(): React.JSX.Element {
       <h2 id={`${baseId}-title`} className={SECTION_TITLE_CLASS}>
         사이트 문구·링크
       </h2>
-      <p className={HELP_CLASS}>첫 화면 스토어 칸(모바일 팝업·PC 오른쪽 칸)의 버튼 문구와 링크를 바꿔요. 다른 문구는 설정 파일에서 바꿔요.</p>
+      <p className={HELP_CLASS}>첫 화면 스토어 칸(모바일 팝업·PC 오른쪽 칸)의 버튼 문구·링크와 조회 중 상담 안내 문구를 바꿔요. 다른 문구는 설정 파일에서 바꿔요.</p>
       {loaded !== null && !loaded.writable ? (
         <p className={ERROR_CLASS} data-site-settings-readonly="true">
           저장소(Vercel Global Config) 연결이나 저장용 토큰(VERCEL_API_TOKEN)이 없어 지금은 볼 수만 있어요. 연결 방법은 docs/ops/site-settings.md에 있어요.

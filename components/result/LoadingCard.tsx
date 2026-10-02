@@ -4,6 +4,8 @@ import { useEffect, useId, useRef } from "react";
 import { Button } from "@/components/primitives/Button";
 import { ButtonLink } from "@/components/primitives/ButtonLink";
 import { NoticeBanner } from "@/components/primitives/NoticeBanner";
+import { TalkLink } from "@/components/primitives/TalkLink";
+import { channels } from "@/config/site.config";
 import type { LoadingViewModel } from "@/lib/tracking/types";
 
 const SPIN_MS = 1000;
@@ -28,9 +30,41 @@ function useFiniteSpin(active: boolean): React.RefObject<HTMLSpanElement | null>
   return ref;
 }
 
+/** Words of the card that invites a 톡톡 chat while the lookup runs (staff-edited site settings, 10월 2일 요청). */
+export interface LoadingPromo {
+  readonly title: string;
+  readonly body: string;
+  readonly buttonLabel: string;
+}
+
 export interface LoadingCardProps {
   readonly loading: LoadingViewModel;
   readonly onCancel: () => void;
+  readonly promo?: LoadingPromo | null;
+}
+
+/**
+ * Sits where 지금 할 일 will appear, at the same reserved height, so the result replaces it without a shift. It never
+ * delays the result. Its 톡톡 link is the screen's one state place (header, this, footer: spec §8 "최대 3곳").
+ */
+function LoadingPromoCard({ promo }: { readonly promo: LoadingPromo }): React.JSX.Element {
+  const titleId = useId();
+  return (
+    <aside
+      data-loading-promo="true"
+      aria-labelledby={titleId}
+      className="flex min-h-[176px] flex-col justify-center gap-3 border-0 border-l-4 border-solid border-tt-accent bg-tt-surface px-4 py-5"
+    >
+      <p className="m-0 text-tt-xs font-bold text-tt-accent">구매대행 · 해외 직구</p>
+      <h3 id={titleId} className="m-0 text-tt-lg [font-weight:var(--tt-weight-display)] [word-break:keep-all]">
+        {promo.title}
+      </h3>
+      <p className="m-0 text-tt-sm [word-break:keep-all]">{promo.body}</p>
+      <div>
+        <TalkLink href={channels.talk.url} label={promo.buttonLabel} weight="secondary" placement="state" />
+      </div>
+    </aside>
+  );
 }
 
 /**
@@ -40,7 +74,7 @@ export interface LoadingCardProps {
  * without a scroll jump or a layout shift below it. Renders every stage; the caller decides whether
  * the "instant" stage is shown. Never a live region: announcements go through the one LiveAnnouncer.
  */
-export function LoadingCard({ loading, onCancel }: LoadingCardProps): React.JSX.Element {
+export function LoadingCard({ loading, onCancel, promo = null }: LoadingCardProps): React.JSX.Element {
   const titleId = useId();
   const spinnerRef = useFiniteSpin(loading.spinnerActive);
   const cancel = loading.cancel;
@@ -109,7 +143,11 @@ export function LoadingCard({ loading, onCancel }: LoadingCardProps): React.JSX.
           )}
         </div>
       </div>
-      <div data-loading-skeleton="next-action" aria-hidden="true" className="min-h-[176px] bg-tt-surface" />
+      {promo === null ? (
+        <div data-loading-skeleton="next-action" aria-hidden="true" className="min-h-[176px] bg-tt-surface" />
+      ) : (
+        <LoadingPromoCard promo={promo} />
+      )}
     </section>
   );
 }
