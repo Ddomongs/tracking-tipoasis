@@ -6,6 +6,7 @@ import { SiteConfigSchema, formatConfigIssues } from "@/lib/config/schema";
 import { GUIDE_KEYS } from "@/lib/tracking/types";
 import { FIXTURE_CONFIG, withConfig } from "../fixtures/config-fixtures";
 import { FAKE } from "../fixtures/tracking-fixtures";
+import { LOOKUP_TIMING } from "@/lib/services/lookup-budget";
 import { HOLIDAY_WINDOW_DAYS, getSiteConfig, holidayCoverageWarnings, parseSiteConfig } from "@/lib/config/server";
 
 function issuesOf(value: unknown): string {
@@ -412,4 +413,28 @@ test.describe("server access", () => {
 
 test("the noscript notice (S06) is one plain customer sentence pair", () => {
   expect(lookup.copy.noscriptNotice).toBe("자바스크립트가 꺼져 있어 조회 결과를 보여 드릴 수 없어요. 브라우저 설정에서 켠 뒤 다시 열어 주세요.");
+});
+
+test.describe("R4 client lookup timing (S10 Part B)", () => {
+  test("the client timeout is 25 s once the server budget is live", () => {
+    expect(lookup.timeoutMs).toBe(25_000);
+  });
+
+  test("the client timeout outlasts the server budget by at least 5 s", () => {
+    expect(lookup.timeoutMs - LOOKUP_TIMING.budgetMs).toBeGreaterThanOrEqual(5_000);
+  });
+
+  test("the NOT_FOUND service caveat is off after the server fix", () => {
+    expect(lookup.notFoundServiceCaveat).toBe(false);
+  });
+
+  test("stage bounds increase and the very-long stage starts before the server budget ends", () => {
+    const [longStage, veryLongStage] = lookup.stageMs;
+    expect(longStage).toBeGreaterThanOrEqual(lookup.skeletonDelayMs);
+    expect(veryLongStage).toBeGreaterThan(longStage);
+    expect(veryLongStage).toBeGreaterThanOrEqual(6_000);
+    expect(veryLongStage).toBeLessThanOrEqual(10_000);
+    expect(veryLongStage).toBeLessThan(LOOKUP_TIMING.budgetMs);
+    expect(lookup.spinnerStopMs).toBeLessThan(veryLongStage);
+  });
 });

@@ -125,16 +125,16 @@ export const durations = {
 
 /**
  * 5) 조회 중 표시 — 시간에 따른 문구와 제한 시간.
- * timeoutMs·notFoundServiceCaveat·stageMs는 서버 개선(승인 5) 배포 뒤 S10이 25초·false·다시 맞춘 값으로 바꿉니다.
+ * timeoutMs·notFoundServiceCaveat·stageMs는 서버 개선(승인 5) 배포 뒤 S10 Part B에서 25초·false·[3000, 7000]으로 바꿨습니다.
  */
 export const lookup = {
   skeletonDelayMs: 400,      // 이 시간 안에 끝나면 스켈레톤 없이 결과
-  stageMs: [3000, 8000],     // 3초: '조금 더 걸려요' + [조회 취소], 8초: '기록이 없는 번호는…' + 경과 시간
+  stageMs: [3000, 7000],     // 3초: '조금 더 걸려요' + [조회 취소], 7초: '기록이 없는 번호는…' + 경과 시간(R4 서버 개선 뒤 다시 맞춤)
   spinnerStopMs: 5000,       // 스피너는 5초 뒤 멈춥니다
   elapsedStepSeconds: 5,     // 경과 표시 갱신 간격(초)
-  timeoutMs: 45000,          // 클라이언트 제한 시간(서버 개선 전 45초)
+  timeoutMs: 25000,          // 클라이언트 제한 시간. R4 서버 개선(승인 5) 뒤 25초. 서버는 15초 안에 결과나 API_TIMEOUT을 보냅니다
   rateLimitCooldownSeconds: 10,
-  notFoundServiceCaveat: true, // 결과 없음 카드의 '조회 서비스 사정으로…' 보조 줄
+  notFoundServiceCaveat: false, // 결과 없음 카드의 '조회 서비스 사정으로…' 보조 줄. R4 뒤에는 서버가 장애를 API_TIMEOUT으로 알리므로 끕니다
   copy: {
     submit: "조회하기",
     submitting: "조회 중…",
