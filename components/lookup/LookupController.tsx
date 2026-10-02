@@ -22,6 +22,7 @@ import type { LoadingConfig } from "@/lib/config/types";
 import type { LookupState } from "@/lib/tracking/lookup-state";
 import { saveRestoreEntry, type RestoreEntry } from "@/lib/privacy/session-restore";
 import { SCRUB_TIMEOUT_MS, scrubNumberFromUrl } from "@/lib/privacy/url-scrub";
+import { SITE_TITLE } from "@/lib/site";
 import { CARRIER_NAMES, requestCarrierView } from "@/lib/tracking/carriers";
 import { groupTrackingNumber } from "@/lib/tracking/number-format";
 import { detectConfusables, extractFromPastedText, normalizeInput, pasteCarrierNotice, precheckNumber } from "@/lib/tracking/number-input";
@@ -50,7 +51,7 @@ const CHANGE_NUMBER_LABEL = "번호 변경";
 const LOOKUP_ANOTHER_LABEL = "다른 번호 조회";
 const TITLE_SUFFIX = " · 배송 조회";
 /** The root layout's metadata title; restored when the customer is back on the form. */
-const HOME_DOCUMENT_TITLE = "통관·국내 배송 한 번에 조회";
+const HOME_DOCUMENT_TITLE = SITE_TITLE;
 const LOADING_DOCUMENT_TITLE = `${stateGuide.loading.docTitle}${TITLE_SUFFIX}`;
 const INVALID_DOCUMENT_TITLE = `${stateGuide.invalidNumber.docTitle}${TITLE_SUFFIX}`;
 

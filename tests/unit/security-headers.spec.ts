@@ -40,6 +40,8 @@ const NUMBER_ROUTE_ROWS: ReadonlyArray<readonly [string, boolean]> = [
   ["/0000-1234-5678", true],
   ["/", false],
   ["/privacy", false],
+  ["/guide", false],
+  ["/guide/faq", false],
   ["/internal", false],
   ["/api", false],
   ["/api/track", false],
@@ -56,7 +58,7 @@ test("three rules in override order: every route, number routes, /internal", () 
     NUMBER_ROUTE_SOURCE,
     INTERNAL_ROUTES_SOURCE
   ]);
-  expect(NUMBER_ROUTE_SOURCE).toBe("/:number((?!privacy$|internal$|api$)[^/.]+)");
+  expect(NUMBER_ROUTE_SOURCE).toBe("/:number((?!privacy$|internal$|api$|guide$)[^/.]+)");
   expect(INTERNAL_ROUTES_SOURCE).toBe("/internal/:path*");
 });
 

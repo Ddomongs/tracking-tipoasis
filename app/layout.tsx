@@ -4,6 +4,9 @@ import { DM_Mono, IBM_Plex_Mono, JetBrains_Mono } from "next/font/google";
 import { DEFAULT_STYLE_ID } from "@/lib/style/styles";
 import { style as styleConfig } from "@/config/site.config";
 import { PREPAINT_SCRIPT, PREPAINT_SCRIPT_ID } from "@/lib/style/prepaint";
+import { SHARE_IMAGE_URL } from "@/lib/seo/share-image";
+import { searchVerification } from "@/lib/seo/verification";
+import { SITE_TITLE } from "@/lib/site";
 import "./globals.css";
 import "./styles/tokens.css";
 import "./styles/style-manifest.css";
@@ -39,25 +42,24 @@ const jetbrainsMono = JetBrains_Mono({
   fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"]
 });
 
+// Search and share copy for anyone who lands here from a search engine, not only our own customers (10월 2일 요청 ②).
+// Every metadata tag is written twice ('/' HTML and its RSC payload) under the 35 KB '/' HTML budget: only what a
+// share preview needs is set (og:url repeats the canonical link, html[lang] gives the locale).
+const SITE_DESCRIPTION = "HBL·운송장 번호 하나로 해외 직구 통관과 택배 배송을 한 화면에서 확인하세요.";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://tracking.tipoasis.com"),
-  title: "통관·국내 배송 한 번에 조회",
-  description: "HBL 또는 운송장 번호로 통관 단계와 국내 배송 현황을 한 화면에서 확인하세요.",
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
   alternates: {
     canonical: "/"
   },
   openGraph: {
     type: "website",
-    locale: "ko_KR",
-    url: "/",
-    title: "통관·국내 배송 한 번에 조회",
-    description: "구매 고객을 위한 통관·국내 배송 통합 조회"
+    title: SITE_TITLE,
+    images: [SHARE_IMAGE_URL]
   },
-  twitter: {
-    card: "summary",
-    title: "통관·국내 배송 한 번에 조회",
-    description: "구매 고객을 위한 통관·국내 배송 통합 조회"
-  }
+  verification: searchVerification(process.env)
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

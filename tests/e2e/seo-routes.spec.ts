@@ -13,13 +13,16 @@ test("robots.txt is a real text route that allows the site and points to the sit
   expect(lines).toContain("Sitemap: https://tracking.tipoasis.com/sitemap.xml");
 });
 
-test("sitemap.xml lists the two public pages and no number route", async ({ request }) => {
+test("sitemap.xml lists the public pages and guides and no number route", async ({ request }) => {
   const response = await request.get("/sitemap.xml");
   expect(response.status()).toBe(200);
   expect(response.headers()["content-type"]).toContain("xml");
   const body = await response.text();
   const locations = Array.from(body.matchAll(/<loc>([^<]+)<\/loc>/g), (match) => match[1]);
-  expect(locations).toEqual(["https://tracking.tipoasis.com/", "https://tracking.tipoasis.com/privacy"]);
+  expect(locations[0]).toBe("https://tracking.tipoasis.com/");
+  expect(locations).toContain("https://tracking.tipoasis.com/guide");
+  expect(locations).toContain("https://tracking.tipoasis.com/guide/faq");
+  expect(locations.at(-1)).toBe("https://tracking.tipoasis.com/privacy");
   expect(body).not.toContain(FAKE.domestic);
 });
 

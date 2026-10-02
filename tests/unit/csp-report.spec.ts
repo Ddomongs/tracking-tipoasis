@@ -84,6 +84,8 @@ test.describe("CSP report summaries (S11)", () => {
     expect(summarize("")?.blocked).toBe("other");
     expect(summarize("inline", `${PAGE}/privacy`)?.documentKind).toBe("privacy");
     expect(summarize("inline", `${PAGE}/internal/cs-helper`)?.documentKind).toBe("internal");
+    expect(summarize("inline", `${PAGE}/guide`)?.documentKind).toBe("guide");
+    expect(summarize("inline", `${PAGE}/guide/faq`)?.documentKind).toBe("guide");
     expect(summarize("inline", `${PAGE}/${FAKE.hbl}`)?.documentKind).toBe("number");
     expect(summarize("inline", `${PAGE}/a/b`)?.documentKind).toBe("other");
     expect(summarize("inline", "about:blank")?.documentKind).toBe("other");

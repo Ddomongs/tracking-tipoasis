@@ -109,6 +109,8 @@ test("isNumberPath accepts one number-like segment and nothing else", () => {
     "/",
     "",
     "/privacy",
+    "/guide",
+    "/guide/faq",
     "/internal",
     "/internal/cs-helper",
     "/api",

@@ -19,7 +19,7 @@ const KNOWN_DIRECTIVES = [
 ] as const;
 export type CspDirective = (typeof KNOWN_DIRECTIVES)[number] | "other";
 export type BlockedKind = "inline" | "eval" | "data" | "blob" | "self" | "host" | "other";
-export type DocumentKind = "home" | "number" | "privacy" | "internal" | "other";
+export type DocumentKind = "home" | "number" | "privacy" | "guide" | "internal" | "other";
 
 export interface CspReportSummary {
   readonly directive: CspDirective;
@@ -90,6 +90,7 @@ function toDocumentKind(documentUri: string): DocumentKind {
   const path = url.pathname.replace(/\/+$/, "") || "/";
   if (path === "/") return "home";
   if (path === "/privacy") return "privacy";
+  if (path === "/guide" || path.startsWith("/guide/")) return "guide";
   if (path === "/internal" || path.startsWith("/internal/")) return "internal";
   return /^\/[^/.]+$/.test(path) ? "number" : "other";
 }

@@ -17,7 +17,7 @@ export interface SecurityHeaderOptions {
 /** Every route. Listed first: later rules override the same header key. */
 export const ALL_ROUTES_SOURCE = "/:path*";
 /** Single-segment number-like paths: no dot, not a known top-level route. */
-export const NUMBER_ROUTE_SOURCE = "/:number((?!privacy$|internal$|api$)[^/.]+)";
+export const NUMBER_ROUTE_SOURCE = "/:number((?!privacy$|internal$|api$|guide$)[^/.]+)";
 export const INTERNAL_ROUTES_SOURCE = "/internal/:path*";
 
 const NOINDEX = "noindex, nofollow";

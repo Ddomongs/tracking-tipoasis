@@ -15,7 +15,7 @@ function expectSiteWideHeaders(response: APIResponse, referrerPolicy: string): v
 }
 
 test.describe("public responses", () => {
-  for (const pathname of ["/", "/privacy"]) {
+  for (const pathname of ["/", "/privacy", "/guide", "/guide/faq"]) {
     test(`${pathname} has the site-wide headers and stays indexable`, async ({ request }) => {
       const response = await request.get(pathname);
       expect(response.status()).toBe(200);

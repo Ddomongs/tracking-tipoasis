@@ -18,10 +18,10 @@ interface ScrubOptions {
   readonly beforeReplace: () => void;
 }
 
-const RESERVED_SEGMENTS: ReadonlySet<string> = new Set(["privacy", "internal", "api"]);
+const RESERVED_SEGMENTS: ReadonlySet<string> = new Set(["privacy", "internal", "api", "guide"]);
 const SINGLE_SEGMENT = /^\/([^/]+)$/;
 
-/** One path segment that is not privacy|internal|api and has no dot. */
+/** One path segment that is not privacy|internal|api|guide and has no dot. */
 export function isNumberPath(pathname: string): boolean {
   const match = SINGLE_SEGMENT.exec(pathname);
   if (!match) return false;

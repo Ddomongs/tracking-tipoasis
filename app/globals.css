@@ -29,3 +29,10 @@ html {
   /* 고정 헤더(와 결과 화면의 고정 띠)에 포커스가 가리지 않게 합니다(WCAG 2.4.11). */
   scroll-padding-top: calc(var(--tt-header-h) + 4rem);
 }
+
+/* 푸터의 굵은 글자 링크(통관 가이드, 개인정보처리방침). 클래스 하나로 묶어 '/' HTML 35 KB 예산을 지킵니다. */
+@layer components {
+  .tt-footer-link {
+    @apply inline-flex min-h-[44px] items-center text-tt-sm font-bold text-tt-link underline decoration-2 underline-offset-[5px];
+  }
+}

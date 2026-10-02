@@ -4,6 +4,8 @@ import { channels, resultCopy } from "@/config/site.config";
 
 /** Existing E2E wording: tests/privacy.spec.ts reaches the policy through the footer link with this name. */
 const PRIVACY_LINK_LABEL = "개인정보처리방침";
+/** Way into the guides for search visitors (10월 2일 요청 ②). */
+const GUIDE_LINK_LABEL = "통관 가이드";
 /** Staff entrance to the CS desk (10월 2일 요청). Basic auth guards it (proxy.ts); a plain anchor, so nothing prefetches it. */
 const ADMIN_LINK_LABEL = "관리자";
 const ADMIN_HREF = "/internal/cs-helper";
@@ -19,8 +21,14 @@ export function SiteFooter(): React.JSX.Element {
         <p className="m-0 text-tt-xs text-tt-muted [word-break:keep-all]">{resultCopy.footerNote}</p>
         <div className="flex flex-wrap items-center gap-x-6">
           <Link
+            href="/guide"
+            className="tt-focus tt-footer-link"
+          >
+            {GUIDE_LINK_LABEL}
+          </Link>
+          <Link
             href="/privacy"
-            className="tt-focus inline-flex min-h-[44px] items-center text-tt-sm font-bold text-tt-link underline decoration-2 underline-offset-[5px]"
+            className="tt-focus tt-footer-link"
           >
             {PRIVACY_LINK_LABEL}
           </Link>

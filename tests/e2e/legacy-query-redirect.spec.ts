@@ -53,7 +53,7 @@ test("surrounding spaces or a pasted newline (a form sent before hydration) stil
 });
 
 test("unsafe or empty values are not redirected: no open redirect, no 500", async ({ request }) => {
-  for (const raw of ["", "%20", "%2F%2Fexample.com", "abc.def", "%ED%95%9C", "internal", "api", "privacy"]) {
+  for (const raw of ["", "%20", "%2F%2Fexample.com", "abc.def", "%ED%95%9C", "internal", "api", "privacy", "guide"]) {
     const response = await request.get(`/?trackingNumber=${raw}`, { maxRedirects: 0 });
     expect(response.status(), raw).toBe(200);
     expect(response.headers()["location"], raw).toBeUndefined();
