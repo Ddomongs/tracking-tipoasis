@@ -163,6 +163,18 @@
   gap: 6px;
   min-width: 0;
 }
+/* 구간 그림(10월 2일 요청 ③): 지난·지금 구간은 진하게, 남은 구간은 옅게. 선 그림이라 색면 글자색 한 가지로 그립니다. */
+[data-slot="journey"] [data-spine-part="icon"] {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+[data-slot="journey"] [data-station-state="todo"] [data-spine-part="icon"] { opacity: 0.45; }
+[data-slot="journey"] [data-station-state="current"] [data-spine-part="icon"] { stroke-width: 2.25; }
 [data-slot="journey"] [data-spine-part="track"] {
   display: flex;
   align-items: flex-end;

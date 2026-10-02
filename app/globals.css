@@ -36,3 +36,43 @@ html {
     @apply inline-flex min-h-[44px] items-center text-tt-sm font-bold text-tt-link underline decoration-2 underline-offset-[5px];
   }
 }
+
+/*
+ * 첫 화면 제목(10월 2일 요청 ③ 디자인 고급화). HTML은 그대로 두고(‘/’ HTML 35 KB 예산) CSS만으로 그립니다.
+ * - 모든 폭: 제목 뒤에 강조색을 아주 옅게 깐 바탕. 높이는 그대로라 375px에서도 바로가기 줄이 550px 안에 끝납니다(승인 1).
+ * - 768px 이상: 제목 위 배송 경로 그림(public/art/route.svg 마스크, 색은 --tt-accent)과 더 큰 제목.
+ *   그림은 왼쪽에서 오른쪽으로 한 번 그려지고(tt-route), 줄인 모션이면 처음부터 다 보입니다.
+ */
+#tracking[data-view-state="idle"] > h1 {
+  letter-spacing: -0.02em;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--tt-accent) 9%, var(--tt-surface)), var(--tt-surface));
+}
+@media (min-width: 768px) {
+  #tracking[data-view-state="idle"] > h1 {
+    padding-top: 28px;
+    padding-bottom: 4px;
+    font-size: 32px;
+    line-height: 1.25;
+  }
+  #tracking[data-view-state="idle"] > h1::before {
+    content: "";
+    display: block;
+    aspect-ratio: 5 / 1;
+    max-height: 96px;
+    margin-bottom: 16px;
+    background-color: var(--tt-accent);
+    -webkit-mask: url("/art/route.svg") left center / contain no-repeat;
+    mask: url("/art/route.svg") left center / contain no-repeat;
+    animation: tt-route calc(var(--tt-motion-slow) * 3) var(--tt-ease) 1 both;
+  }
+}
+@media (min-width: 768px) and (prefers-reduced-motion: reduce) {
+  #tracking[data-view-state="idle"] > h1::before { animation: none; }
+}
+@media (min-width: 768px) and (forced-colors: active) {
+  #tracking[data-view-state="idle"] > h1::before { background-color: CanvasText; forced-color-adjust: none; }
+}
+@keyframes tt-route {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}

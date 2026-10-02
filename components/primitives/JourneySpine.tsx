@@ -1,11 +1,12 @@
 import type { SpineView, StationId } from "@/lib/tracking/types";
 import { ToneIcon } from "./ToneIcon";
 
-const STATIONS: ReadonlyArray<{ readonly id: StationId; readonly name: string }> = [
-  { id: "departed", name: "해외 출발" },
-  { id: "customs", name: "입항·통관" },
-  { id: "domestic", name: "국내 배송" },
-  { id: "arrived", name: "도착" }
+/** Station pictures (10월 2일 요청 ③): plane, customs house, truck, home. 24px line art in currentColor, hidden from AT. */
+const STATIONS: ReadonlyArray<{ readonly id: StationId; readonly name: string; readonly icon: string }> = [
+  { id: "departed", name: "해외 출발", icon: "M3,16L18,10C21,9,22,11,20,12L5,18Z M10,13L7,6H9.5L14,11.5 M11,16.5L12,21H14.5L15,14" },
+  { id: "customs", name: "입항·통관", icon: "M4,9L12,4L20,9Z M4,20H20 M7,12V17 M12,12V17 M17,12V17" },
+  { id: "domestic", name: "국내 배송", icon: "M2,6H14V16H2Z M14,9H18L21,12.5V16H14 M5,18.5A1.5,1.5,0,1,0,8,18.5A1.5,1.5,0,1,0,5,18.5Z M15,18.5A1.5,1.5,0,1,0,18,18.5A1.5,1.5,0,1,0,15,18.5Z" },
+  { id: "arrived", name: "도착", icon: "M3,11L12,4L21,11 M5.5,9.5V20H18.5V9.5 M10,20V14H14V20" }
 ];
 
 const DEFAULT_LABEL = "배송 여정 4구간";
@@ -43,6 +44,9 @@ export function JourneySpine({ spine, label = DEFAULT_LABEL }: { readonly spine:
               data-issue={issue?.kind}
               aria-current={state === "current" ? "step" : undefined}
             >
+              <svg data-spine-part="icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+                <path d={station.icon} />
+              </svg>
               <span data-spine-part="track" aria-hidden="true">
                 <span data-spine-part="bar">{issue ? <ToneIcon tone="attention" issue={issue.kind} /> : null}</span>
               </span>
