@@ -35,8 +35,6 @@ Server-only values must be configured in the deployment platform and must not be
 ```bash
 UNIPASS_API_KEY=
 UNIPASS_API_URL=https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo
-UNIPASS_PROXY_URL=
-UNIPASS_PROXY_SECRET=
 NEXT_PUBLIC_BASE_URL=https://tracking.tipoasis.com
 ```
 

@@ -18,7 +18,7 @@
 - Cache: `node-cache` (15분 기본 TTL)
 - Animation: `framer-motion`
 - Test: Playwright (E2E)
-- Hosting: Vercel (프로젝트 `tracking-tipoasis`, 리전 `icn1`), UNI-PASS 프록시는 InsForge Edge Function
+- Hosting: Vercel (프로젝트 `tracking-tipoasis`, 리전 `icn1`), UNI-PASS는 Vercel 함수에서 직접 호출(InsForge 프록시는 R4에서 폐기)
 - Source control: GitHub `Ddomongs/tracking-tipoasis` (main push 시 CI 및 Vercel 자동 배포)
 
 ## 3) 코딩 규칙
@@ -71,27 +71,6 @@
 - 서버 비밀값(`UNIPASS_API_KEY`, `INTERNAL_ACCESS_PASSWORD`)은 Vercel 환경변수에만 두고 커밋하지 않는다.
 - `/internal/*` 경로는 `proxy.ts`(Next 16에서 `middleware.ts`가 바뀐 이름)의 기본 인증으로 보호된다. 운영에서 `INTERNAL_ACCESS_PASSWORD`가 비어 있으면 404로 숨긴다.
 - 로컬에 남은 ChemiCloud 시절 산출물(`release/`, `deploy/`, `backups/`, `deploy.zip`, `*.log`)은 더 이상 쓰지 않으며 gitignore 대상이다.
-
-<!-- INSFORGE:START -->
-## InsForge backend
-
-This project uses [InsForge](https://insforge.dev): an all-in-one, open-source Postgres-based backend (BaaS) that gives this app a database, authentication, file storage, edge functions, realtime, an AI model gateway, and payments through one platform.
-
-- **Project:** **tracking-tipoasis** (API base: InsForge 대시보드에서 확인 — 공개 문서에 적지 않음)
-- **Skills:** these InsForge skills are installed for supported coding agents. Reach for them before implementing any InsForge feature instead of guessing the API:
-  - `insforge`: app code with the `@insforge/sdk` client (database CRUD, auth, storage, edge functions, realtime, AI, email, and Stripe payments).
-  - `insforge-cli`: backend and infrastructure via the `insforge` CLI (projects, SQL, migrations, RLS policies, storage buckets, functions, secrets, payment setup, schedules, deploys).
-  - `insforge-debug`: diagnosing failures (SDK/HTTP errors, RLS denials, auth and OAuth issues) and running security or performance audits.
-  - `insforge-integrations`: wiring external auth providers (Clerk, Auth0, WorkOS, Better Auth, etc.) for JWT-based RLS, or the OKX x402 payment facilitator.
-  - `find-skills`: discovering additional skills on demand.
-- **Credentials:** app code reads keys from `.env.local`; the CLI reads `.insforge/project.json`. Never hardcode or commit keys.
-
-Key patterns:
-
-- Database inserts take an array: `insert([{ ... }])`.
-- Reference users with `auth.users(id)`; use `auth.uid()` in RLS policies.
-- For storage uploads, persist both the returned `url` and `key`.
-<!-- INSFORGE:END -->
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -8,9 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:e2e": "playwright test",
-    "insforge:current": "npx @insforge/cli current",
-    "insforge:deploy": "npx @insforge/cli deployments deploy ."
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",

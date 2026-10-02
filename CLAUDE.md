@@ -18,7 +18,7 @@
 - Cache: `node-cache` (15분 기본 TTL)
 - Animation: `framer-motion`
 - Test: Playwright (E2E)
-- Hosting: Vercel (프로젝트 `tracking-tipoasis`, 리전 `icn1`), UNI-PASS 프록시는 InsForge Edge Function
+- Hosting: Vercel (프로젝트 `tracking-tipoasis`, 리전 `icn1`), UNI-PASS는 Vercel 함수에서 직접 호출(InsForge 프록시는 R4에서 폐기)
 - Source control: GitHub `Ddomongs/tracking-tipoasis` (main push 시 CI 및 Vercel 자동 배포)
 
 ## 3) 코딩 규칙

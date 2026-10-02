@@ -3,7 +3,7 @@
 ## Target
 
 This project has moved from the previous ChemiCloud standalone workflow to a Vercel frontend deployment.
-InsForge remains only as a fallback UNI-PASS proxy, called with the shared secret header `x-proxy-secret` (`UNIPASS_PROXY_SECRET`).
+UNI-PASS is called directly from the Vercel function in `icn1`; the InsForge proxy was retired in R4 (approval 12).
 
 - Source control: GitHub public repository `Ddomongs/tracking-tipoasis`
 - Primary deployment: Vercel
@@ -12,9 +12,6 @@ InsForge remains only as a fallback UNI-PASS proxy, called with the shared secre
 - Final production URL: `https://tracking.tipoasis.com`
 - Last manual CLI deployment ID: `dpl_Hu3jWM5VNMc4KWBXpf63kkkpptKK` (2026-07-20)
 - Deployment trigger: push to `main` on GitHub (Vercel Git integration); CLI deploy is the fallback
-- InsForge frontend fallback URL: `https://sk9gyysw.insforge.site`
-- Current InsForge deployment ID: `c8b7c28a-5fa1-43a7-995c-c2b4c01d6dce`
-- InsForge project dashboard: `https://insforge.dev/dashboard/project/84fed775-4e5d-40f2-a533-9781e9758c3f`
 
 ## Recommended Flow
 
@@ -23,7 +20,6 @@ InsForge remains only as a fallback UNI-PASS proxy, called with the shared secre
 3. Configure deployment environment variables in Vercel.
 4. Push to `main`; GitHub Actions CI and the Vercel Git integration deploy automatically.
 5. Verify the current Vercel deployment URL, `POST /api/track`, and that `/internal/cs-helper` asks for a password.
-6. Keep the InsForge Edge Function proxy deployed for UNI-PASS access.
 
 ## Environment Variables
 
@@ -38,8 +34,6 @@ Required values:
 
 - `UNIPASS_API_KEY`: UNI-PASS API001 key (server-side only)
 - `UNIPASS_API_URL`: `https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo`
-- `UNIPASS_PROXY_URL`: InsForge function URL (read it from the Vercel env var; it is not published here)
-- `UNIPASS_PROXY_SECRET`: shared secret sent as `x-proxy-secret`; the same value in Vercel (Production) and in the InsForge function env
 - `NEXT_PUBLIC_BASE_URL`: `https://tracking.tipoasis.com`
 - `INTERNAL_ACCESS_PASSWORD`: browser basic-auth password for `/internal/*` (any username). When unset in production the pages return 404.
 
@@ -94,8 +88,6 @@ Current Vercel environment variables are configured for Production:
 
 ```text
 NEXT_PUBLIC_BASE_URL=https://tracking.tipoasis.com
-UNIPASS_PROXY_URL=<InsForge function URL>
-UNIPASS_PROXY_SECRET=<server secret>
 UNIPASS_API_URL=https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo
 UNIPASS_API_KEY=<server secret>
 INTERNAL_ACCESS_PASSWORD=<server secret>
@@ -108,43 +100,6 @@ tracking.tipoasis.com -> Vercel project alias added
 required DNS: A tracking.tipoasis.com 76.76.21.21
 current DNS before cutover: A tracking.tipoasis.com 158.247.212.123
 ```
-
-## InsForge CLI Notes
-
-The InsForge CLI is available through:
-
-```bash
-npx @insforge/cli --help
-```
-
-Check local authentication/project context:
-
-```bash
-npm run insforge:current
-```
-
-Typical steps:
-
-```bash
-npx @insforge/cli login
-npx @insforge/cli create --name tracking-tipoasis --template empty
-npx @insforge/cli deployments env set UNIPASS_API_KEY "<value>"
-npx @insforge/cli deployments env set UNIPASS_API_URL "https://unipass.customs.go.kr:38010/ext/rest/cargCsclPrgsInfoQry/retrieveCargCsclPrgsInfo"
-npx @insforge/cli deployments env set UNIPASS_PROXY_SECRET "<same value as Vercel>"
-npx @insforge/cli deployments env set NEXT_PUBLIC_BASE_URL "https://tracking.tipoasis.com"
-npm run insforge:deploy
-```
-
-If browser login is unavailable in an agent terminal, authenticate with a personal API key:
-
-```bash
-npx @insforge/cli login --user-api-key "<uak_...>"
-```
-
-Current deployment status: InsForge CLI is authenticated on this machine and the project is linked.
-Latest live verification returned `READY` for deployment `c8b7c28a-5fa1-43a7-995c-c2b4c01d6dce`.
-
-See [docs/insforge-deployment-runbook.md](./docs/insforge-deployment-runbook.md) for the full handoff, including the manual GitHub Actions deployment path.
 
 ## 조회 로그와 실패율 경보 (R4)
 
@@ -182,7 +137,6 @@ track_lookup {"route":"/api/track","elapsedBucket":"1to3s","unipassOk":12,"unipa
 | UNI-PASS 장애 | 15분 창의 (T − F0) ÷ (T − Z) | 30% 이상(창 안 T − Z가 10줄 이상) | `config/site.config.ts` notices에 outage 공지를 켜고 UNI-PASS 공지 확인 |
 | 모두 실패 | 15분 창의 A | 3줄 이상 | 위와 같음 |
 | 느린 응답 | 1시간 창의 S ÷ T | 10% 이상 | UNI-PASS 지연 확인, 계속되면 `LOOKUP_TIMING` 재검토 |
-| 직접 호출 실패율(승인 12 판단) | 하루의 (T − F0) ÷ (T − Z) | 3일 연속 1% 이하, 3일 합계 T − Z가 200줄 이상 | InsForge 프록시 폐기(승인 12) 진행 |
 
 되돌리기: 배포 직후 A가 계속 늘거나 `allFailed`가 대부분이면 Vercel 대시보드 → Deployments에서 직전 배포로 Instant Rollback 한 뒤 원인을 봅니다.
 
