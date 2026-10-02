@@ -31,7 +31,7 @@ function SunIcon(): React.JSX.Element {
 
 /**
  * The round day/night switch in the header (10월 2일 요청). It flips between 기본 and 어두운 화면 through the same style
- * choice as the '화면 스타일' picker (html[data-style], localStorage tt:style) and announces the change the same way.
+ * choice module the internal gallery picker uses (html[data-style], localStorage tt:style; 10월 2일부터 the only public style switch) and announces the change the same way.
  */
 export function ThemeToggle(): React.JSX.Element {
   const current = useSyncExternalStore<StyleId | null>(subscribeAppliedStyle, readAppliedStyle, readServerStyle);

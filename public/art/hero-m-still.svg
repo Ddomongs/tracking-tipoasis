@@ -33,6 +33,7 @@
 .win{fill-opacity:1;animation-name:glow}
 .pin{transform-box:fill-box;transform-origin:center bottom;animation-name:drop}
 .veil{animation-name:veil}
+*{animation:none!important}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 <rect width="560" height="150" fill="url(#sky)"/>

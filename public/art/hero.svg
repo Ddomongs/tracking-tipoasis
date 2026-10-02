@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0,0,560,150">
-<!-- 첫 화면 배송 장면(10월 2일 요청 ③④). 비행기 도착 → 세관 통관 도장 → 트럭 이동 → 집 도착, 약 4초 한 번 재생 후 멈춥니다.
+<!-- 배송 장면(10월 2일 요청 ③④). 비행기 도착 → 세관 통관 도장 → 트럭 이동 → 집 도착, 7초마다 반복하고(페이지의 일시정지 버튼으로 멈춤), -still 파일은 마지막 장면만 그립니다.
      모든 요소의 기본 모양이 마지막 장면이고, 애니메이션은 시작 모습(from)만 정합니다. 줄인 모션이면 처음부터 마지막 장면입니다. -->
 <defs>
 <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2A4FE0"/><stop offset="1" stop-color="#1A33A8"/></linearGradient>
@@ -11,26 +11,28 @@
 .road{fill:none;stroke:#FFFFFF;stroke-opacity:0.45;stroke-width:2;stroke-linecap:round;stroke-dasharray:10,8}
 .y{fill:#F4BC00}
 .cloud{fill:#FFFFFF;fill-opacity:0.12}
-@keyframes drift{from{transform:translateX(-24px)}}
-@keyframes reveal{from{clip-path:inset(0 100% 0 0)}}
-@keyframes fly{from{offset-distance:0%}}
-@keyframes land{from{opacity:1;transform:scale(1)}}
-@keyframes stamp{0%{transform:scale(0)}70%{transform:scale(1.18)}100%{transform:scale(1)}}
-@keyframes drive{from{transform:translateX(-150px)}}
-@keyframes spin{from{transform:rotate(-720deg)}}
-@keyframes glow{from{fill-opacity:0.2}}
-@keyframes drop{0%{transform:translateY(-28px)}60%{transform:translateY(3px)}100%{transform:translateY(0)}}
-.c1{animation:drift 4s cubic-bezier(.2,0,0,1) both}
-.c2{animation:drift 4s cubic-bezier(.2,0,0,1) .3s both}
-.tr{animation:reveal 1.3s cubic-bezier(.4,0,.2,1) both}
-.plane{offset-path:path("M30,112C80,40,150,24,206,62");offset-rotate:auto;offset-distance:100%;opacity:0;transform:scale(.6);transform-box:fill-box;transform-origin:center;
- animation:fly 1.3s cubic-bezier(.4,0,.2,1) both,land .25s ease-in 1.3s both}
-.badge{transform-box:fill-box;transform-origin:center;animation:stamp .45s cubic-bezier(.2,0,0,1) 1.45s both}
-.rd{animation:reveal 1.3s linear 1.8s both}
-.truck{animation:drive 1.4s cubic-bezier(.45,0,.2,1) 1.85s both}
-.wheel{transform-box:fill-box;transform-origin:center;animation:spin 1.4s cubic-bezier(.45,0,.2,1) 1.85s both}
-.win{fill-opacity:1;animation:glow .4s ease-out 3.2s both}
-.pin{transform-box:fill-box;transform-origin:center bottom;animation:drop .55s cubic-bezier(.2,0,0,1) 3.3s both}
+.veil{opacity:0}
+@keyframes drift{0%{transform:translateX(-24px)}100%{transform:translateX(0)}}
+@keyframes trail{0%{clip-path:inset(0 100% 0 0);animation-timing-function:cubic-bezier(.4,0,.2,1)}18.6%,100%{clip-path:inset(0 0 0 0)}}
+@keyframes plane{0%{offset-distance:0%;opacity:1;transform:scale(1);animation-timing-function:cubic-bezier(.4,0,.2,1)}18.6%{offset-distance:100%;opacity:1;transform:scale(1);animation-timing-function:ease-in}22.1%,100%{offset-distance:100%;opacity:0;transform:scale(.6)}}
+@keyframes stamp{0%,20.7%{transform:scale(0);animation-timing-function:cubic-bezier(.2,0,0,1)}25.2%{transform:scale(1.18)}27.1%,100%{transform:scale(1)}}
+@keyframes road{0%,25.7%{clip-path:inset(0 100% 0 0)}44.3%,100%{clip-path:inset(0 0 0 0)}}
+@keyframes drive{0%,26.4%{transform:translateX(-150px);animation-timing-function:cubic-bezier(.45,0,.2,1)}46.4%,100%{transform:translateX(0)}}
+@keyframes spin{0%,26.4%{transform:rotate(-720deg);animation-timing-function:cubic-bezier(.45,0,.2,1)}46.4%,100%{transform:rotate(0)}}
+@keyframes glow{0%,45.7%{fill-opacity:0.2}51.4%,100%{fill-opacity:1}}
+@keyframes drop{0%,47.1%{transform:translateY(-28px);opacity:0;animation-timing-function:cubic-bezier(.2,0,0,1)}52.1%{transform:translateY(3px);opacity:1}55%,100%{transform:translateY(0);opacity:1}}
+@keyframes veil{0%{opacity:1}5%,90%{opacity:0}100%{opacity:1}}
+.c1,.c2,.tr,.plane,.badge,.rd,.truck,.wheel,.win,.pin,.veil{animation-duration:7s;animation-iteration-count:infinite;animation-timing-function:linear}
+.c1,.c2{animation-name:drift}
+.tr{animation-name:trail}
+.plane{offset-path:path("M30,112C80,40,150,24,206,62");offset-rotate:auto;offset-distance:100%;opacity:0;transform:scale(.6);transform-box:fill-box;transform-origin:center;animation-name:plane}
+.badge{transform-box:fill-box;transform-origin:center;animation-name:stamp}
+.rd{animation-name:road}
+.truck{animation-name:drive}
+.wheel{transform-box:fill-box;transform-origin:center;animation-name:spin}
+.win{fill-opacity:1;animation-name:glow}
+.pin{transform-box:fill-box;transform-origin:center bottom;animation-name:drop}
+.veil{animation-name:veil}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 <rect width="560" height="150" fill="url(#sky)"/>
@@ -53,4 +55,5 @@
 <rect class="y win" x="519" y="98" width="8" height="8" rx="1"/>
 <rect class="y win" x="489" y="98" width="8" height="8" rx="1"/>
 <g class="pin"><path class="y" d="M508,58C508,58,520,46,520,38A12,12,0,1,0,496,38C496,46,508,58,508,58Z"/><circle cx="508" cy="38" r="4.5" fill="#1A33A8"/></g>
+<rect class="veil" width="560" height="150" fill="url(#sky)"/>
 </svg>

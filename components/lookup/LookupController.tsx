@@ -41,7 +41,6 @@ export interface LookupControllerProps {
   readonly entry: TrackingEntry;
   readonly homeNotice: NoticeView | null; // server-picked; re-filtered with KST after mount (Task 8)
   readonly idleExtras: React.ReactNode;   // server-rendered below-the-fold blocks, rendered only in idle mode
-  readonly idleHero?: React.ReactNode;    // server-rendered home scene, between the notice banner and the heading (10월 2일 요청)
 }
 
 const LOADING_CONFIG: LoadingConfig = { lookup: lookupConfig, notices };
@@ -116,7 +115,7 @@ function pageTitleOf(display: LookupDisplay, loadingLike: boolean): string | nul
  * The one client island of the tracking page (spec §3, §14): mode as component state, lookups through S04's useLookup,
  * candidate B and restore (S02), focus/live/title rules (spec §5). [다른 번호 조회] is a state reset, never a navigation.
  */
-export function LookupController({ entry, homeNotice, idleExtras, idleHero }: LookupControllerProps): React.JSX.Element {
+export function LookupController({ entry, homeNotice, idleExtras }: LookupControllerProps): React.JSX.Element {
   const announce = useAnnounce();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
@@ -379,7 +378,6 @@ export function LookupController({ entry, homeNotice, idleExtras, idleHero }: Lo
   return (
     <>
       {viewMode === "idle" && notice !== null ? <NoticeBanner notice={notice} variant="banner" /> : null}
-      {viewMode === "idle" ? idleHero : null}
       <div id="tracking-panel">
         <section
           id="tracking"

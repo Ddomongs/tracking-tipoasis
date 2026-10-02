@@ -179,7 +179,9 @@ interface LiveScene {
 
 const OVERDUE_NOW = new Date("2026-09-29T09:00:00+09:00");
 /** Spec §6 / S05 Addition 5: header 48 + number bar 56 + status field ≤ 300 + gap 16 → 지금 할 일 starts by 420 px at 375×812. */
-const NEXT_ACTION_TOP_MAX = 420;
+// 420 px + the 64 px delivery scene that every public page carries since 10월 2일 (사용자 선택: "모든 페이지", 결과가 그만큼 내려감).
+const SITE_HERO_MOBILE_PX = 64;
+const NEXT_ACTION_TOP_MAX = 420 + SITE_HERO_MOBILE_PX;
 
 function scene(key: string, data: TrackResponseData, now: Date = FIXTURE_NOW): LiveScene {
   return { key, reply: data, outcome: success(data), now };

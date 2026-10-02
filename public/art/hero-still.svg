@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0,42,560,86">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0,0,560,150">
 <!-- 배송 장면(10월 2일 요청 ③④). 비행기 도착 → 세관 통관 도장 → 트럭 이동 → 집 도착, 7초마다 반복하고(페이지의 일시정지 버튼으로 멈춤), -still 파일은 마지막 장면만 그립니다.
      모든 요소의 기본 모양이 마지막 장면이고, 애니메이션은 시작 모습(from)만 정합니다. 줄인 모션이면 처음부터 마지막 장면입니다. -->
 <defs>
@@ -25,7 +25,7 @@
 .c1,.c2,.tr,.plane,.badge,.rd,.truck,.wheel,.win,.pin,.veil{animation-duration:7s;animation-iteration-count:infinite;animation-timing-function:linear}
 .c1,.c2{animation-name:drift}
 .tr{animation-name:trail}
-.plane{offset-path:path("M30,112C80,62,150,48,206,66");offset-rotate:auto;offset-distance:100%;opacity:0;transform:scale(.6);transform-box:fill-box;transform-origin:center;animation-name:plane}
+.plane{offset-path:path("M30,112C80,40,150,24,206,62");offset-rotate:auto;offset-distance:100%;opacity:0;transform:scale(.6);transform-box:fill-box;transform-origin:center;animation-name:plane}
 .badge{transform-box:fill-box;transform-origin:center;animation-name:stamp}
 .rd{animation-name:road}
 .truck{animation-name:drive}
@@ -33,6 +33,7 @@
 .win{fill-opacity:1;animation-name:glow}
 .pin{transform-box:fill-box;transform-origin:center bottom;animation-name:drop}
 .veil{animation-name:veil}
+*{animation:none!important}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 <rect width="560" height="150" fill="url(#sky)"/>
@@ -40,7 +41,7 @@
 <g class="c1"><ellipse class="cloud" cx="330" cy="34" rx="46" ry="11"/><ellipse class="cloud" cx="352" cy="26" rx="24" ry="10"/></g>
 <g class="c2"><ellipse class="cloud" cx="110" cy="30" rx="34" ry="8"/></g>
 <path class="road" d="M16,124H544"/>
-<path class="trail tr" d="M30,112C80,62,150,48,206,66"/>
+<path class="trail tr" d="M30,112C80,40,150,24,206,62"/>
 <g class="plane"><path fill="#FFFFFF" d="M-14,-2L10,-2C15,-2,17,0,17,1C17,2,15,3,10,3L-14,3Z M-2,-2L-9,-12L-5,-12L5,-2Z M-2,3L-9,13L-5,13L5,3Z M-13,-2L-16,-8L-13,-8L-9,-2Z"/></g>
 <g class="w"><path d="M182,82L214,64L246,82Z M182,124H246 M186,88H242 M192,94V118 M203,94V118 M214,94V118 M225,94V118 M236,94V118"/></g>
 <g class="badge"><circle class="y" cx="252" cy="66" r="12"/><path d="M246,66L250.5,70.5L258,62" fill="none" stroke="#1A33A8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></g>
@@ -54,6 +55,6 @@
 <g class="w"><path d="M478,94L508,70L538,94 M484,89V124H532V89 M502,124V106H514V124"/></g>
 <rect class="y win" x="519" y="98" width="8" height="8" rx="1"/>
 <rect class="y win" x="489" y="98" width="8" height="8" rx="1"/>
-<g transform="translate(0,16)"><g class="pin"><path class="y" d="M508,58C508,58,520,46,520,38A12,12,0,1,0,496,38C496,46,508,58,508,58Z"/><circle cx="508" cy="38" r="4.5" fill="#1A33A8"/></g></g>
+<g class="pin"><path class="y" d="M508,58C508,58,520,46,520,38A12,12,0,1,0,496,38C496,46,508,58,508,58Z"/><circle cx="508" cy="38" r="4.5" fill="#1A33A8"/></g>
 <rect class="veil" width="560" height="150" fill="url(#sky)"/>
 </svg>

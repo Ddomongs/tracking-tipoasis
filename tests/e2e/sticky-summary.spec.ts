@@ -15,7 +15,16 @@ async function openResult(page: Page, state: FixtureState): Promise<void> {
 }
 
 async function scrollToBottom(page: Page): Promise<void> {
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  // A short result (no '화면 스타일' picker since 10월 2일) may not scroll the status card away; room below makes sure it can.
+  await page.evaluate(() => {
+    if (document.querySelector("[data-test-spacer]") === null) {
+      const spacer = document.createElement("div");
+      spacer.setAttribute("data-test-spacer", "true");
+      spacer.style.height = "800px";
+      document.querySelector("main")?.append(spacer);
+    }
+    window.scrollTo(0, document.documentElement.scrollHeight);
+  });
 }
 
 test("the header with '문의' stays on screen after scrolling", async ({ page }) => {

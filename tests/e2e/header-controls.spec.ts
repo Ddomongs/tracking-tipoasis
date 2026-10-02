@@ -18,7 +18,6 @@ test("the round button switches to the dark style, remembers it and switches bac
   await toggle.click();
   await expect(page.locator("html")).toHaveAttribute("data-style", "night");
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator("[data-style-picker] input[value='night']")).toBeChecked();
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-style", "night");
   await expect(page.locator("header").getByRole("button", { name: "어두운 화면" })).toHaveAttribute("aria-pressed", "true");

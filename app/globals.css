@@ -38,10 +38,36 @@ html {
 }
 
 /*
- * 첫 화면 배송 장면과 제목(10월 2일 요청 ③④). 장면은 public/art/hero.svg(640px 이상)·hero-m.svg(그보다 좁을 때)의
- * 장식 그림으로, 그림 파일 안에서 약 4초 한 번 재생하고 멈춥니다(줄인 모션이면 처음부터 마지막 장면).
+ * 모든 공개 페이지 맨 위 배송 장면(10월 2일 요청, components/shell/SiteHero.tsx). 그림 파일 안에서 7초마다 반복합니다.
+ * '움직임 멈춤'(체크박스)을 켜면 멈춘 그림(-still)으로 바뀝니다. 줄인 모션이면 그림이 처음부터 멈춰 있어 스위치를 숨깁니다.
  */
-[data-home-hero] img { display: block; width: 100%; height: auto; }
+[data-site-hero] { position: relative; margin: 0 auto; width: 100%; max-width: var(--tt-column); }
+[data-site-hero] img { display: block; width: 100%; height: auto; }
+[data-hero-scene="still"],
+[data-hero-pause]:checked ~ [data-hero-scene="moving"] { display: none; }
+[data-hero-pause]:checked ~ [data-hero-scene="still"] { display: block; }
+[data-hero-pause-label] {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.45);
+  color: #FFFFFF;
+  font-size: var(--tt-text-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+[data-hero-pause-label]::before { content: "❚❚"; font-size: 10px; letter-spacing: -1px; }
+[data-hero-pause]:checked ~ [data-hero-pause-label]::before { content: "▶"; letter-spacing: 0; }
+[data-hero-pause]:focus-visible ~ [data-hero-pause-label] { outline: var(--tt-focus-width) solid #FFFFFF; outline-offset: 2px; box-shadow: 0 0 0 calc(var(--tt-focus-width) + 2px) #111110; }
+@media (prefers-reduced-motion: reduce) {
+  [data-hero-pause-label] { display: none; }
+}
 /* 모바일: 장면 바로 아래라 제목 위 여백을 줄여 바로가기 버튼이 375×667에서도 550px 안에 끝나게 합니다(승인 1). */
 #tracking[data-view-state="idle"] > h1 { padding-top: 4px; letter-spacing: -0.02em; }
 @media (min-width: 768px) {
