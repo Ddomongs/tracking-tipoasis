@@ -17,6 +17,7 @@ import type {
 } from "@/lib/tracking/types";
 import { interactedBeforeHydration, watchFirstInput } from "./early-interaction";
 import { LoadingCard, type LoadingPromo } from "./LoadingCard";
+import type { ResultPromo } from "./ResultView";
 import { loadResultModule, preloadResultModule, type ResultModule } from "./load-result-module";
 
 export interface ResultSlotProps {
@@ -31,6 +32,8 @@ export interface ResultSlotProps {
   readonly renderRecommendations?: (view: TrackingViewModel, outcome: LookupOutcome) => React.ReactNode;
   /** The 톡톡 invitation shown in the loading card (10월 2일 요청); null keeps the plain skeleton. */
   readonly loadingPromo?: LoadingPromo | null;
+  /** The store invitation under a normal result (10월 2일 요청); the lazy ResultView decides where it fits. */
+  readonly resultPromo?: ResultPromo | null;
 }
 
 type SettledState = Extract<LookupState, { readonly phase: "settled" | "error" }>;
@@ -129,7 +132,8 @@ export function ResultSlot({
   headingRef,
   onView,
   renderRecommendations,
-  loadingPromo = null
+  loadingPromo = null,
+  resultPromo = null
 }: ResultSlotProps): React.JSX.Element | null {
   const [shown, setShown] = useState<Shown | null>(null);
   const [failed, setFailed] = useState<SettledState | null>(null);
@@ -211,6 +215,7 @@ export function ResultSlot({
           headingRef={targetRef}
           failureCause={state.phase === "error" ? state.outcome.cause : undefined}
           recommendationSlot={renderRecommendations?.(shown.view, state.outcome)}
+          promo={resultPromo}
         />
       );
     }

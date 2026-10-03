@@ -1,14 +1,17 @@
 import type { HelpItemView } from "@/lib/tracking/types";
 
-/** One help item as a <details> (open when the view says defaultOpen). Contains no links: 톡톡 stays in one place. */
+/** One help item as a <details> (open when the view says defaultOpen). No 톡톡 links (it stays in one place); tel: only. */
 export function HelpDetails({
   item,
   id,
-  deliveredHelp = false
+  deliveredHelp = false,
+  children
 }: {
   readonly item: HelpItemView;
   readonly id?: string;
   readonly deliveredHelp?: boolean;
+  /** Extra content after the text (the delivered help's tel: button). */
+  readonly children?: React.ReactNode;
 }): React.JSX.Element {
   return (
     <details
@@ -27,6 +30,7 @@ export function HelpDetails({
             {line}
           </p>
         ))}
+        {children}
       </div>
     </details>
   );

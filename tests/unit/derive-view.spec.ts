@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { buildReturnLink } from "@/lib/site";
 import { carrierOfficialUrl } from "@/lib/tracking/carriers";
+import { maskPhone } from "@/lib/tracking/derive/actions";
 import { classifyFailure } from "@/lib/tracking/classify-failure";
 import { deriveTrackingView, guideKeyForData, isOverdue, worryDateKey } from "@/lib/tracking/derive-view";
 import { PROBLEM_GUIDE_KEYS } from "@/lib/tracking/types";
@@ -318,7 +319,10 @@ test.describe("result view models", () => {
       kind: "carrierOfficial", label: "CJ대한통운에서 실시간 위치 보기", weight: "primary", href: CJ_URL, external: true, cooldownSeconds: null
     });
     expect(view.nextAction.secondary).toEqual([
-      { kind: "callDriver", label: "기사님께 전화", weight: "secondary", href: `tel:${FAKE.phone.replace(/-/g, "")}`, external: false, cooldownSeconds: null },
+      {
+        kind: "callDriver", label: "기사님께 전화", weight: "secondary", href: `tel:${FAKE.phone.replace(/-/g, "")}`, external: false, cooldownSeconds: null,
+        detail: "010-****-1234"
+      },
       TALK_TEXT
     ]);
     expect(view.nextAction.worry).toEqual({ dateKey: "2026-10-15", text: "10월 15일(목)까지 안 오면 알려 주세요", talk: TALK_TEXT });
@@ -387,6 +391,8 @@ test.describe("result view models", () => {
     expect(view.nextAction.stores?.disclosure).toBe(CONFIG.disclosures.coupang);
     expect(view.nextAction.stores?.links.map((link) => [link.channel, link.weight])).toEqual([["naver", "primary"], ["coupang", "secondary"]]);
     expect(view.nextAction.secondary.map((item) => [item.kind, item.label])).toEqual([["talk", "톡톡으로 문의하기"], ["undeliveredHelp", "받지 못하셨나요?"]]);
+    // 10월 2일 요청: the 미수령 안내 ends with whom to call — here the carrier gave no driver number, so CJ's center.
+    expect(view.nextAction.contact).toMatchObject({ kind: "callCarrier", label: "CJ대한통운 고객센터", href: "tel:15881255", detail: "1588-1255" });
     expect(view.revenue).toEqual({ tier: "lead", stores: "ctaLead", recommendations: "inline", recommendationContext: "delivered", adsAllowed: true });
     expect(view.inquiryLevel).toBe("afterStores");
   });
@@ -679,4 +685,19 @@ test("a cleared shipment without customs events (a domestic lookup) still shows 
   const expected = CONFIG.resultCopy.customsDoneCaption.replace("{date}", formatKstDate(new Date(estimate)));
   expect(view.eta.kind === "date" || view.eta.kind === "today" || view.eta.kind === "holidayAffected").toBe(true);
   expect("caption" in view.eta ? view.eta.caption : null).toBe(expected);
+});
+
+test.describe("phone contacts (10월 2일 요청)", () => {
+  test("a driver's number is masked on screen and dialled in full", () => {
+    expect(maskPhone(FAKE.phone)).toBe("010-****-1234");
+    expect(maskPhone(FAKE.phone.replace(/-/g, ""))).toBe("010-****-1234");
+    expect(maskPhone("1234")).toBe("****");
+  });
+
+  test("delivered with a driver number: the 미수령 contact is the driver", () => {
+    const data = deliveredData();
+    const events = data.delivery.events.map((event, index, all) => (index === all.length - 1 ? { ...event, driverPhone: FAKE.phone } : event));
+    const view = deriveTrackingView(success({ ...data, delivery: { ...data.delivery, events } }), FIXTURE_NOW, CONFIG);
+    expect(view.nextAction.contact).toMatchObject({ kind: "callDriver", href: `tel:${FAKE.phone.replace(/-/g, "")}`, detail: "010-****-1234" });
+  });
 });

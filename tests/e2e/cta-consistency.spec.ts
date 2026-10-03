@@ -62,8 +62,15 @@ for (const state of GAP3_06_VARIANTS) {
 
     const stores = view.nextAction.stores;
     const problem = PROBLEM_KEYS.has(view.guideKey) || view.overdue;
-    if (problem || view.guideKey === "inTransit" || stores === null) {
+    if (problem) {
       await expect(page.locator(PAGE_STORE_PLACEMENTS)).toHaveCount(0);
+      await expect(page.locator('a[rel~="sponsored"]')).toHaveCount(0);
+    } else if (stores === null) {
+      // 10월 2일 요청: a normal result without its own store links gets one store invitation under the result, outside
+      // 지금 할 일 and never sponsored (the CTA itself still carries no store link).
+      await expect(cta.locator(STORE_LINKS)).toHaveCount(0);
+      await expect(page.locator(PAGE_STORE_PLACEMENTS)).toHaveCount(1);
+      await expect(page.locator("[data-result-promo]").locator(STORE_LINKS)).toHaveCount(1);
       await expect(page.locator('a[rel~="sponsored"]')).toHaveCount(0);
     } else {
       await expect(cta.locator(STORE_LINKS)).toHaveCount(stores.links.length);

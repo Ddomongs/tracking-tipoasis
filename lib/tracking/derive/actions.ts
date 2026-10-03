@@ -7,6 +7,7 @@ interface ActionOptions {
   readonly href?: string | null;
   readonly external?: boolean;
   readonly cooldownSeconds?: number | null;
+  readonly detail?: string;
 }
 
 export function action(kind: ActionKind, label: string, weight: ActionWeight, options: ActionOptions = {}): ActionView {
@@ -16,7 +17,8 @@ export function action(kind: ActionKind, label: string, weight: ActionWeight, op
     weight,
     href: options.href ?? null,
     external: options.external ?? false,
-    cooldownSeconds: options.cooldownSeconds ?? null
+    cooldownSeconds: options.cooldownSeconds ?? null,
+    ...(options.detail === undefined ? {} : { detail: options.detail })
   };
 }
 
@@ -49,8 +51,26 @@ export function undeliveredAction(config: SiteConfig): ActionView {
   return action("undeliveredHelp", config.resultCopy.actionUndelivered, "text");
 }
 
+/**
+ * '010-****-5678': the screen (anyone holding the tracking number can open it) shows only the ends of a driver's
+ * number; the tel: link dials the full number (10월 2일 요청).
+ */
+export function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 8) return "****";
+  return `${digits.slice(0, 3)}-****-${digits.slice(-4)}`;
+}
+
 export function callDriverAction(config: SiteConfig, phone: string): ActionView {
-  return action("callDriver", config.resultCopy.actionCallDriver, "secondary", { href: `tel:${phone.replace(/[^0-9+]/g, "")}` });
+  return action("callDriver", config.resultCopy.actionCallDriver, "secondary", {
+    href: `tel:${phone.replace(/[^0-9+]/g, "")}`,
+    detail: maskPhone(phone)
+  });
+}
+
+/** The carrier's public customer center, when no driver number is known (배송 완료 미수령). */
+export function callCarrierAction(carrierName: string, phone: string): ActionView {
+  return action("callCarrier", `${carrierName} 고객센터`, "secondary", { href: `tel:${phone.replace(/\D/g, "")}`, detail: phone });
 }
 
 export function carrierOfficialAction(

@@ -44,6 +44,14 @@ const GROUPS: ReadonlyArray<{ readonly title: string; readonly fields: ReadonlyA
     ]
   },
   {
+    title: "결과 화면 스토어 안내",
+    fields: [
+      { id: "resultPromoTitle", label: "제목", help: "통관 중·배송 중 결과 아래에 보이는 카드(링크는 위 네이버 스토어 주소)" },
+      { id: "resultPromoBody", label: "안내 한 줄" },
+      { id: "resultPromoButtonLabel", label: "버튼 문구" }
+    ]
+  },
+  {
     title: "유튜브",
     fields: [
       { id: "youtubeLabel", label: "버튼 문구" },

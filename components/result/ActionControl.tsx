@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button, type ButtonSize } from "@/components/primitives/Button";
 import { ButtonLink } from "@/components/primitives/ButtonLink";
+import { CallLink } from "./CallLink";
 import { CopyButton } from "@/components/primitives/CopyButton";
 import { TalkLink } from "@/components/primitives/TalkLink";
 import { resultCopy } from "@/config/site.config";
@@ -127,9 +128,8 @@ export function ActionControl({ action, onAction, inquiryCopy, returnLink, undel
         <ButtonLink href={action.href} variant={action.weight} size={sizeOf(action)} external label={action.label} />
       );
     case "callDriver":
-      return action.href === null ? null : (
-        <ButtonLink href={action.href} variant={action.weight} size={sizeOf(action)} label={action.label} />
-      );
+    case "callCarrier":
+      return <CallLink action={action} size={sizeOf(action)} />;
     case "copyReturnLink":
       return <ReturnLinkAction action={action} link={returnLink} onAction={onAction} />;
     case "chooseCarrier":

@@ -24,6 +24,10 @@ export interface SiteSettings {
   readonly loadingTitle: string;
   readonly loadingBody: string;
   readonly loadingButtonLabel: string;
+  /** The card under a normal result that leads to the Naver store (10월 2일 요청; the link is naverUrl). */
+  readonly resultPromoTitle: string;
+  readonly resultPromoBody: string;
+  readonly resultPromoButtonLabel: string;
 }
 
 export type SiteSettingsField = keyof SiteSettings;
@@ -40,7 +44,10 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   youtubeUrl: channels.youtube.url ?? "",
   loadingTitle: "해외 구매, 직접 하기 번거로우셨죠?",
   loadingBody: "구매대행·해외 직구가 필요하면 언제든 편하게 물어보세요.",
-  loadingButtonLabel: "톡톡으로 상담하기"
+  loadingButtonLabel: "톡톡으로 상담하기",
+  resultPromoTitle: "다음 해외 구매는 더 편하게",
+  resultPromoBody: "구매대행·직구 상품을 스토어에서 둘러보세요.",
+  resultPromoButtonLabel: "네이버 스토어 둘러보기"
 };
 
 const ALLOWED_HOSTS = new Set<string>(channels.allowedHosts);
@@ -75,7 +82,10 @@ const FIELD_SCHEMAS = {
   youtubeUrl: z.union([z.literal(""), link]),
   loadingTitle: label(40),
   loadingBody: label(120),
-  loadingButtonLabel: label(20)
+  loadingButtonLabel: label(20),
+  resultPromoTitle: label(40),
+  resultPromoBody: label(120),
+  resultPromoButtonLabel: label(20)
 } satisfies Record<SiteSettingsField, z.ZodType<string>>;
 
 const SiteSettingsSchema = z.object(FIELD_SCHEMAS).strict();

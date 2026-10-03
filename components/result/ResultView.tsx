@@ -2,6 +2,8 @@
 
 import { useId } from "react";
 import { channels } from "@/config/site.config";
+import { ButtonLink } from "@/components/primitives/ButtonLink";
+import { PROBLEM_GUIDE_KEYS } from "@/lib/tracking/types";
 import type { FailureCause, HelpItemView, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
 import { ActionControl } from "./ActionControl";
 import { CarrierChooser } from "./CarrierChooser";
@@ -27,6 +29,44 @@ export interface ResultViewProps {
   readonly frame?: "responsive" | "mobile";
   /** S07 addition: the cause behind an error view, for data-failure-cause on the failure card. */
   readonly failureCause?: FailureCause;
+  /** The store invitation under a normal result (staff-edited site settings, 10월 2일 요청). */
+  readonly promo?: ResultPromo | null;
+}
+
+export interface ResultPromo {
+  readonly title: string;
+  readonly body: string;
+  readonly linkLabel: string;
+  readonly href: string;
+}
+
+const PROBLEM_KEYS: ReadonlySet<string> = new Set(PROBLEM_GUIDE_KEYS);
+
+/**
+ * Only where the result carries no store links of its own and nothing is wrong (spec §8: no store link in a problem
+ * state; pending and delivered already lead with their stores). No 톡톡 link: the screen keeps header, state place, footer.
+ */
+function showsPromo(view: TrackingViewModel): boolean {
+  return view.mode === "settled" && !view.overdue && !PROBLEM_KEYS.has(view.guideKey) && view.nextAction.stores === null;
+}
+
+function ResultPromoCard({ promo, id }: { readonly promo: ResultPromo; readonly id: string }): React.JSX.Element {
+  return (
+    <aside
+      data-result-promo="true"
+      aria-labelledby={id}
+      className="flex flex-col gap-3 border-0 border-l-4 border-solid border-tt-accent bg-tt-surface px-4 py-5"
+    >
+      <p className="m-0 text-tt-xs font-bold text-tt-accent">구매대행 · 해외 직구</p>
+      <h3 id={id} className="m-0 text-tt-lg [font-weight:var(--tt-weight-display)] [word-break:keep-all]">
+        {promo.title}
+      </h3>
+      <p className="m-0 text-tt-sm [word-break:keep-all]">{promo.body}</p>
+      <div>
+        <ButtonLink href={promo.href} variant="secondary" external label={promo.linkLabel} />
+      </div>
+    </aside>
+  );
 }
 
 /**
@@ -140,7 +180,7 @@ function SettledFlow({ view, baseId, onAction, headingRef, recommendationSlot }:
       <div data-primary-end="true" aria-hidden="true" />
       {recommendationsLead ? recommendations : null}
       <HistoryDetails history={view.history} id={`${baseId}-history`} />
-      {undelivered === null ? null : <DeliveredHelp item={undelivered} id={undeliveredId} />}
+      {undelivered === null ? null : <DeliveredHelp item={undelivered} id={undeliveredId} contact={view.nextAction.contact} />}
       {recommendationsLead ? null : recommendations}
     </>
   );
@@ -157,7 +197,8 @@ export function ResultView({
   recommendationSlot,
   readOnly = false,
   frame = "responsive",
-  failureCause
+  failureCause,
+  promo = null
 }: ResultViewProps): React.JSX.Element {
   const baseId = useId();
   const act = readOnly ? ignoreAction : onAction;
@@ -185,6 +226,7 @@ export function ResultView({
         ) : (
           <SettledFlow view={view} baseId={baseId} onAction={act} headingRef={headingRef} recommendationSlot={recommendationSlot} />
         )}
+        {promo !== null && !readOnly && showsPromo(view) ? <ResultPromoCard promo={promo} id={`${baseId}-promo`} /> : null}
       </div>
       {view.mode === "error" ? null : (
         <SideColumn view={view} frame={frame} historyId={`${baseId}-history`} help={otherHelp} helpIdPrefix={baseId} />

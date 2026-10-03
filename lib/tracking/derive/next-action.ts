@@ -1,8 +1,9 @@
 import type { SiteConfig } from "@/lib/config/types";
 import {
-  ALL_CARRIER_CHOICES, callDriverAction, carrierOfficialAction, copyAndTalkAction, fixNumberAction, retryAction, returnLinkAction,
+  ALL_CARRIER_CHOICES, callCarrierAction, callDriverAction, carrierOfficialAction, copyAndTalkAction, fixNumberAction, retryAction, returnLinkAction,
   talkAction, undeliveredAction
 } from "@/lib/tracking/derive/actions";
+import { CARRIER_CENTER_PHONES, CARRIER_NAMES, isConcreteCarrier } from "@/lib/tracking/carriers";
 import { latestEvent } from "@/lib/tracking/derive/events";
 import type { TimedEvent } from "@/lib/tracking/derive/events";
 import type { DataGuideKey } from "@/lib/tracking/derive/keys";
@@ -50,6 +51,12 @@ function worryLine(input: NextActionInput): WorryLineView | null {
   if (worryKey !== null) return { dateKey: worryKey, text: fillCopy(template, values), talk: talkAction(config, "text") };
   if (key === "pending") return { dateKey: null, text: fillCopy(template, values), talk: talkAction(config, "text") };
   return null;
+}
+
+function carrierCenterAction(input: NextActionInput): ActionView | null {
+  const code = input.carrier.code;
+  if (!isConcreteCarrier(code)) return null;
+  return callCarrierAction(input.carrier.name ?? CARRIER_NAMES[code], CARRIER_CENTER_PHONES[code]);
 }
 
 function latestDriverPhone(events: readonly TimedEvent[]): string | null {
@@ -115,13 +122,18 @@ export function nextActionForData(input: NextActionInput): NextActionView {
           : [callDriverAction(config, phone), talkAction(config, "text")]
       };
     }
-    case "delivered":
+    case "delivered": {
+      // 받지 못했을 때 바로 연락할 곳 (10월 2일 요청): the driver when the carrier gave a number, else its customer center.
+      const phone = latestDriverPhone(input.events);
+      const call = phone !== null ? callDriverAction(config, phone) : carrierCenterAction(input);
       return {
         ...shared,
         primary: null,
         secondary: [talkAction(config, "secondary"), undeliveredAction(config)],
+        ...(call === null ? {} : { contact: call }),
         stores: storesFor("deliveredLead", config, null)
       };
+    }
     case "stale": {
       const official = officialAction(input, "secondary", false);
       return { ...shared, primary: copyAndTalkAction(config), secondary: official === null ? [] : [official], note: copy.customsCheckNote };

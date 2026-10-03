@@ -12,6 +12,15 @@ export const CARRIER_NAMES: Readonly<Record<ConcreteCarrierCode, string>> = {
   LOGEN: "로젠택배"
 };
 
+/** Public customer-center numbers (10월 2일 요청: 배송 완료인데 못 받았을 때 바로 전화). */
+export const CARRIER_CENTER_PHONES: Readonly<Record<ConcreteCarrierCode, string>> = {
+  CJ: "1588-1255",
+  EPOST: "1588-1300",
+  HANJIN: "1588-0011",
+  LOTTE: "1588-2121",
+  LOGEN: "1588-9988"
+};
+
 const TRACKING_URL_BUILDERS: Readonly<Record<ConcreteCarrierCode, (encodedNumber: string) => string>> = {
   CJ: (value) => `https://trace.cjlogistics.com/next/tracking.html?wblNo=${value}`,
   EPOST: (value) => `https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?displayHeader=N&sid1=${value}`,

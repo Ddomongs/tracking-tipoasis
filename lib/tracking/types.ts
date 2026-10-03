@@ -106,7 +106,7 @@ export type EtaKind = EtaView["kind"];
 
 export type ActionKind =
   | "fixNumber" | "retry" | "cancel" | "copyAndTalk" | "copyInquiry" | "talk"
-  | "carrierOfficial" | "callDriver" | "copyReturnLink" | "chooseCarrier" | "undeliveredHelp";
+  | "carrierOfficial" | "callDriver" | "callCarrier" | "copyReturnLink" | "chooseCarrier" | "undeliveredHelp";
 export type ActionWeight = "primary" | "secondary" | "text";
 export interface ActionView {
   readonly kind: ActionKind;
@@ -115,6 +115,8 @@ export interface ActionView {
   readonly href: string | null;            // external or tel: link; null for in-page actions
   readonly external: boolean;              // new tab
   readonly cooldownSeconds: number | null; // 429: enabled after this many seconds
+  /** Phone actions only (10월 2일 요청): the number shown on the button — a driver's is masked ('010-****-5678'). */
+  readonly detail?: string;
 }
 
 export interface WorryLineView {
@@ -148,6 +150,8 @@ export interface NextActionView {
   readonly stores: StoreLinksView | null;
   readonly carrierChoices: readonly CarrierChoiceView[] | null; // ambiguous; lookupUnavailable without officialUrl
   readonly note: string | null;
+  /** Delivered only (10월 2일 요청): whom to call when the parcel is missing — the driver, else the carrier's center. */
+  readonly contact?: ActionView;
 }
 
 export interface NoticeView { readonly id: string; readonly kind: NoticeKind; readonly title: string; readonly body: string }
