@@ -281,7 +281,7 @@ export const stateGuide = {
     title: "국내 배송 중",
     overdueTitle: "{worryDate}이 지났는데 아직 배송이 끝나지 않았어요",
     reason: "택배사가 주소지로 배송하고 있어요.",
-    ctaHeading: "배송이 진행 중이에요", nextAction: "정확한 도착 시간은 택배사 문자나 실시간 조회에서 볼 수 있어요.",
+    ctaHeading: "배송이 진행 중이에요", nextAction: "정확한 도착 시간은 {carrier} 기사님이 보낸 문자나 실시간 조회에서 볼 수 있어요.",
     worry: "{worryDate}까지 안 오면 알려 주세요",
     primaryAction: "carrierOfficial", inquiryLevel: "textLink", revenueTier: "quiet", stores: "none", recommendations: "inline", etaMode: "estimate"
   },
@@ -365,7 +365,7 @@ export const help = [
     showIn: ["inTransit"], openIn: []
   },
   {
-    id: "undelivered", summary: "받지 못하셨나요?",
+    id: "undelivered", summary: "수령이 안 됐다면 여기를 눌러 주세요",
     body: ["문 앞·경비실·택배함을 먼저 확인해 주세요.", "기사님 연락처가 있으면 기사님께 먼저 물어봐 주세요.", "24시간이 지나도 찾지 못하시면 톡톡으로 알려 주세요."],
     showIn: ["delivered"], openIn: []
   },
@@ -470,7 +470,7 @@ export const resultCopy = {
   actionCarrierLive: "{carrier}에서 실시간 위치 보기",
   actionCallDriver: "기사님께 전화",
   actionReturnLink: "다시 볼 링크 복사",
-  actionUndelivered: "받지 못하셨나요?",
+  actionUndelivered: "수령이 안 됐다면 여기를 눌러 주세요",
   pendingStoresIntro: "주문하신 곳에서도 배송 안내를 볼 수 있어요",
   notFoundCaveat: "조회 서비스 사정으로 결과가 없을 수도 있어요",
   carrierCutLine: "택배사 조회가 잠시 늦어요",

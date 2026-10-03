@@ -67,6 +67,9 @@ test.describe("POST /api/track latency (approval 5)", () => {
         expect(result.status).toBe(200);
         expect(result.ms).toBeLessThanOrEqual(2_500);
         expect(stub.calls(number).unipass).toBe(4);
+        // 10월 2일 요청: the UNI-PASS item name reaches the response as productName and never sits on an event.
+        expect(dataOf(result)?.productName).toBe("TEST RUNNING SHOES");
+        expect(JSON.stringify(dataOf(result)?.customs.events)).not.toContain("productName");
       }
     );
   });

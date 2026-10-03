@@ -22,9 +22,9 @@ test("in transit with a driver number: the call button shows a masked number and
   await expect(page.getByText(FAKE.phone)).toHaveCount(0);
 });
 
-test("delivered: '받지 못하셨나요?' opens the help with one call button to the carrier's center", async ({ page }) => {
+test("delivered: the 미수령 button opens the help with one call button to the carrier's center", async ({ page }) => {
   await open(page, "delivered");
-  await page.getByRole("button", { name: "받지 못하셨나요?" }).click();
+  await page.getByRole("button", { name: "수령이 안 됐다면 여기를 눌러 주세요" }).click();
   const contact = page.locator("[data-delivered-help] [data-delivered-contact]");
   await expect(contact).toBeVisible();
   const call = contact.getByRole("link");
@@ -48,3 +48,20 @@ for (const state of ["delivered", "pending", "stale"] as const) {
     await expect(page.locator("[data-result-promo]")).toHaveCount(0);
   });
 }
+
+test("customs waiting: the reference-only clearance card with the arrival day and the day count", async ({ page }) => {
+  await open(page, "customsWaiting");
+  const card = page.locator("[data-customs-estimate]");
+  await expect(card.getByRole("heading", { level: 3 })).toHaveText("통관 완료 예상일");
+  await expect(card).toContainText("참고용 · 확정된 날짜 아님");
+  await expect(card).toContainText("내 입항일");
+  await expect(card.locator("[data-customs-dday]")).toHaveText(/^(오늘|D-\d+)$/);
+});
+
+test("delivered: the 미수령 help names the carrier and points to the driver's message; the button is outlined", async ({ page }) => {
+  await open(page, "delivered");
+  const open_ = page.getByRole("button", { name: "수령이 안 됐다면 여기를 눌러 주세요" });
+  await expect(open_).toHaveAttribute("data-variant", "secondary");
+  await open_.click();
+  await expect(page.locator("[data-delivered-sms]")).toContainText("배송 완료 문자");
+});

@@ -40,6 +40,11 @@ export function StatusCard({ view, titleId, headingRef, children }: StatusCardPr
             {view.reason === null ? null : (
               <p className="m-0 text-tt-sm font-medium [overflow-wrap:anywhere] [word-break:keep-all]">{view.reason}</p>
             )}
+            {view.productName === undefined ? null : (
+              <p data-product-name="true" className="m-0 text-tt-sm [overflow-wrap:anywhere]">
+                <span className="font-bold">상품</span> · {view.productName}
+              </p>
+            )}
           </div>
         </div>
         <JourneySpine spine={view.spine} />

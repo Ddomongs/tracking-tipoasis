@@ -390,7 +390,7 @@ test.describe("result view models", () => {
     expect(view.nextAction.stores?.placement).toBe("deliveredLead");
     expect(view.nextAction.stores?.disclosure).toBe(CONFIG.disclosures.coupang);
     expect(view.nextAction.stores?.links.map((link) => [link.channel, link.weight])).toEqual([["naver", "primary"], ["coupang", "secondary"]]);
-    expect(view.nextAction.secondary.map((item) => [item.kind, item.label])).toEqual([["talk", "톡톡으로 문의하기"], ["undeliveredHelp", "받지 못하셨나요?"]]);
+    expect(view.nextAction.secondary.map((item) => [item.kind, item.label])).toEqual([["talk", "톡톡으로 문의하기"], ["undeliveredHelp", "수령이 안 됐다면 여기를 눌러 주세요"]]);
     // 10월 2일 요청: the 미수령 안내 ends with whom to call — here the carrier gave no driver number, so CJ's center.
     expect(view.nextAction.contact).toMatchObject({ kind: "callCarrier", label: "CJ대한통운 고객센터", href: "tel:15881255", detail: "1588-1255" });
     expect(view.revenue).toEqual({ tier: "lead", stores: "ctaLead", recommendations: "inline", recommendationContext: "delivered", adsAllowed: true });
@@ -699,5 +699,26 @@ test.describe("phone contacts (10월 2일 요청)", () => {
     const events = data.delivery.events.map((event, index, all) => (index === all.length - 1 ? { ...event, driverPhone: FAKE.phone } : event));
     const view = deriveTrackingView(success({ ...data, delivery: { ...data.delivery, events } }), FIXTURE_NOW, CONFIG);
     expect(view.nextAction.contact).toMatchObject({ kind: "callDriver", href: `tel:${FAKE.phone.replace(/-/g, "")}`, detail: "010-****-1234" });
+  });
+});
+
+test.describe("customs estimate card (10월 2일 요청)", () => {
+  test("customs waiting: the server's clearance date, D-day, the arrival day and the weekdays and days off in between", () => {
+    const view = deriveTrackingView(success(customsWaitingData()), FIXTURE_NOW, CONFIG);
+    expect(view.guideKey).toBe("customsWaiting");
+    // Arrived Tue 9/22; the estimate 9/24 had passed by 9/26, so it shows today. 9/23 is a weekday; 9/24–25 추석 and Sat 9/26 are off.
+    expect(view.customsEstimate).toEqual({
+      date: { key: "2026-09-26", label: "9월 26일 (토)", month: 9, day: 26, weekday: "토" },
+      dday: 0,
+      arrival: { key: "2026-09-22", label: "9월 22일 (화)", month: 9, day: 22, weekday: "화" },
+      businessDays: 1,
+      offDays: 3
+    });
+  });
+
+  test("no card outside customs waiting, or once the shipment is overdue", () => {
+    expect(deriveTrackingView(success(deliveredData()), FIXTURE_NOW, CONFIG).customsEstimate).toBeUndefined();
+    const late = deriveTrackingView(success(customsWaitingData()), at("2026-10-08T14:10:00+09:00"), CONFIG);
+    expect(late.customsEstimate).toBeUndefined();
   });
 });

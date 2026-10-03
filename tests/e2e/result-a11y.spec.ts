@@ -71,7 +71,7 @@ test.describe("result area accessibility (S07, approval 13)", () => {
     await blockOtherHosts(page);
     await open(page, { name: "delivered", reply: trackData("delivered"), now: FIXTURE_NOW, ready: "[data-result-view]" });
     await page.locator("details[data-history] summary").click();
-    await page.locator('[data-cta-state="delivered"]').getByRole("button", { name: "받지 못하셨나요?" }).click();
+    await page.locator('[data-cta-state="delivered"]').getByRole("button", { name: "수령이 안 됐다면 여기를 눌러 주세요" }).click();
     await expect(page.locator("details[data-delivered-help]")).toHaveAttribute("open", "");
     expect(await violationsOf(page, "delivered, details open")).toEqual([]);
   });

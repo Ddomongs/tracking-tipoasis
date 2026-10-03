@@ -48,7 +48,8 @@ export function returnLinkAction(config: SiteConfig, weight: ActionWeight): Acti
 }
 
 export function undeliveredAction(config: SiteConfig): ActionView {
-  return action("undeliveredHelp", config.resultCopy.actionUndelivered, "text");
+  // 10월 2일 요청: '수령이 안 됐다면 여기를 눌러 주세요' as an outlined button, not a quiet text link.
+  return action("undeliveredHelp", config.resultCopy.actionUndelivered, "secondary");
 }
 
 /**

@@ -1,4 +1,4 @@
-/** Opens a <details> element by id and moves focus to its summary ('받지 못하셨나요?', '전체 보기'). Browser only. */
+/** Opens a <details> element by id and moves focus to its summary ('수령이 안 됐다면 여기를 눌러 주세요', '전체 보기'). Browser only. */
 export function openDetails(id: string): void {
   const element = document.getElementById(id);
   if (!(element instanceof HTMLDetailsElement)) return;

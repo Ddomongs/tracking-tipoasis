@@ -245,7 +245,7 @@ test.describe("지금 할 일", () => {
     await expect(cta.locator("[data-affiliate-disclosure]")).toHaveText(disclosures.coupang);
     await expect(cta.getByRole("link", { name: "네이버 스토어 보기 새 창으로 열기" })).toHaveAttribute("data-variant", "primary");
     await expect(cta.getByRole("link", { name: TALK_NAME })).toBeVisible();
-    await expect(cta.getByRole("button", { name: "받지 못하셨나요?" })).toBeVisible();
+    await expect(cta.getByRole("button", { name: "수령이 안 됐다면 여기를 눌러 주세요" })).toBeVisible();
     expect(view.nextAction.primary).toBeNull();
   });
 
@@ -462,12 +462,12 @@ test.describe("last event, history, help and the recommendation slot", () => {
     await expect(page.locator("details[data-history]")).toHaveCount(0);
   });
 
-  test("받지 못하셨나요? opens the 미수령 안내 and focuses its summary", async ({ page }) => {
+  test("수령이 안 됐다면 여기를 눌러 주세요 opens the 미수령 안내 and focuses its summary", async ({ page }) => {
     await openKit(page);
     await showView(page, viewFor(success(deliveredData())));
     const help = page.locator("details[data-delivered-help]");
     await expect(help).not.toHaveAttribute("open");
-    await page.locator('[data-cta-state="delivered"]').getByRole("button", { name: "받지 못하셨나요?" }).click();
+    await page.locator('[data-cta-state="delivered"]').getByRole("button", { name: "수령이 안 됐다면 여기를 눌러 주세요" }).click();
     await expect(help).toHaveAttribute("open", "");
     await expect(help.locator("summary")).toBeFocused();
   });
@@ -549,7 +549,7 @@ test.describe("layout and modes", () => {
       popups += 1;
     });
     await page.getByRole("link", { name: "네이버 스토어 보기 새 창으로 열기" }).click();
-    await page.locator('[data-cta-state="delivered"]').getByRole("button", { name: "받지 못하셨나요?" }).click();
+    await page.locator('[data-cta-state="delivered"]').getByRole("button", { name: "수령이 안 됐다면 여기를 눌러 주세요" }).click();
     // A popup that slipped past the guard would open within this time.
     await page.waitForTimeout(500);
     expect(popups).toBe(0);

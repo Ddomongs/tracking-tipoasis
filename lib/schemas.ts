@@ -35,6 +35,7 @@ export const TrackResponseDataSchema = z.object({
   currentStatusCode: StatusCodeSchema,
   isPending: z.boolean().optional(),
   estimatedCustomsClearanceDate: z.string().datetime({ offset: true }).optional(),
+  productName: z.string().max(80).optional(),
   estimatedDeliveryDate: z.string().optional(),
   estimateStale: z.boolean().optional(),
   customs: z.object({

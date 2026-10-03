@@ -51,7 +51,7 @@ export interface UpstreamStub {
 // prcsDttm uses the "yyyy-MM-dd HH:mm:ss" form that parseCustomsDatetime also accepts, so this file holds no 10+ digit run.
 const FOUND_XML =
   '<?xml version="1.0" encoding="UTF-8"?><cargCsclPrgsInfoQryRtnVo><tCnt>1</tCnt>' +
-  "<cargCsclPrgsInfoQryVo><csclPrgsStts>수입신고수리</csclPrgsStts><prgsStts>반출완료</prgsStts><prcsDttm>2026-09-23 10:05:00</prcsDttm><etprCstmNm>인천공항세관</etprCstmNm></cargCsclPrgsInfoQryVo>" +
+  "<cargCsclPrgsInfoQryVo><csclPrgsStts>수입신고수리</csclPrgsStts><prgsStts>반출완료</prgsStts><prcsDttm>2026-09-23 10:05:00</prcsDttm><etprCstmNm>인천공항세관</etprCstmNm><prnm>TEST RUNNING SHOES</prnm></cargCsclPrgsInfoQryVo>" +
   "<cargCsclPrgsInfoDtlQryVo><cargTrcnRelaBsopTpcd>입항보고 수리</cargTrcnRelaBsopTpcd><prcsDttm>2026-09-22 08:40:00</prcsDttm><shedNm>인천공항</shedNm></cargCsclPrgsInfoDtlQryVo>" +
   "<cargCsclPrgsInfoDtlQryVo><cargTrcnRelaBsopTpcd>수입신고수리</cargTrcnRelaBsopTpcd><prcsDttm>2026-09-23 10:05:00</prcsDttm><shedNm>인천공항</shedNm></cargCsclPrgsInfoDtlQryVo>" +
   "</cargCsclPrgsInfoQryRtnVo>";

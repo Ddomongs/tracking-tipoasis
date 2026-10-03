@@ -4,9 +4,9 @@ import type { TimedEvent } from "@/lib/tracking/derive/events";
 import type { DataGuideKey } from "@/lib/tracking/derive/keys";
 import { isoToKey } from "@/lib/tracking/derive/worry";
 import { fillSlots } from "@/lib/tracking/template";
-import { calendarDaysBetween, formatKstDate, holidayPeriodBetween, kstDateKey, weekdayLabel } from "@/lib/tracking/time";
+import { addCalendarDays, calendarDaysBetween, formatKstDate, holidayPeriodBetween, isBusinessDay, kstDateKey, weekdayLabel } from "@/lib/tracking/time";
 import type { KstDateKey } from "@/lib/tracking/time";
-import type { EtaDate, EtaView } from "@/lib/tracking/types";
+import type { CustomsEstimateView, EtaDate, EtaView } from "@/lib/tracking/types";
 import type { TrackResponseData } from "@/lib/types";
 
 const CUSTOMS_ESTIMATE_KEYS: ReadonlySet<DataGuideKey> = new Set<DataGuideKey>(["customsArrived", "customsWaiting"]);
@@ -84,4 +84,36 @@ export function etaFor(input: EtaInput): EtaView {
     case "estimate":
       return estimateEta(input);
   }
+}
+
+/**
+ * The '통관 완료 예상일' card (10월 2일 요청): the normalizer's clearance estimate (the same date as the caption), its D-day,
+ * and — from the arrival (입항, code 1) day — how many customs working days and days off lie up to it. Customs waiting
+ * states only and never once overdue, so it never contradicts the status card.
+ */
+export function customsEstimateFor(input: EtaInput): CustomsEstimateView | undefined {
+  const { data, key, overdue, now, events, config } = input;
+  if (overdue || !CUSTOMS_ESTIMATE_KEYS.has(key)) return undefined;
+  const estimate = isoToKey(data.estimatedCustomsClearanceDate);
+  if (estimate === null) return undefined;
+  const today = kstDateKey(now);
+  const arrivalEvent = events
+    .filter((item) => item.source === "customs" && item.event.statusCode === 1)
+    .reduce<TimedEvent | null>((earliest, item) => (earliest === null || item.at < earliest.at ? item : earliest), null);
+  const arrivalKey = arrivalEvent === null ? null : kstDateKey(arrivalEvent.at);
+  let businessDays = 0;
+  let offDays = 0;
+  if (arrivalKey !== null) {
+    for (let day = addCalendarDays(arrivalKey, 1); day <= estimate; day = addCalendarDays(day, 1)) {
+      if (isBusinessDay(day, config.calendar, "customs")) businessDays += 1;
+      else offDays += 1;
+    }
+  }
+  return {
+    date: etaDate(estimate),
+    dday: Math.max(0, calendarDaysBetween(today, estimate)),
+    arrival: arrivalKey === null ? null : etaDate(arrivalKey),
+    businessDays,
+    offDays
+  };
 }

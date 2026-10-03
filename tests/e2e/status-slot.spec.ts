@@ -178,7 +178,7 @@ test("carrier chips look the same number up again with the chosen carrier", asyn
   await expect(page.getByRole("combobox", { name: CARRIER_LABEL })).toHaveValue("CJ");
 });
 
-test("delivered: '받지 못하셨나요?' opens the pickup help inside 지금 할 일", async ({ page }) => {
+test("delivered: '수령이 안 됐다면 여기를 눌러 주세요' opens the pickup help inside 지금 할 일", async ({ page }) => {
   await showResult(page, trackData("delivered"), FIXTURE_NOW);
   const help = page.locator("details[data-delivered-help]", { hasText: resultCopy.actionUndelivered });
   await help.locator("summary").click();

@@ -104,6 +104,15 @@ export type EtaView =
   | { readonly kind: "unknown"; readonly label: string; readonly text: string };        // estimate missing
 export type EtaKind = EtaView["kind"];
 
+/** '통관 완료 예상일' card: the estimate, D-day, the arrival day and the weekdays and days off between them. */
+export interface CustomsEstimateView {
+  readonly date: EtaDate;
+  readonly dday: number;              // 0 = today
+  readonly arrival: EtaDate | null;   // the 입항 event's day; null when customs has no arrival record
+  readonly businessDays: number;      // customs working days after the arrival day, up to the estimate
+  readonly offDays: number;           // weekends and holidays in the same span
+}
+
 export type ActionKind =
   | "fixNumber" | "retry" | "cancel" | "copyAndTalk" | "copyInquiry" | "talk"
   | "carrierOfficial" | "callDriver" | "callCarrier" | "copyReturnLink" | "chooseCarrier" | "undeliveredHelp";
@@ -195,9 +204,13 @@ export interface TrackingViewModel {
   readonly chip: string | null;      // '통관 대기 · 2/4', '확인 필요 · 2/4', '국내 도착 전', '조회 오류', '도착 · 4/4'
   readonly title: string;            // status h2, tokens resolved
   readonly reason: string | null;
+  /** The customs item name (data.productName), shown as '상품 · …' in the status card (10월 2일 요청). */
+  readonly productName?: string;
   readonly notice: NoticeView | null;// in-card '안내' line
   readonly spine: SpineView;
   readonly eta: EtaView;
+  /** Customs waiting only (10월 2일 요청): how the clearance estimate was reached. Absent elsewhere or when overdue. */
+  readonly customsEstimate?: CustomsEstimateView;
   readonly nextAction: NextActionView;
   readonly lastEvent: LastEventView | null;
   readonly history: HistoryView;

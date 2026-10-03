@@ -2,7 +2,7 @@ import type { SiteConfig } from "@/lib/config/types";
 import { buildReturnLink } from "@/lib/site";
 import { retryAction } from "@/lib/tracking/derive/actions";
 import { carrierForData } from "@/lib/tracking/derive/carrier-view";
-import { etaFor } from "@/lib/tracking/derive/eta";
+import { customsEstimateFor, etaFor } from "@/lib/tracking/derive/eta";
 import { latestEvent, timedEvents } from "@/lib/tracking/derive/events";
 import type { TimedEvent } from "@/lib/tracking/derive/events";
 import { historyFor, lastEventFor } from "@/lib/tracking/derive/history";
@@ -82,6 +82,7 @@ export function deriveSuccessView(request: LookupRequest, data: TrackResponseDat
   const carrier = carrierForData(data, request, key, config);
   const spine = spineFor(data, key, config);
   const eta = etaFor({ data, key, overdue, now, events, config });
+  const customsEstimate = customsEstimateFor({ data, key, overdue, now, events, config });
   const values = copyValues(eta, worryKey, last, carrier.name ?? config.resultCopy.carrierUnknown, config);
   const title = fillCopy(overdue && row.overdueTitle !== null ? row.overdueTitle : row.title, values);
   const nextAction = nextActionForData({ data, key, overdue, carrier, worryKey, events, values, config });
@@ -97,9 +98,11 @@ export function deriveSuccessView(request: LookupRequest, data: TrackResponseDat
     chip: chipBase === null ? null : spine.positionLabel === null ? chipBase : `${chipBase} · ${spine.positionLabel}`,
     title,
     reason: row.reason === null ? null : fillCopy(row.reason, values),
+    ...(data.productName === undefined ? {} : { productName: data.productName }),
     notice: noticeFor(config, now, key),
     spine,
     eta,
+    ...(customsEstimate === undefined ? {} : { customsEstimate }),
     nextAction,
     lastEvent: lastEventFor(last, config),
     history: historyFor(events, config),

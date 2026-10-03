@@ -144,6 +144,23 @@ const estimateCustomsClearanceDate = (
   );
 };
 
+const PRODUCT_NAME_MAX = 60;
+
+/** The first item name customs gave, with spaces tidied and cut to 60 characters (10월 2일 요청: 상품명 표시). */
+const productNameOf = (events: readonly TrackingEvent[]): string | undefined => {
+  const raw = events.find((event) => (event.productName ?? "").trim().length > 0)?.productName;
+  if (raw === undefined) return undefined;
+  const tidy = raw.replace(/\s+/g, " ").trim();
+  return [...tidy].length > PRODUCT_NAME_MAX ? `${[...tidy].slice(0, PRODUCT_NAME_MAX - 1).join("")}…` : tidy;
+};
+
+const withoutProductName = (event: TrackingEvent): TrackingEvent => {
+  if (event.productName === undefined) return event;
+  const rest: TrackingEvent = { ...event };
+  delete rest.productName;
+  return rest;
+};
+
 export const normalizeTrackingData = (params: {
   trackingNumber: string;
   type: TrackingType;
@@ -151,7 +168,9 @@ export const normalizeTrackingData = (params: {
   deliveryLookup: DeliveryLookupResult;
   now?: Date;
 }): TrackResponseData => {
-  const { trackingNumber, type, customsEvents, deliveryLookup, now = new Date() } = params;
+  const { trackingNumber, type, deliveryLookup, now = new Date() } = params;
+  const productName = productNameOf(params.customsEvents);
+  const customsEvents = params.customsEvents.map(withoutProductName);
   const deliveryEvents = deliveryLookup.events;
   const trackingEvents = [...customsEvents, ...deliveryEvents];
   const hasTrackingData = trackingEvents.length > 0;
@@ -217,6 +236,7 @@ export const normalizeTrackingData = (params: {
     currentStatusCode,
     isPending: isPendingDomestic || undefined,
     estimatedCustomsClearanceDate,
+    ...(productName === undefined ? {} : { productName }),
     estimatedDeliveryDate,
     estimateStale: estimateStale || undefined,
     customs: {

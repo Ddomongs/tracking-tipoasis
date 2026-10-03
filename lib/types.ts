@@ -14,6 +14,8 @@ export interface TrackingEvent {
   detail?: string;
   driverName?: string;
   driverPhone?: string;
+  /** Server-internal: the UNI-PASS item name (prnm) of a summary row; the normalizer moves it to data.productName. */
+  productName?: string;
 }
 
 export interface CustomsResult {
@@ -54,6 +56,8 @@ export interface TrackResponseData {
   currentStatusCode: StatusCode;
   isPending?: boolean;
   estimatedCustomsClearanceDate?: string;
+  /** The UNI-PASS item name (품명), when customs knows it (10월 2일 요청). Never stored. */
+  productName?: string;
   estimatedDeliveryDate?: string;
   /** True when the shipment has had no new event for weeks, so estimates are withheld. */
   estimateStale?: boolean;

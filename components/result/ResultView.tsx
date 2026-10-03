@@ -7,6 +7,7 @@ import { PROBLEM_GUIDE_KEYS } from "@/lib/tracking/types";
 import type { FailureCause, HelpItemView, ResultAction, TrackingViewModel } from "@/lib/tracking/types";
 import { ActionControl } from "./ActionControl";
 import { CarrierChooser } from "./CarrierChooser";
+import { CustomsEstimateCard } from "./CustomsEstimateCard";
 import { DeliveredHelp, UNDELIVERED_HELP_ITEM_ID } from "./DeliveredHelp";
 import { FailureCard } from "./FailureCard";
 import { helpDetailsId } from "./HelpItems";
@@ -178,9 +179,10 @@ function SettledFlow({ view, baseId, onAction, headingRef, recommendationSlot }:
       />
       <LastEventLine lastEvent={view.lastEvent} />
       <div data-primary-end="true" aria-hidden="true" />
+      {view.customsEstimate === undefined ? null : <CustomsEstimateCard estimate={view.customsEstimate} id={`${baseId}-customs-estimate`} />}
       {recommendationsLead ? recommendations : null}
       <HistoryDetails history={view.history} id={`${baseId}-history`} />
-      {undelivered === null ? null : <DeliveredHelp item={undelivered} id={undeliveredId} contact={view.nextAction.contact} />}
+      {undelivered === null ? null : <DeliveredHelp item={undelivered} id={undeliveredId} contact={view.nextAction.contact} carrierName={view.carrier.name} />}
       {recommendationsLead ? null : recommendations}
     </>
   );

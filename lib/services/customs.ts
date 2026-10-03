@@ -108,7 +108,8 @@ const mapRowsToEvents = (rows: Record<string, string>[]): TrackingEvent[] =>
         statusCode: normalizeCustomsStatus(status),
         datetime: parseCustomsDatetime(datetimeRaw),
         location: row.shedNm || row.locplc || row.entrPortNm || row.prnm || row.dsprNm || row.dclrNo,
-        detail: row.rlbrCn || row.bfhnGdncCn || row.rlbrDttm || row.csclPrgsStts || row.dclrNo
+        detail: row.rlbrCn || row.bfhnGdncCn || row.rlbrDttm || row.csclPrgsStts || row.dclrNo,
+        ...(row.prnm ? { productName: row.prnm } : {})
       };
     })
     .filter((event): event is TrackingEvent => Boolean(event));
