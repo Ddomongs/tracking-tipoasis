@@ -93,11 +93,26 @@ function visibleLoading(state: LookupState, loading: LoadingViewModel | null): L
   return loading.stage === "instant" && state.request.entry === "manual" ? null : loading;
 }
 
-function focusHeading(heading: HTMLHeadingElement | null): void {
+/**
+ * Focus the status h2. After a lookup the customer started (`glide`), the number bar and the status card below it glide
+ * up to just under the sticky header (10월 2일 요청: 결과의 주요 항목으로 자연스럽게 스크롤) — instant under reduced
+ * motion, and no move when they already sit there. A deep link opens at the result, so it only scrolls when the
+ * heading is off screen.
+ */
+function focusHeading(heading: HTMLHeadingElement | null, glide: boolean): void {
   if (heading === null) return;
   heading.focus({ preventScroll: true });
-  const box = heading.getBoundingClientRect();
-  if (box.bottom < 0 || box.top > window.innerHeight) heading.scrollIntoView({ block: "start" });
+  if (!glide) {
+    const box = heading.getBoundingClientRect();
+    if (box.bottom < 0 || box.top > window.innerHeight) heading.scrollIntoView({ block: "start" });
+    return;
+  }
+  const card = document.querySelector("[data-number-bar]") ?? heading.closest("[data-guide-key]") ?? heading;
+  const header = document.querySelector("header")?.getBoundingClientRect().height ?? 0;
+  const top = Math.max(0, card.getBoundingClientRect().top + window.scrollY - header);
+  if (Math.abs(top - window.scrollY) < 8) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top, behavior: reduce ? "auto" : "smooth" });
 }
 
 /** The result chunk could not load (a deploy replaced it, or the connection dropped): 톡톡 stays reachable. */
@@ -196,7 +211,7 @@ export function ResultSlot({
     announce(next.view.liveMessage);
     onView?.(next.view);
     const quiet = QUIET_ENTRIES.has(next.state.outcome.request.entry);
-    if (!quiet || !interactedRef.current) focusHeading(targetRef.current);
+    if (!quiet || !interactedRef.current) focusHeading(targetRef.current, !quiet);
     interactedRef.current = false;
   });
 

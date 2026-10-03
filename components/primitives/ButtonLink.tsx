@@ -13,6 +13,8 @@ type ButtonLinkProps = {
   readonly sponsored?: boolean;
   readonly label: string;
   readonly placement?: TalkPlacement | StorePlacementId;
+  /** A short, finite shine that draws the eye (10월 2일 요청; app/globals.css data-emphasis). */
+  readonly emphasis?: boolean;
   readonly children?: React.ReactNode;
 };
 
@@ -24,6 +26,7 @@ export function ButtonLink({
   sponsored = false,
   label,
   placement,
+  emphasis = false,
   children
 }: ButtonLinkProps): React.JSX.Element {
   const rel = [sponsored ? "sponsored nofollow" : null, external ? "noopener noreferrer" : null].filter(Boolean).join(" ");
@@ -34,6 +37,7 @@ export function ButtonLink({
       data-variant={variant}
       data-size={size}
       data-link-placement={placement}
+      data-emphasis={emphasis ? "true" : undefined}
       target={external ? "_blank" : undefined}
       rel={rel || undefined}
       aria-label={external ? `${label}${NEW_WINDOW_SUFFIX}` : undefined}

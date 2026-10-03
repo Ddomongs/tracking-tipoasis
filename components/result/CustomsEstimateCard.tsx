@@ -31,7 +31,7 @@ export function CustomsEstimateCard({ estimate, id }: { readonly estimate: Custo
       </div>
       <p className="m-0 flex flex-wrap items-center justify-center gap-2">
         <span className="font-tt-display text-tt-eta leading-tight [font-weight:var(--tt-weight-display)]">{estimate.date.label}</span>
-        <span data-customs-dday="true" className="rounded-full bg-tt-accent px-3 py-1 text-tt-sm font-bold text-tt-on-primary">
+        <span data-customs-dday="true" data-emphasis="true" data-on-accent="true" className="rounded-full bg-tt-accent px-3 py-1 text-tt-sm font-bold text-tt-on-primary">
           {dday}
         </span>
       </p>

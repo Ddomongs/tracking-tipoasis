@@ -13,7 +13,7 @@ function PhoneIcon(): React.JSX.Element {
 export function CallLink({ action, size = "md" }: { readonly action: ActionView; readonly size?: "md" | "lg" }): React.JSX.Element | null {
   if (action.href === null) return null;
   return (
-    <ButtonLink href={action.href} variant={action.weight} size={size} label={action.label}>
+    <ButtonLink href={action.href} variant={action.weight} size={size} label={action.label} emphasis>
       <PhoneIcon />
       <span>{action.label}</span>
       {action.detail === undefined ? null : (

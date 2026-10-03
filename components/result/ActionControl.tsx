@@ -140,6 +140,7 @@ export function ActionControl({ action, onAction, inquiryCopy, returnLink, undel
           variant={action.weight}
           size={sizeOf(action)}
           aria-controls={undeliveredHelpId ?? undefined}
+          data-emphasis="true"
           onClick={() => {
             if (undeliveredHelpId !== null) openDetails(undeliveredHelpId);
           }}

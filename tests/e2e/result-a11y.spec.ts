@@ -38,7 +38,15 @@ async function open(page: Page, scene: A11yScene): Promise<void> {
   await page.goto(`/${typeof scene.reply === "string" ? FAKE.domestic : scene.reply.trackingNumber}`);
   await expect(page.locator(scene.ready)).toBeVisible();
   // The status field paints once (tt-paint, 200 ms) from the ground colour; measure contrast on the final colours.
-  await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined))));
+  // Only time-based ones: the phone bottom bar follows the scroll (10월 2일 요청) and never "finishes" on its own.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation.timeline === document.timeline)
+        .map((animation) => animation.finished.catch(() => undefined))
+    )
+  );
 }
 
 /** Violations as 'scene: rule — targets'. */

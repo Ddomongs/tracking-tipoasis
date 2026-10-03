@@ -130,49 +130,55 @@ export function LookupForm({
         </div>
       ) : null}
       <FormatHint id={FORMAT_HINT_ID} text={lookupConfig.copy.formatHint} />
-      <NumberFinderHelp
-        summary={lookupConfig.copy.numberFinderSummary}
-        items={lookupConfig.copy.numberFinderItems}
-        open={invalid !== null}
-      />
-      <div className="grid grid-cols-[72px_minmax(0,1fr)] items-center gap-x-2">
-        <label htmlFor={CARRIER_ID} className="whitespace-nowrap text-tt-sm font-bold text-tt-ink">
-          {CARRIER_LABEL}
-        </label>
-        <div className="relative">
-          <select
-            id={CARRIER_ID}
-            ref={carrierRef}
-            name="c"
-            value={carrier}
-            onChange={(event) => onCarrierChange(parseCarrierParam(event.target.value))}
-            className="tt-focus block h-12 w-full appearance-none rounded-none border-2 border-tt-ink bg-tt-surface pl-3.5 pr-10 text-tt-md font-medium text-tt-ink"
-          >
-            <option value="AUTO">{AUTO_LABEL}</option>
-            {CONCRETE_CARRIER_CODES.map((code) => (
-              <option key={code} value={code}>
-                {CARRIER_NAMES[code]}
-              </option>
-            ))}
-          </select>
-          <svg
-            aria-hidden="true"
-            focusable="false"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-            strokeLinecap="square"
-            strokeLinejoin="miter"
-            className="pointer-events-none absolute right-3.5 top-4 text-tt-ink"
-          >
-            <path d="M6 9l6 6 6-6" />
-          </svg>
+      {/* 10월 2일 요청: '번호는 어디서 찾나요?' and a compact carrier picker share one row (the first view ends higher on
+          phones); an opened help list takes the whole row and the picker wraps below it. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <div className="min-w-0 flex-1 [&:has(details[open])]:basis-full">
+          <NumberFinderHelp
+            summary={lookupConfig.copy.numberFinderSummary}
+            items={lookupConfig.copy.numberFinderItems}
+            open={invalid !== null}
+          />
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <label htmlFor={CARRIER_ID} className="sr-only whitespace-nowrap text-tt-xs font-bold text-tt-muted min-[480px]:not-sr-only">
+            {CARRIER_LABEL}
+          </label>
+          <div className="relative">
+            <select
+              id={CARRIER_ID}
+              ref={carrierRef}
+              name="c"
+              value={carrier}
+              onChange={(event) => onCarrierChange(parseCarrierParam(event.target.value))}
+              className="tt-focus block h-11 w-[8.5rem] appearance-none rounded-none border-2 border-tt-ink bg-tt-surface pl-3 pr-8 text-tt-sm font-medium text-tt-ink"
+            >
+              <option value="AUTO">{AUTO_LABEL}</option>
+              {CONCRETE_CARRIER_CODES.map((code) => (
+                <option key={code} value={code}>
+                  {CARRIER_NAMES[code]}
+                </option>
+              ))}
+            </select>
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.5}
+              strokeLinecap="square"
+              strokeLinejoin="miter"
+              className="pointer-events-none absolute right-2.5 top-[15px] text-tt-ink"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
         </div>
       </div>
-      <Button type="submit" variant="primary" size="lg" busy={busy} className="mt-3 w-full">
+      <Button type="submit" variant="primary" size="lg" busy={busy} data-emphasis="true" className="mt-3 w-full">
         {busy ? lookupConfig.copy.submitting : lookupConfig.copy.submit}
       </Button>
     </form>

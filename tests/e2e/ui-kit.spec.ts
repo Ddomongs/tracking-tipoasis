@@ -42,7 +42,12 @@ async function openKit(page: Page, width = 1280, height = 900): Promise<void> {
 /** Waits for the one-shot entrance motion (spine grow, field paint) so colors and boxes are final. */
 async function settleAnimations(page: Page): Promise<void> {
   await page.evaluate(async () => {
-    await Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => animation)));
+    await Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation.timeline === document.timeline)
+        .map((animation) => animation.finished.catch(() => animation))
+    );
   });
 }
 

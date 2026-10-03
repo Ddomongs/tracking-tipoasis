@@ -14,7 +14,7 @@ export function NumberFinderHelp({
 }): React.JSX.Element {
   return (
     <details key={open ? "open" : "closed"} open={open || undefined}>
-      <summary className="tt-focus inline-flex min-h-[44px] cursor-pointer items-center text-tt-sm font-bold text-tt-link underline decoration-2 underline-offset-4">
+      <summary className="tt-focus inline-flex min-h-[44px] cursor-pointer items-center whitespace-nowrap text-tt-sm font-bold text-tt-link underline decoration-2 underline-offset-4">
         {summary}
       </summary>
       <ul className="m-0 mb-2 list-disc pl-5 text-tt-sm text-tt-ink">

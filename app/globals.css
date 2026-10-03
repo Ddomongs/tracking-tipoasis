@@ -38,36 +38,29 @@ html {
 }
 
 /*
- * 모든 공개 페이지 맨 위 배송 장면(10월 2일 요청, components/shell/SiteHero.tsx). 그림 파일 안에서 7초마다 반복합니다.
- * '움직임 멈춤'(체크박스)을 켜면 멈춘 그림(-still)으로 바뀝니다. 줄인 모션이면 그림이 처음부터 멈춰 있어 스위치를 숨깁니다.
+ * 헤더와 배송 장면을 한 덩어리 파란 띠로(10월 2일 요청). 장면 그림(components/shell/SiteHero.tsx)은 배경이 투명하고
+ * 이 띠가 색을 칠합니다. 그림 안 애니메이션은 페이지를 열 때 약 4초 한 번 재생하고 멈춥니다.
+ * 띠 위 글자·버튼·포커스 링은 흰색(파란 띠와 대비 6:1 이상)이고, 스타일(기본·어두운 화면)과 상관없이 같습니다.
  */
-[data-site-hero] { position: relative; margin: 0 auto; width: 100%; max-width: var(--tt-column); }
-[data-site-hero] img { display: block; width: 100%; height: auto; }
-[data-hero-scene="still"],
-[data-hero-pause]:checked ~ [data-hero-scene="moving"] { display: none; }
-[data-hero-pause]:checked ~ [data-hero-scene="still"] { display: block; }
-[data-hero-pause-label] {
-  position: absolute;
-  right: 8px;
-  bottom: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 32px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: rgb(0 0 0 / 0.45);
+[data-site-header],
+[data-site-hero] { background-color: #2340D0; }
+[data-site-header] {
+  --tt-focus: #FFFFFF;
+  border-bottom: 0;
   color: #FFFFFF;
-  font-size: var(--tt-text-xs);
-  font-weight: 700;
-  cursor: pointer;
 }
-[data-hero-pause-label]::before { content: "❚❚"; font-size: 10px; letter-spacing: -1px; }
-[data-hero-pause]:checked ~ [data-hero-pause-label]::before { content: "▶"; letter-spacing: 0; }
-[data-hero-pause]:focus-visible ~ [data-hero-pause-label] { outline: var(--tt-focus-width) solid #FFFFFF; outline-offset: 2px; box-shadow: 0 0 0 calc(var(--tt-focus-width) + 2px) #111110; }
-@media (prefers-reduced-motion: reduce) {
-  [data-hero-pause-label] { display: none; }
+[data-site-header] a,
+[data-site-header] button { color: #FFFFFF; }
+[data-site-header] [data-slot="button"],
+[data-site-header] [data-theme-toggle] {
+  border-color: rgb(255 255 255 / 0.85);
+  background-color: transparent;
+  color: #FFFFFF;
 }
+[data-site-header] [data-slot="button"]:hover,
+[data-site-header] [data-theme-toggle]:hover { background-color: rgb(255 255 255 / 0.12); }
+[data-site-hero] picture { display: block; margin: 0 auto; width: 100%; max-width: var(--tt-column); }
+[data-site-hero] img { display: block; width: 100%; height: auto; }
 /* 모바일: 장면 바로 아래라 제목 위 여백을 줄여 바로가기 버튼이 375×667에서도 550px 안에 끝나게 합니다(승인 1). */
 #tracking[data-view-state="idle"] > h1 { padding-top: 4px; letter-spacing: -0.02em; }
 @media (min-width: 768px) {
@@ -121,4 +114,93 @@ html {
   [data-store-showcase]::backdrop { background: transparent; }
   [data-shortcut-row="full"],
   [data-store-sheet-close] { display: none; }
+}
+
+/*
+ * 강조 반짝임(10월 2일 요청): data-emphasis 가 붙은 버튼·배지를 빛줄기가 3번 훑고 멈춥니다(약 4.8초, WCAG 2.2.2의 5초 안).
+ * 채운 버튼은 흰 빛, 테두리 버튼·배지는 강조색 빛. 줄인 모션이면 움직이지 않습니다.
+ */
+[data-emphasis] { position: relative; overflow: hidden; isolation: isolate; }
+[data-emphasis]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, var(--tt-accent) 28%, transparent) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: tt-shine 1.4s var(--tt-ease) 0.6s 3 both;
+}
+[data-emphasis][data-variant="primary"]::after,
+[data-emphasis][data-on-accent]::after {
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.4) 50%, transparent 70%);
+}
+@keyframes tt-shine {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(120%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-emphasis]::after { animation: none; transform: translateX(120%); }
+}
+@media (forced-colors: active) {
+  [data-emphasis]::after { display: none; }
+}
+
+/*
+ * 모바일 하단 바(10월 2일 요청, components/shell/BottomBar.tsx): 768px 미만에서만. 처음엔 화면 아래에 숨어 있다가
+ * 페이지를 내리면(0~160px) 스르륵 올라옵니다 — 스크립트 없는 스크롤 연동 애니메이션. 지원하지 않는 브라우저와
+ * 줄인 모션에서는 처음부터 보입니다. 바가 푸터를 가리지 않게 본문 아래에 같은 높이를 비웁니다.
+ */
+[data-bottom-bar] { display: none; }
+@media (max-width: 767.98px) {
+  [data-bottom-bar] {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid var(--tt-rule);
+    background-color: var(--tt-surface);
+    color: var(--tt-ink);
+    box-shadow: 0 -6px 18px rgb(0 0 0 / 0.08);
+  }
+  [data-bottom-bar] a {
+    display: flex;
+    min-height: 56px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: inherit;
+    font-size: var(--tt-text-xs);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  [data-bottom-bar] a::before {
+    content: "";
+    width: 20px;
+    height: 20px;
+    background-color: currentColor;
+    -webkit-mask: var(--icon) center / contain no-repeat;
+    mask: var(--icon) center / contain no-repeat;
+  }
+  [data-bottom-bar] [data-icon="search"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='M15.5,15.5L20,20'/%3E%3C/svg%3E"); }
+  [data-bottom-bar] [data-icon="guide"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M4,5H10A2,2,0,0,1,12,7V20A2,2,0,0,0,10,18H4Z M20,5H14A2,2,0,0,0,12,7V20A2,2,0,0,1,14,18H20Z'/%3E%3C/svg%3E"); }
+  [data-bottom-bar] [data-icon="top"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12,19V5 M6,11L12,5L18,11'/%3E%3C/svg%3E"); }
+  body { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
+  @supports (animation-timeline: scroll()) {
+    [data-bottom-bar] {
+      animation: tt-bar-in linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 160px;
+    }
+  }
+}
+@keyframes tt-bar-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-bottom-bar] { animation: none !important; transform: none; }
 }

@@ -67,7 +67,7 @@ async function installLayoutShiftMeter(page: Page): Promise<void> {
 }
 
 test.describe("focus, live sentence, title and fill", () => {
-  test("after a manual lookup focus moves to the status h2, which is not an alert, without scrolling", async ({ page }) => {
+  test("after a manual lookup focus moves to the status h2, which is not an alert, and the number bar glides up under the header", async ({ page }) => {
     await page.clock.setFixedTime(FIXTURE_NOW);
     await blockOtherHosts(page);
     await mockTrack(page, trackData("inTransit"));
@@ -79,7 +79,16 @@ test.describe("focus, live sentence, title and fill", () => {
     await expect(heading).toBeFocused();
     expect(await heading.getAttribute("role")).toBeNull();
     await expect(page.locator('[data-result-view] [role="alert"], [data-result-view] [role="status"], [data-result-view] [aria-live]')).toHaveCount(0);
-    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    // 10월 2일 요청: the number bar (and the status card right below it) scrolls smoothly to just under the sticky header.
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const card = document.querySelector("[data-number-bar]");
+          const header = document.querySelector("header");
+          return card === null || header === null ? null : Math.round(card.getBoundingClientRect().top - header.getBoundingClientRect().bottom);
+        })
+      )
+      .toBe(0);
   });
 
   test("a deep link moves focus to the status h2 when the customer did nothing", async ({ page }) => {

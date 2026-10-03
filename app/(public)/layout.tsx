@@ -1,5 +1,6 @@
 import { AdLoader } from "@/components/ads/AdLoader";
 import { LiveAnnouncerProvider } from "@/components/primitives/LiveAnnouncer";
+import { BottomBar } from "@/components/shell/BottomBar";
 import { SiteFooter } from "@/components/shell/SiteFooter";
 import { SiteHeader } from "@/components/shell/SiteHeader";
 import { SiteHero } from "@/components/shell/SiteHero";
@@ -17,6 +18,7 @@ export default function PublicLayout({ children }: { readonly children: React.Re
       <SiteHero />
       {children}
       <SiteFooter />
+      <BottomBar />
       <AdLoader />
     </LiveAnnouncerProvider>
   );

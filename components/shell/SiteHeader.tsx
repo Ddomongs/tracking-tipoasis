@@ -21,10 +21,11 @@ export function SiteHeader(): React.JSX.Element {
       >
         {SKIP_LINK_LABEL}
       </a>
-      <header className="sticky top-0 z-40 h-[var(--tt-header-h)] border-b border-tt-rule bg-tt-surface text-tt-ink">
+      {/* One blue band with the scene below it (10월 2일 요청); colours in app/globals.css (data-site-header). */}
+      <header data-site-header="true" className="sticky top-0 z-40 h-[var(--tt-header-h)]">
         <div className="mx-auto flex h-full w-full max-w-[var(--tt-column)] items-center justify-between gap-3 px-[var(--tt-gutter)]">
           <HomeLink
-            className="tt-focus inline-flex min-h-[44px] items-center text-tt-md font-black tracking-[-0.01em] text-tt-ink no-underline [word-break:keep-all]"
+            className="tt-focus inline-flex min-h-[44px] items-center text-tt-md font-black tracking-[-0.01em] no-underline [word-break:keep-all]"
           >
             {SITE_NAME}
           </HomeLink>

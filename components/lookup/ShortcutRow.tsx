@@ -46,6 +46,7 @@ export function ShortcutRow({ mode, openLabel }: { readonly mode: "full" | "talk
         type="button"
         popoverTarget={STORE_SHEET_ID}
         data-store-sheet-open="true"
+        data-emphasis="true"
         data-slot="button"
         data-variant="secondary"
         data-size="md"

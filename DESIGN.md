@@ -135,7 +135,7 @@
 
 - 포커스: `.tt-focus` 한 클래스. `outline: var(--tt-focus-width) solid var(--tt-focus)`, `outline-offset: var(--tt-focus-offset)`. 색면 안에서는 링 색이 `--field-fg`로 바뀝니다.
 - 모션 토큰: `--tt-motion-fast` 150ms(버튼 색 전환), `--tt-motion-base` 200ms, `--tt-motion-slow` 250ms, `--tt-ease` `cubic-bezier(0.2, 0, 0, 1)`.
-- 움직이는 것은 두 가지뿐입니다: `tt-paint`(결과 상태 색면이 한 번 칠해짐, 200ms)와 `tt-grow`(척추의 지금 칸이 한 번 자람, 250ms). 2026-10-02(요청 ③④, 사용자 선택 "모든 페이지·반복")부터 모든 공개 페이지 맨 위에 배송 장면 그림(`components/shell/SiteHero.tsx`, `public/art/hero.svg`, 좁은 화면 `hero-m.svg`)이 있습니다. 그림 파일 안에서 비행기 도착 → 통관 도장 → 트럭 이동 → 집 도착을 7초마다 반복하므로(WCAG 2.2.2) 오른쪽 아래 '움직임 멈춤' 스위치(스크립트 없는 체크박스)로 멈춘 그림(`-still.svg`)으로 바꿀 수 있습니다. 줄인 모션이면 그림이 처음부터 마지막 장면이고 스위치는 숨깁니다. 날짜 숫자는 세어 올라가지 않습니다. `opacity: 0`에서 시작하는 모션은 쓰지 않습니다(장면 그림 안의 반복 전환과 핀 떨어짐은 예외).
+- 움직이는 것은 두 가지뿐입니다: `tt-paint`(결과 상태 색면이 한 번 칠해짐, 200ms)와 `tt-grow`(척추의 지금 칸이 한 번 자람, 250ms). 2026-10-02(요청 ③④)부터 모든 공개 페이지 맨 위에 헤더와 한 덩어리인 파란 띠(#2340D0, 흰 글자) 아래 배송 장면 그림(`components/shell/SiteHero.tsx`, `public/art/hero.svg`·`hero-m.svg`)이 있습니다. 그림 안에서 비행기 도착 → 통관 도장 → 트럭 이동 → 집 도착을 페이지를 열 때 약 4초 한 번 재생하고 멈춥니다(멈춤 버튼 없이 WCAG 2.2.2의 5초 안). 강조 버튼·배지(`data-emphasis`)는 빛줄기가 3번(약 4.8초) 훑고 멈추고, 휴대폰 하단 바(`data-bottom-bar`)는 스크롤에 맞춰 올라옵니다. 직접 조회한 결과는 번호 줄이 헤더 바로 아래로 부드럽게 올라옵니다. 줄인 모션이면 모두 움직이지 않습니다. 날짜 숫자는 세어 올라가지 않습니다. `opacity: 0`에서 시작하는 모션은 쓰지 않습니다(장면 그림 안의 시작 전환과 핀 떨어짐은 예외).
 - 줄인 모션: `prefers-reduced-motion: reduce`이면 세 모션 토큰이 모두 0ms입니다(`:root, [data-style][data-style]` 규칙이라 스타일 파일이 되살릴 수 없음).
 
 framer-motion 대체(패키지 제거는 S06):
