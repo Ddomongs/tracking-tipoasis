@@ -1,11 +1,12 @@
-import { Fragment } from "react";
+import { compactTrackingNumber } from "@/lib/tracking/number-format";
 import type { NumberView } from "@/lib/tracking/types";
 
 const NUMBER_LABEL = "조회번호";
 
 /**
- * Number bar (spec §6): '조회번호 · {carrier}' above the number in 4-character monospace groups.
- * A group never breaks and nothing is truncated; the number wraps only between groups.
+ * Number bar (spec §6): '조회번호 · {carrier}' above the number in monospace, written without spaces so it copies as
+ * one piece (10월 4일 요청: the 4-character groups made copying awkward). Nothing is truncated; a number too long for
+ * the row wraps anywhere.
  * Actions ([번호 변경], [번호 수정], [다시 조회]) sit on the right and wrap below the number when the row is too narrow.
  */
 export function NumberBar({
@@ -17,7 +18,6 @@ export function NumberBar({
   readonly carrierLabel: string;
   readonly actions?: React.ReactNode;
 }): React.JSX.Element {
-  const groups = number.grouped.split(" ").filter((group) => group !== "");
   return (
     <div
       data-number-bar="true"
@@ -27,14 +27,9 @@ export function NumberBar({
         <span className="text-tt-xs font-medium text-tt-muted [word-break:keep-all]">{`${NUMBER_LABEL} · ${carrierLabel}`}</span>
         <span
           data-number-bar-value="true"
-          className="block font-tt-mono text-tt-lg font-medium leading-6 tracking-[0.02em] [font-variant-numeric:tabular-nums]"
+          className="block font-tt-mono text-tt-lg font-medium leading-6 tracking-[0.02em] [font-variant-numeric:tabular-nums] [overflow-wrap:anywhere]"
         >
-          {groups.map((group, index) => (
-            <Fragment key={`${index}-${group}`}>
-              {index > 0 ? " " : null}
-              <span className="whitespace-nowrap">{group}</span>
-            </Fragment>
-          ))}
+          {compactTrackingNumber(number.grouped)}
         </span>
       </p>
       {actions ? (

@@ -130,7 +130,7 @@ test.describe("lookup input without JavaScript (S06)", () => {
     await page.getByRole("button", { name: lookup.copy.submit }).click();
     await page.waitForURL((url) => url.pathname === `/${FAKE.domestic}`);
     const bar = page.locator('[data-number-bar="true"]');
-    await expect(bar).toContainText(FAKE_GROUPED.domestic);
+    await expect(bar).toContainText(FAKE.domestic);
     await expect(bar).toContainText("CJ대한통운");
   });
 });

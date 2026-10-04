@@ -275,7 +275,7 @@ test.describe("result view models", () => {
     expect(view.nextAction.worry).toBeNull();
     expect(view.nextAction.sentence).toBe("확인이 필요해요. 문의 내용을 복사해 톡톡으로 보내 주세요.");
     expect(view.nextAction.note).toBe("개인통관고유부호와 수취인 이름이 주문 정보와 같은지도 확인해 주세요");
-    expect(view.inquiryCopy).toBe(`[배송 문의] 조회번호 ${FAKE_GROUPED.hbl} / 마지막 단계 통관 대기 / 마지막 처리 9월 23일 14:10`);
+    expect(view.inquiryCopy).toBe(`[배송 문의] 조회번호 ${FAKE.hbl} / 마지막 단계 통관 대기 / 마지막 처리 9월 23일 14:10`);
     expect(view.inquiryLevel).toBe("primary");
     expect(view.ctaState).toBe("customsWaiting");
     expect(view.revenue).toEqual(NO_REVENUE);
@@ -410,7 +410,7 @@ test.describe("result view models", () => {
     expect(view.nextAction.primary).toEqual(COPY_AND_TALK);
     expect(view.nextAction.secondary).toEqual([]);
     expect(view.nextAction.note).toBe("개인통관고유부호와 수취인 이름이 주문 정보와 같은지도 확인해 주세요");
-    expect(view.inquiryCopy).toBe(`[배송 문의] 조회번호 ${FAKE_GROUPED.domestic} / 마지막 단계 통관 대기 / 마지막 처리 9월 6일 10:00`);
+    expect(view.inquiryCopy).toBe(`[배송 문의] 조회번호 ${FAKE.domestic} / 마지막 단계 통관 대기 / 마지막 처리 9월 6일 10:00`);
     expect(view.revenue).toEqual(NO_REVENUE);
     expect(view.ctaState).toBe("stale");
     expect(view.help.map((item) => [item.id, item.defaultOpen])).toEqual([["customs-delay", true], ["stale-causes", false]]);
@@ -602,7 +602,7 @@ test.describe("error views by cause", () => {
       expect(view.tone, cause).toBe("problem");
       expect(view.nextAction.primary, cause).toEqual(COPY_AND_TALK);
       expect(view.nextAction.secondary, cause).toEqual([RETRY_SECONDARY]);
-      expect(view.inquiryCopy, cause).toBe(`[배송 문의] 조회번호 ${FAKE_GROUPED.domestic} / 조회 화면 오류 / 9월 26일 14:05`);
+      expect(view.inquiryCopy, cause).toBe(`[배송 문의] 조회번호 ${FAKE.domestic} / 조회 화면 오류 / 9월 26일 14:05`);
       expect(view.inquiryLevel, cause).toBe("primary");
     }
   });
@@ -613,7 +613,7 @@ test.describe("error views by cause", () => {
     expect(delay.nextAction.secondary).toEqual([RETRY_SECONDARY]);
     expect(delay.retry?.escalated).toBe(true);
     expect(delay.inquiryLevel).toBe("primary");
-    expect(delay.inquiryCopy).toBe(`[배송 문의] 조회번호 ${FAKE_GROUPED.domestic} / 조회 화면 오류 / 9월 26일 14:05`);
+    expect(delay.inquiryCopy).toBe(`[배송 문의] 조회번호 ${FAKE.domestic} / 조회 화면 오류 / 9월 26일 14:05`);
     const notFound = deriveTrackingView(failure("notFound", { consecutiveFailures: 2 }), FIXTURE_NOW, CONFIG);
     expect(notFound.nextAction.secondary.map((item) => [item.kind, item.weight])).toEqual([["fixNumber", "secondary"]]);
     const invalid = deriveTrackingView(failure("invalidNumber", { consecutiveFailures: 3 }), FIXTURE_NOW, CONFIG);

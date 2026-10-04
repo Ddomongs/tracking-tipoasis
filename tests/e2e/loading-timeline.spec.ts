@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { lookup } from "@/config/site.config";
 import { carrierOfficialUrl } from "@/lib/tracking/carriers";
 import { fillSlots } from "@/lib/tracking/template";
-import { FAKE, FAKE_GROUPED, trackData } from "../fixtures/tracking-fixtures";
+import { FAKE, trackData } from "../fixtures/tracking-fixtures";
 import {
   APP_LIVE_REGIONS,
   CARRIER_LABEL,
@@ -69,7 +69,7 @@ test("0.4–3 s: the loading card under the form with the number and a static sk
   await expect(card.getByRole("heading", { level: 2 })).toHaveText(lookup.copy.title);
   await expect(card.getByText(lookup.copy.body)).toBeVisible();
   // S07: the number bar above the result area is the one place for the number and the carrier (RULE-MAP S07-12).
-  await expect(page.locator("[data-number-bar]")).toContainText(FAKE_GROUPED.domestic);
+  await expect(page.locator("[data-number-bar]")).toContainText(FAKE.domestic);
   await expect(page.locator("[data-number-bar]")).toContainText(lookup.copy.carrierAuto);
   await expect(card.locator('[data-loading-skeleton="journey"]')).toBeVisible();
   await expect(card.getByRole("button", { name: lookup.copy.cancel })).toHaveCount(0);

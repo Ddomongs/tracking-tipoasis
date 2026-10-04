@@ -1,5 +1,5 @@
 import { identifyTrackingNumber } from "@/lib/services/identifier";
-import { groupTrackingNumber } from "@/lib/tracking/number-format";
+import { compactTrackingNumber, groupTrackingNumber } from "@/lib/tracking/number-format";
 import { formatKstShortDateTime } from "@/lib/tracking/time";
 import type { NumberView } from "@/lib/tracking/types";
 
@@ -23,7 +23,7 @@ export function buildInquiryCopy(
     | { readonly kind: "status"; readonly number: NumberView; readonly stage: string; readonly lastEventAt: Date | null }
     | { readonly kind: "screenError"; readonly number: NumberView; readonly now: Date }
 ): string {
-  const head = `${PREFIX} ${NUMBER_LABEL} ${input.number.grouped}`;
+  const head = `${PREFIX} ${NUMBER_LABEL} ${compactTrackingNumber(input.number.grouped)}`;
   if (input.kind === "screenError") {
     return [head, SCREEN_ERROR, formatKstShortDateTime(input.now)].join(SEPARATOR);
   }
@@ -36,7 +36,7 @@ export function buildInquiryCopy(
 const MAX_DIGIT_IDENTIFIER_LENGTH = 19;
 
 /**
- * One unbroken run (hyphens allowed) or exactly the 4-character grouping buildInquiryCopy writes. Anything else
+ * One unbroken run (hyphens allowed; what buildInquiryCopy writes) or exactly the 4-character grouping older copies used. Anything else
  * (an appended phone number, a second waybill) would merge extra digits into the number, so it is refused.
  */
 function isSingleIdentifier(segment: string, number: string): boolean {

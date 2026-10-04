@@ -52,16 +52,13 @@ html {
 [data-site-header] a,
 [data-site-header] button { color: #FFFFFF; }
 [data-site-header] [data-slot="button"],
-[data-site-header] [data-theme-toggle],
-[data-site-header] [data-sound-toggle] {
+[data-site-header] [data-theme-toggle] {
   border-color: rgb(255 255 255 / 0.85);
   background-color: transparent;
   color: #FFFFFF;
 }
 [data-site-header] [data-slot="button"]:hover,
-[data-site-header] [data-theme-toggle]:hover,
-[data-site-header] [data-sound-toggle]:hover { background-color: rgb(255 255 255 / 0.12); }
-[data-site-header] [data-sound-toggle][aria-pressed="true"] { background-color: #FFFFFF; color: #2340D0; }
+[data-site-header] [data-theme-toggle]:hover { background-color: rgb(255 255 255 / 0.12); }
 [data-site-hero] picture { display: block; margin: 0 auto; width: 100%; max-width: var(--tt-column); }
 [data-site-hero] img { display: block; width: 100%; height: auto; }
 /* 모바일: 장면 바로 아래라 제목 위 여백을 줄여 바로가기 버튼이 375×667에서도 550px 안에 끝나게 합니다(승인 1). */
@@ -265,3 +262,39 @@ html {
   from { opacity: 0; transform: translateY(0.3em); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/*
+ * 공유(10월 4일 요청): 헤더의 둥근 공유 버튼과 그 아래 작은 메뉴(네이티브 popover, 바깥을 누르거나 Esc로 닫힘).
+ * 효과음 버튼은 헤더 자리가 모자라 파란 장면 그림의 왼쪽 위 빈 곳에 둡니다(36 px, 흰 테두리).
+ */
+[data-site-header] [data-share-toggle] {
+  border-color: rgb(255 255 255 / 0.85);
+  background-color: transparent;
+  color: #FFFFFF;
+}
+[data-site-header] [data-share-toggle]:hover { background-color: rgb(255 255 255 / 0.12); }
+[data-share-menu]:popover-open {
+  display: flex;
+  position: fixed;
+  inset: auto;
+  top: calc(var(--tt-header-h) + 8px);
+  right: max(16px, calc(50% - var(--tt-column) / 2 + 16px));
+  width: min(340px, calc(100vw - 32px));
+  margin: 0;
+  border: 2px solid var(--tt-ink);
+}
+[data-share-menu]::backdrop { background: rgb(0 0 0 / 0.35); }
+[data-site-hero] { position: relative; }
+[data-site-hero] [data-sound-toggle] {
+  position: absolute;
+  top: 6px;
+  left: max(8px, calc(50% - var(--tt-column) / 2 + 8px));
+  width: 36px;
+  height: 36px;
+  border-color: rgb(255 255 255 / 0.85);
+  background-color: #2340D0;
+  color: #FFFFFF;
+}
+[data-site-hero] [data-sound-toggle] svg { width: 18px; height: 18px; }
+[data-site-hero] [data-sound-toggle]:hover { background-color: #3A55DA; }
+[data-site-hero] [data-sound-toggle][aria-pressed="true"] { background-color: #FFFFFF; color: #2340D0; }

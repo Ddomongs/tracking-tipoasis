@@ -2,8 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { STYLE_COLOR_TOKENS, contrastRatio } from "@/lib/style/tokens";
 import type { StyleId } from "@/lib/style/styles";
-import { groupTrackingNumber } from "@/lib/tracking/number-format";
-import { FAKE, FAKE_GROUPED } from "../fixtures/tracking-fixtures";
+import { FAKE } from "../fixtures/tracking-fixtures";
 import { channels, disclosures } from "@/config/site.config";
 import { buildReturnLink } from "@/lib/site";
 import { INTERNAL_TEST_CREDENTIALS } from "../internal-auth";
@@ -569,14 +568,14 @@ test.describe("EtaDisplay", () => {
 const LONG_HBL = `TEST${"0".repeat(26)}`;
 
 test.describe("NumberBar", () => {
-  test("shows '조회번호 · carrier' and the number in 4-character monospace groups", async ({ page }) => {
+  // 10월 4일 요청: the number is written without spaces so it copies as one piece.
+  test("shows '조회번호 · carrier' and the number in monospace without spaces", async ({ page }) => {
     await openKit(page);
     const bar = page.locator('[data-demo="number-bar-result"] [data-number-bar]');
     await expect(bar).toHaveAttribute("data-number-bar", "true");
     await expect(bar).toContainText("조회번호 · CJ대한통운");
     const value = bar.locator("[data-number-bar-value]");
-    await expect(value).toHaveText(FAKE_GROUPED.domestic);
-    expect(await value.locator(":scope > span").allTextContents()).toEqual(FAKE_GROUPED.domestic.split(" "));
+    await expect(value).toHaveText(FAKE.domestic);
     const style = await value.evaluate((element) => ({
       family: getComputedStyle(element).fontFamily,
       numeric: getComputedStyle(element).fontVariantNumeric
@@ -585,11 +584,10 @@ test.describe("NumberBar", () => {
     expect(style.numeric).toContain("tabular-nums");
   });
 
-  test("an HBL keeps its letter prefix as one group and a bar without actions has no action row", async ({ page }) => {
+  test("an HBL keeps its letter prefix and a bar without actions has no action row", async ({ page }) => {
     await openKit(page);
     const value = page.locator('[data-demo="number-bar-hbl"] [data-number-bar-value]');
-    await expect(value).toHaveText(FAKE_GROUPED.hbl);
-    expect(await value.locator(":scope > span").allTextContents()).toEqual(FAKE_GROUPED.hbl.split(" "));
+    await expect(value).toHaveText(FAKE.hbl);
     await expect(page.locator('[data-demo="number-bar-hbl"] [data-number-bar-actions]')).toHaveCount(0);
   });
 
@@ -608,7 +606,7 @@ test.describe("NumberBar", () => {
     }
   });
 
-  test("long numbers wrap between groups at 320 px and are never truncated", async ({ page }) => {
+  test("long numbers wrap at 320 px and are never truncated", async ({ page }) => {
     await openKit(page, 320, 800);
     for (const [demo, raw] of [
       ["number-bar-cargo", FAKE.cargo],
@@ -616,14 +614,12 @@ test.describe("NumberBar", () => {
     ] as const) {
       const info = await page.locator(`[data-demo="${demo}"] [data-number-bar-value]`).evaluate((element) => ({
         text: (element.textContent ?? "").replace(/\s+/g, " ").trim(),
-        groupLines: Array.from(element.querySelectorAll(":scope > span"), (span) => span.getClientRects().length),
         overflow: element.scrollWidth - element.clientWidth,
         textOverflow: getComputedStyle(element).textOverflow,
         height: element.getBoundingClientRect().height,
         lineHeight: Number.parseFloat(getComputedStyle(element).lineHeight)
       }));
-      expect(info.text, demo).toBe(groupTrackingNumber(raw));
-      expect(info.groupLines.every((lines) => lines === 1), demo).toBe(true);
+      expect(info.text, demo).toBe(raw.toUpperCase());
       expect(info.overflow, demo).toBeLessThanOrEqual(0);
       expect(info.textOverflow, demo).not.toBe("ellipsis");
       if (demo === "number-bar-hbl30") expect(info.height, demo).toBeGreaterThan(info.lineHeight * 1.5);

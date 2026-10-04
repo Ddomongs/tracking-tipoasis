@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, lazy, useSyncExternalStore } from "react";
+import { Suspense, lazy, useEffect, useState, useSyncExternalStore } from "react";
 import { useAnnounce } from "@/components/primitives/LiveAnnouncer";
 import { applyStyleChoice, readAppliedStyle, subscribeAppliedStyle } from "@/lib/style/style-choice";
 import { DARK_STYLE_ID, DEFAULT_STYLE_ID, STYLE_LABELS, type StyleId } from "@/lib/style/styles";
@@ -8,8 +8,10 @@ import { DARK_STYLE_ID, DEFAULT_STYLE_ID, STYLE_LABELS, type StyleId } from "@/l
 const TOGGLE_LABEL = "어두운 화면";
 const BUTTON_CLASS =
   "tt-focus inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-tt-control bg-tt-surface text-tt-ink";
-// Sound on/off (10월 4일 요청 ③) loads as its own small chunk after hydration: '/' HTML and first JS stay as they were.
-const SoundToggle = lazy(() => import("./SoundToggle"));
+// Share (header) and sound (on the scene) load as one small chunk once the page has settled (10월 4일 요청), so '/' HTML,
+// the first JavaScript and the result's loading path stay as they were.
+const HeaderExtras = lazy(() => import("./HeaderExtras"));
+const EXTRAS_DELAY_MS = 1500;
 
 /** '/' is static: the server cannot know the style, so the button starts unpressed until hydration reads html[data-style]. */
 function readServerStyle(): StyleId | null {
@@ -41,6 +43,11 @@ export function ThemeToggle(): React.JSX.Element {
   const current = useSyncExternalStore<StyleId | null>(subscribeAppliedStyle, readAppliedStyle, readServerStyle);
   const announce = useAnnounce();
   const dark = current === DARK_STYLE_ID;
+  const [extras, setExtras] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setExtras(true), EXTRAS_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const toggle = (): void => {
     const next: StyleId = dark ? DEFAULT_STYLE_ID : DARK_STYLE_ID;
@@ -50,11 +57,11 @@ export function ThemeToggle(): React.JSX.Element {
 
   return (
     <>
-      {current === null ? null : (
+      {extras ? (
         <Suspense fallback={null}>
-          <SoundToggle />
+          <HeaderExtras />
         </Suspense>
-      )}
+      ) : null}
       <button type="button" aria-label={TOGGLE_LABEL} aria-pressed={dark} data-theme-toggle="true" onClick={toggle} className={BUTTON_CLASS}>
         {dark ? <SunIcon /> : <MoonIcon />}
       </button>

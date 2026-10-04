@@ -6,14 +6,14 @@ test("the sound button starts off, appears only after hydration and remembers th
   const html = await (await request.get("/")).text();
   expect(html).not.toContain("data-sound-toggle");
   await page.goto("/");
-  const button = page.locator("[data-site-header]").getByRole("button", { name: "효과음" });
+  const button = page.locator("[data-site-hero]").getByRole("button", { name: "효과음" });
   await expect(button).toHaveAttribute("aria-pressed", "false");
   await button.click();
   await expect(button).toHaveAttribute("aria-pressed", "true");
   expect(await page.evaluate(() => window.localStorage.getItem("tt:sound"))).toBe("on");
   await page.reload();
-  await expect(page.locator("[data-site-header]").getByRole("button", { name: "효과음" })).toHaveAttribute("aria-pressed", "true");
-  await page.locator("[data-site-header]").getByRole("button", { name: "효과음" }).click();
+  await expect(page.locator("[data-site-hero]").getByRole("button", { name: "효과음" })).toHaveAttribute("aria-pressed", "true");
+  await page.locator("[data-site-hero]").getByRole("button", { name: "효과음" }).click();
   expect(await page.evaluate(() => window.localStorage.getItem("tt:sound"))).toBeNull();
 });
 
@@ -31,7 +31,7 @@ test("a lookup with sound on plays one cue through Web Audio", async ({ page }) 
   await mockTrack(page, trackData("customsWaiting"));
   await page.goto("/");
   // The button (and its listener) loads right after hydration.
-  await expect(page.locator("[data-site-header]").getByRole("button", { name: "효과음" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("[data-site-hero]").getByRole("button", { name: "효과음" })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("textbox").first().fill(FAKE.domestic);
   await page.getByRole("button", { name: "조회", exact: false }).first().click();
   await expect(page.locator("[data-result-view]")).toBeVisible();

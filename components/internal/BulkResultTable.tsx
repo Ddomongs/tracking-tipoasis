@@ -6,7 +6,7 @@ import { CopyButton } from "@/components/primitives/CopyButton";
 import { StatusChip } from "@/components/primitives/StatusChip";
 import { summarizeBulkView, type BulkRow } from "@/lib/cs/bulk-lookup";
 import type { CsReply } from "@/lib/cs/cs-reply";
-import { groupTrackingNumber } from "@/lib/tracking/number-format";
+import { compactTrackingNumber } from "@/lib/tracking/number-format";
 import type { FailureCause, TrackingViewModel } from "@/lib/tracking/types";
 import { ScreenAndReply } from "./ScreenAndReply";
 
@@ -94,7 +94,7 @@ export function BulkResultTable({ rows, replies, expanded, onToggle }: BulkResul
               <Fragment key={row.number}>
                 <tr data-bulk-row={row.number} data-bulk-status={row.status} data-tone={row.view?.tone}>
                   <th scope="row" className={`${CELL_CLASS} font-normal`}>
-                    <span className="block whitespace-nowrap font-tt-mono text-tt-md font-bold">{groupTrackingNumber(row.number)}</span>
+                    <span className="block whitespace-nowrap font-tt-mono text-tt-md font-bold">{compactTrackingNumber(row.number)}</span>
                     {row.view?.carrier.name ? <span className="block text-tt-xs text-tt-muted">{row.view.carrier.name}</span> : null}
                   </th>
                   {row.view === null ? (

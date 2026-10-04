@@ -7,9 +7,7 @@ import { readSoundOn, subscribeSound, writeSoundOn } from "@/lib/sound/prefs";
 import type { Tone } from "@/lib/tracking/types";
 
 const SOUND_LABEL = "효과음";
-// The same round button as the day/night switch next to it.
-const BUTTON_CLASS =
-  "tt-focus inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-tt-control bg-tt-surface text-tt-ink";
+const BUTTON_CLASS = "tt-focus inline-flex shrink-0 items-center justify-center rounded-full border";
 
 /** The synthesizer loads only when a cue actually plays. */
 function play(cue: Extract<Cue, "on"> | Tone): void {
@@ -30,8 +28,7 @@ function SoundIcon({ on }: { readonly on: boolean }): React.JSX.Element {
 }
 
 /**
- * Sound on/off (10월 4일 요청 ③), off by default. ThemeToggle loads it only after hydration, so '/' HTML is unchanged;
- * it sits left of the day/night button so nothing on its right moves when it appears.
+ * Sound on/off (10월 4일 요청 ③), off by default. HeaderExtras places it on the scene's top-left corner (app/globals.css).
  */
 export default function SoundToggle(): React.JSX.Element | null {
   const on = useSyncExternalStore<boolean | null>(subscribeSound, readSoundOn, readServerSound);

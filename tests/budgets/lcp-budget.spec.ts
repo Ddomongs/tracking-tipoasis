@@ -1,6 +1,6 @@
 import { expect, test, type CDPSession, type Page } from "@playwright/test";
 import { lookup } from "@/config/site.config";
-import { FAKE, FAKE_GROUPED, mockTrack, trackData } from "../fixtures/tracking-fixtures";
+import { FAKE, mockTrack, trackData } from "../fixtures/tracking-fixtures";
 import { IS_PRODUCTION_RUN } from "../support/prod-mode";
 
 interface NetworkProfile {
@@ -113,7 +113,7 @@ test.describe("LCP, first paint and CLS budgets (S06)", () => {
     const fcp = await firstContentfulPaint(page);
     console.info(`[fcp-budget] deep link on ${FAST_4G.name}: ${Math.round(fcp)} ms (max ${FCP_BUDGET_MS} ms)`);
     expect(fcp).toBeLessThanOrEqual(FCP_BUDGET_MS);
-    await expect(page.locator('[data-number-bar="true"]')).toContainText(FAKE_GROUPED.domestic);
+    await expect(page.locator('[data-number-bar="true"]')).toContainText(FAKE.domestic);
   });
 
   test("CLS ≤ 0.05 on '/' and while a deep link loads", async ({ page }) => {

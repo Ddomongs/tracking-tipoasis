@@ -103,7 +103,7 @@ test("one number: the row shows the number and carrier, and the replies equal bu
   const row = bulkRow(page, FAKE.domestic);
   await expect(row).toHaveAttribute("data-bulk-status", "done", { timeout: SETTLE_TIMEOUT_MS });
   await expect(row).toHaveAttribute("data-tone", view.tone);
-  await expect(row.getByRole("rowheader")).toContainText(FAKE_GROUPED.domestic);
+  await expect(row.getByRole("rowheader")).toContainText(FAKE.domestic);
   await expect(row.getByRole("rowheader")).toContainText("CJ대한통운");
   await expect(row.locator("[data-status-chip]")).toHaveText(TONE_LABELS[view.tone]);
   await expect(row).toContainText(view.title);
@@ -197,7 +197,7 @@ test("the open row shows the customer's screen at 375 px, read-only", async ({ p
   const result = frame.locator("[data-result-view]");
   await expect(result).toHaveAttribute("data-read-only", "true");
   await expect(result).toHaveAttribute("data-frame", "mobile");
-  await expect(frame.locator("[data-number-bar]")).toContainText(FAKE_GROUPED.hbl);
+  await expect(frame.locator("[data-number-bar]")).toContainText(FAKE.hbl);
   const heading = frame.getByRole("heading", { level: 2 }).first();
   await expect(heading).toHaveText(view.title);
   await expect(heading).not.toBeFocused();

@@ -39,7 +39,7 @@ test.describe("server shell without JavaScript (S06)", () => {
     await page.goto(`/${FAKE.domestic}`);
     await expect(page.locator('[data-view-state="loading"]')).toHaveCount(1);
     const bar = page.locator('[data-number-bar="true"]');
-    await expect(bar).toContainText(FAKE_GROUPED.domestic);
+    await expect(bar).toContainText(FAKE.domestic);
     await expect(bar).toContainText(lookup.copy.carrierAuto);
     await expect(page.getByRole("heading", { level: 2, name: lookup.copy.title })).toBeVisible();
     await expect(page.getByRole("heading", { level: 1, name: "배송 조회 결과" })).toHaveCount(1);
@@ -49,7 +49,7 @@ test.describe("server shell without JavaScript (S06)", () => {
   test("?c= carries the carrier into the number bar", async ({ page }) => {
     await page.goto(`/${FAKE.hbl}?c=cj`);
     const bar = page.locator('[data-number-bar="true"]');
-    await expect(bar).toContainText(FAKE_GROUPED.hbl);
+    await expect(bar).toContainText(FAKE.hbl);
     await expect(bar).toContainText("CJ대한통운");
   });
 

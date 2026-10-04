@@ -12,3 +12,11 @@ export function groupTrackingNumber(raw: string): string {
   }
   return groups.join(" ");
 }
+
+/**
+ * The number as customers see and copy it: trimmed, upper case, no spaces (10월 4일 요청). 'TEST 0000 0001' → 'TEST00000001'.
+ * groupTrackingNumber stays for reading inquiry copies written in the older grouped form.
+ */
+export function compactTrackingNumber(value: string): string {
+  return value.replace(/\s+/g, "").toUpperCase();
+}
