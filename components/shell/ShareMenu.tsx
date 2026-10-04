@@ -11,7 +11,7 @@ const COPY_LABEL = "링크 복사";
 const COPIED = "링크를 복사했어요. 원하는 곳에 붙여 넣어 주세요.";
 const COPY_FAILED = "복사하지 못했어요. 위 링크를 길게 눌러 복사해 주세요.";
 const WITH_NUMBER_LABEL = "조회번호도 함께 보내기";
-const WITH_NUMBER_HINT = "받는 사람이 링크를 열면 바로 같은 배송 현황을 봐요. 번호는 체크했을 때만 링크에 들어가요.";
+const WITH_NUMBER_HINT = "받는 사람이 링크를 열면 바로 같은 배송 현황을 봐요. 체크를 풀면 사이트 주소만 보내요.";
 const CLOSE_LABEL = "닫기";
 const SHARE_TITLE = "통관·배송 조회";
 const SHARE_TEXT_SITE = "HBL·운송장 번호 하나로 해외 직구 통관과 택배 배송을 확인하세요.";
@@ -52,8 +52,8 @@ function ShareIcon(): React.JSX.Element {
 /**
  * Share (10월 4일 요청): a round header button opening a small menu. Phones get the system share sheet (카카오톡,
  * 문자 and every other app the phone offers, no Kakao SDK or key); every browser gets 링크 복사 with the link shown
- * for long-press copying. The link is the page without the number; on a result the customer may tick '조회번호도 함께
- * 보내기' to share '/{번호}' instead (off each time the menu opens). Nothing is sent to us.
+ * for long-press copying. On a result '조회번호도 함께 보내기' starts ticked, so the link is '/{번호}'; unticking sends the
+ * page without the number. Nothing is sent to us.
  * The menu is portalled to <body> so the header's white-on-blue styles do not reach it.
  */
 export function ShareMenu(): React.JSX.Element {
@@ -68,8 +68,10 @@ export function ShareMenu(): React.JSX.Element {
 
   const refresh = (event: React.ToggleEvent<HTMLDivElement>): void => {
     if (event.newState !== "open") return;
-    setNumber(shownNumber());
-    setWithNumber(false);
+    const shown = shownNumber();
+    setNumber(shown);
+    // On a result the customer almost always means "this delivery" (10월 4일 요청): ticked by default, untick to send the site only.
+    setWithNumber(shown !== null);
     setStatus(null);
   };
 

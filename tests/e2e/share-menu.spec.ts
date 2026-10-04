@@ -18,7 +18,7 @@ test("the share button opens a menu that copies this page's link", async ({ page
   await expect(menu).toBeHidden();
 });
 
-test("on a result the link leaves the number out unless the customer ticks it; the phone share sheet gets that link", async ({ page }) => {
+test("on a result the number is ticked by default (10월 4일 요청); unticking sends the site only; the share sheet gets the link", async ({ page }) => {
   await page.clock.setFixedTime(FIXTURE_NOW);
   await page.addInitScript(() => {
     const calls: ShareData[] = [];
@@ -32,9 +32,12 @@ test("on a result the link leaves the number out unless the customer ticks it; t
   await page.locator("[data-site-header]").getByRole("button", { name: "공유하기" }).click();
   const menu = page.getByRole("dialog", { name: "이 페이지 공유하기" });
   const link = menu.getByRole("textbox", { name: "공유할 링크" });
-  await expect(link).toHaveValue(/\/$/);
-  await menu.getByRole("checkbox", { name: /조회번호도 함께 보내기/ }).check();
+  const tick = menu.getByRole("checkbox", { name: /조회번호도 함께 보내기/ });
+  await expect(tick).toBeChecked();
   await expect(link).toHaveValue(new RegExp(`/${number}$`));
+  await tick.uncheck();
+  await expect(link).toHaveValue(/\/$/);
+  await tick.check();
   await menu.getByRole("button", { name: "카카오톡·메시지로 보내기" }).click();
   const shared = await page.evaluate(() => (window as unknown as { __shared: ShareData[] }).__shared);
   expect(shared).toHaveLength(1);

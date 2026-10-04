@@ -15,6 +15,8 @@ type ButtonLinkProps = {
   readonly placement?: TalkPlacement | StorePlacementId;
   /** A short, finite shine that draws the eye (10월 2일 요청; app/globals.css data-emphasis). */
   readonly emphasis?: boolean;
+  /** Client callers only. */
+  readonly onClick?: () => void;
   readonly children?: React.ReactNode;
 };
 
@@ -27,6 +29,7 @@ export function ButtonLink({
   label,
   placement,
   emphasis = false,
+  onClick,
   children
 }: ButtonLinkProps): React.JSX.Element {
   const rel = [sponsored ? "sponsored nofollow" : null, external ? "noopener noreferrer" : null].filter(Boolean).join(" ");
@@ -42,6 +45,8 @@ export function ButtonLink({
       rel={rel || undefined}
       aria-label={external ? `${label}${NEW_WINDOW_SUFFIX}` : undefined}
       className={buttonClassName(variant, size)}
+      // Only when given: an explicit undefined would be written into the server payload of every link ('/' HTML budget).
+      {...(onClick === undefined ? {} : { onClick })}
     >
       {children ?? label}
     </a>

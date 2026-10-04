@@ -92,7 +92,9 @@ function contradictions(view: TrackingViewModel): readonly string[] {
       stores !== null && (stores.disclosure !== null) !== stores.links.some((link) => link.isAffiliate)],
     ["spine position only with a current station", (view.spine.current === null) !== (view.spine.positionLabel === null)],
     ["errors lead with 톡톡", view.mode === "error" && firstLinkKind !== "talk" && firstLinkKind !== "copyAndTalk"],
-    ["copy actions carry the inquiry text", actions.some((item) => item.kind === "copyAndTalk") !== (view.inquiryCopy !== null)]
+    // 10월 4일 요청: on a result, [톡톡으로 문의하기] copies the inquiry text too.
+    ["copy actions carry the inquiry text",
+      actions.some((item) => item.kind === "copyAndTalk" || (view.mode !== "error" && item.kind === "talk")) !== (view.inquiryCopy !== null)]
   ];
   return rules.filter(([, broken]) => broken).map(([rule]) => `${view.guideKey}${view.overdue ? " (overdue)" : ""}: ${rule}`);
 }

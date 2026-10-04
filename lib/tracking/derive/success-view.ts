@@ -86,7 +86,7 @@ export function deriveSuccessView(request: LookupRequest, data: TrackResponseDat
   const values = copyValues(eta, worryKey, last, carrier.name ?? config.resultCopy.carrierUnknown, config);
   const title = fillCopy(overdue && row.overdueTitle !== null ? row.overdueTitle : row.title, values);
   const nextAction = nextActionForData({ data, key, overdue, carrier, worryKey, events, values, config });
-  const hasCopyAction = [nextAction.primary, ...nextAction.secondary].some((item) => item?.kind === "copyAndTalk" || item?.kind === "copyInquiry");
+  const hasCopyAction = [nextAction.primary, ...nextAction.secondary].some((item) => item?.kind === "copyAndTalk" || item?.kind === "copyInquiry" || item?.kind === "talk");
   const chipBase = overdue ? config.resultCopy.overdueChip : row.chip;
   return {
     guideKey: key,

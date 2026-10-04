@@ -220,7 +220,7 @@ export interface TrackingViewModel {
   readonly retry: RetryView | null;  // error modes only
   readonly auxiliaryLine: { readonly text: string; readonly action: ActionView | null } | null; // NOT_FOUND caveat; '택배사 조회가 잠시 늦어요' + [다시 조회]
   readonly help: readonly HelpItemView[];
-  readonly inquiryCopy: string | null; // non-null when a copyAndTalk/copyInquiry action exists
+  readonly inquiryCopy: string | null; // non-null when a copyAndTalk/copyInquiry/talk action exists (talk copies it too, 10월 4일 요청)
   readonly returnLink: string;         // buildReturnLink(number.raw, carrier.code)
   readonly documentTitle: string;      // `${row.docTitle} · 배송 조회`, never contains the number
   readonly liveMessage: string;        // one sentence for the live region

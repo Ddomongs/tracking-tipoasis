@@ -30,15 +30,18 @@ export function TalkLink({
   href,
   label,
   weight,
-  placement
+  placement,
+  onClick
 }: {
   readonly href: string;
   readonly label: string;
   readonly weight: ActionWeight;
   readonly placement: TalkPlacement;
+  /** Client callers only: runs in the same click before 톡톡 opens (copying the inquiry text). */
+  readonly onClick?: () => void;
 }): React.JSX.Element {
   return (
-    <ButtonLink href={href} variant={weight} external label={label} placement={placement}>
+    <ButtonLink href={href} variant={weight} external label={label} placement={placement} {...(onClick === undefined ? {} : { onClick })}>
       <TalkBubbleIcon />
       <span>{label}</span>
     </ButtonLink>

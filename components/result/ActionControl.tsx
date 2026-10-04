@@ -95,7 +95,27 @@ function InquiryCopyAction({
 export function ActionControl({ action, onAction, inquiryCopy, returnLink, undeliveredHelpId }: ActionControlProps): React.JSX.Element | null {
   switch (action.kind) {
     case "talk":
-      return action.href === null ? null : <TalkLink href={action.href} label={action.label} weight={action.weight} placement="state" />;
+      // The same click copies the inquiry text, so the customer only pastes it in 톡톡 (10월 4일 요청).
+      return action.href === null ? null : (
+        <TalkLink
+          href={action.href}
+          label={action.label}
+          weight={action.weight}
+          placement="state"
+          onClick={
+            inquiryCopy === null
+              ? undefined
+              : () => {
+                  // The plain Clipboard API keeps lib/clipboard out of the shared first chunk ('/' HTML budget); if it is
+                  // blocked, 톡톡 still opens and the customer types the question.
+                  navigator.clipboard?.writeText(inquiryCopy).then(
+                    () => onAction({ kind: "copied", what: "inquiry", outcome: "copied" }),
+                    () => undefined
+                  );
+                }
+          }
+        />
+      );
     case "copyAndTalk":
       return <InquiryCopyAction action={action} inquiryCopy={inquiryCopy} onAction={onAction} />;
     case "copyInquiry":
@@ -142,7 +162,7 @@ export function ActionControl({ action, onAction, inquiryCopy, returnLink, undel
           aria-controls={undeliveredHelpId ?? undefined}
           data-emphasis="true"
           onClick={() => {
-            if (undeliveredHelpId !== null) openDetails(undeliveredHelpId);
+            if (undeliveredHelpId !== null) openDetails(undeliveredHelpId, "[data-delivered-contact]");
           }}
         >
           {action.label}
