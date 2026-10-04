@@ -109,9 +109,11 @@ test("fixture estimates are fixed by FIXTURE_NOW", () => {
   });
   expect(trackData("customsCleared")).toMatchObject({
     estimatedCustomsClearanceDate: "2026-09-23T15:30:00+09:00",
-    estimatedDeliveryDate: "2026-09-26T06:30:00.000Z"
+    // 10월 4일 요청: no delivery on 추석 (9/24–26) or Sunday 9/27, so 9/28, 9/29, 9/30.
+    estimatedDeliveryDate: "2026-09-30T06:30:00.000Z"
   });
-  expect(trackData("inTransit").estimatedDeliveryDate).toBe("2026-09-26T12:40:00.000Z");
+  // CJ rests on 추석 (9/26) and delivers on Sunday 9/27 (10월 4일 요청).
+  expect(trackData("inTransit").estimatedDeliveryDate).toBe("2026-09-27T12:40:00.000Z");
   expect(trackData("delivered").estimatedDeliveryDate).toBe("2026-09-26T11:32:00+09:00");
   expect(trackData("stale").lastUpdated).toBe("2026-09-08T11:00:00+09:00");
 });

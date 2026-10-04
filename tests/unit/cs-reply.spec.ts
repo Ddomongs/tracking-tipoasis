@@ -25,14 +25,14 @@ test("customs waiting: status, ETA with the holiday, worry date and the self-ser
   const reply = buildCsReply(view, CONTEXT);
   const link = buildReturnLink(FAKE.hbl, "AUTO");
   expect(reply.short).toBe(
-    `주문하신 상품은 지금 세관 통관 순서를 기다리고 있습니다. 도착 예상일은 9월 29일(화)이며 추석 연휴 영향으로 1~2일 늦어질 수 있습니다. 9월 28일(월)까지 변동이 없으면 다시 말씀해 주세요. 실시간 확인: ${link}`
+    `주문하신 상품은 지금 세관 통관 순서를 기다리고 있습니다. 도착 예상일은 10월 1일(목)이며 추석 연휴 영향으로 1~2일 늦어질 수 있습니다. 9월 28일(월)까지 변동이 없으면 다시 말씀해 주세요. 실시간 확인: ${link}`
   );
   expect(reply.customerLink).toBe(view.returnLink);
   expect(reply.long.split("\n")).toEqual([
     "주문하신 상품은 지금 세관 통관 순서를 기다리고 있습니다.",
     "세관 접수가 끝났고 순서대로 심사가 진행됩니다.",
     "최근 처리: 9월 23일 (수) 14:10 · 통관 접수",
-    "도착 예상일은 9월 29일(화)이며 추석 연휴 영향으로 1~2일 늦어질 수 있습니다.",
+    "도착 예상일은 10월 1일(목)이며 추석 연휴 영향으로 1~2일 늦어질 수 있습니다.",
     "9월 28일(월)까지 변동이 없으면 다시 말씀해 주세요.",
     `안내: ${CONFIG.notices[0].title} - ${CONFIG.notices[0].body}`,
     `실시간 확인: ${link}`
@@ -43,7 +43,7 @@ test("overdue: says it is late and gives the first estimate instead of a worry d
   const now = new Date("2026-09-29T00:00:00+09:00");
   const view = deriveTrackingView(success(customsWaitingData()), now, CONFIG);
   expect(buildCsReply(view, { now, notices: CONFIG.notices }).short).toBe(
-    `주문하신 상품은 지금 세관 통관 순서를 기다리고 있습니다. 예상보다 늦어지고 있어 확인이 필요합니다. 처음 안내한 도착 예상일은 9월 29일(화)입니다. 실시간 확인: ${view.returnLink}`
+    `주문하신 상품은 지금 세관 통관 순서를 기다리고 있습니다. 예상보다 늦어지고 있어 확인이 필요합니다. 처음 안내한 도착 예상일은 10월 1일(목)입니다. 실시간 확인: ${view.returnLink}`
   );
 });
 

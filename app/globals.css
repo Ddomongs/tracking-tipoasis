@@ -52,13 +52,16 @@ html {
 [data-site-header] a,
 [data-site-header] button { color: #FFFFFF; }
 [data-site-header] [data-slot="button"],
-[data-site-header] [data-theme-toggle] {
+[data-site-header] [data-theme-toggle],
+[data-site-header] [data-sound-toggle] {
   border-color: rgb(255 255 255 / 0.85);
   background-color: transparent;
   color: #FFFFFF;
 }
 [data-site-header] [data-slot="button"]:hover,
-[data-site-header] [data-theme-toggle]:hover { background-color: rgb(255 255 255 / 0.12); }
+[data-site-header] [data-theme-toggle]:hover,
+[data-site-header] [data-sound-toggle]:hover { background-color: rgb(255 255 255 / 0.12); }
+[data-site-header] [data-sound-toggle][aria-pressed="true"] { background-color: #FFFFFF; color: #2340D0; }
 [data-site-hero] picture { display: block; margin: 0 auto; width: 100%; max-width: var(--tt-column); }
 [data-site-hero] img { display: block; width: 100%; height: auto; }
 /* 모바일: 장면 바로 아래라 제목 위 여백을 줄여 바로가기 버튼이 375×667에서도 550px 안에 끝나게 합니다(승인 1). */
@@ -203,4 +206,62 @@ html {
 }
 @media (prefers-reduced-motion: reduce) {
   [data-bottom-bar] { animation: none !important; transform: none; }
+}
+
+/*
+ * 날짜 숫자 타이포그래피(10월 4일 요청 ②, chiaraluzzana.com 참고: 글자가 곧 디자인).
+ * 도착 예상일의 숫자만 큰 세리프(Fraunces 800, 숫자·D·+·-·. 13글자만 담은 2.3 KB 파일, OFL)로, '월·일·요일'은 작은 고딕으로
+ * 두어 크기 대비를 만듭니다. 파일은 public/fonts에 두어 외부 호출이 없고, 받기 전에는 기존 글꼴로 보입니다(swap).
+ * 숫자는 처음 한 번 아래에서 차례로 올라오고(0.6 s 안에 끝), 줄인 모션이면 움직이지 않습니다.
+ */
+@font-face {
+  font-family: "TT Numerals";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/fonts/fraunces-digits.woff2") format("woff2");
+  unicode-range: U+2B, U+2D-2E, U+30-39, U+44;
+}
+:root {
+  --tt-font-numerals: "TT Numerals", var(--tt-font-display);
+}
+/* 어두운 화면은 숫자 타일(JetBrains Mono)을 그대로 둡니다. */
+:root:not([data-style="night"]) [data-slot="eta"] [data-eta-digit],
+:root:not([data-style="night"]) [data-slot="eta"] [data-eta-dday],
+[data-customs-estimate] [data-on-accent] {
+  font-family: var(--tt-font-numerals);
+}
+/* 상태 칸 높이 예산(300 px) 안: 줄 높이는 48 px로 두고, 큰 숫자는 줄 높이를 차지하지 않게(line-height 0) 그 줄 위에 얹습니다. */
+:root:not([data-style="night"]) [data-slot="eta"]:not([data-eta-kind="overdue"]) [data-eta-visual] {
+  font-size: 32px;
+  line-height: 48px;
+  letter-spacing: 0;
+}
+:root:not([data-style="night"]) [data-slot="eta"]:not([data-eta-kind="overdue"]) [data-eta-digit] {
+  display: inline-block;
+  font-size: 56px;
+  line-height: 0;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+:root:not([data-style="night"]) [data-slot="eta"]:not([data-eta-kind="overdue"]) [data-eta-part="weekday"] {
+  margin-left: 2px;
+  font-size: var(--tt-text-xl);
+}
+[data-slot="eta"] [data-eta-dday] {
+  font-size: var(--tt-text-md);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-style="night"]) [data-slot="eta"]:not([data-eta-kind="overdue"]) [data-eta-digit] {
+    animation: tt-digit-in 280ms cubic-bezier(0.2, 0, 0, 1) both;
+  }
+  [data-slot="eta"] [data-eta-part="month"] [data-eta-digit]:nth-child(2) { animation-delay: 40ms; }
+  [data-slot="eta"] [data-eta-part="day"] [data-eta-digit]:nth-child(1) { animation-delay: 80ms; }
+  [data-slot="eta"] [data-eta-part="day"] [data-eta-digit]:nth-child(2) { animation-delay: 120ms; }
+}
+@keyframes tt-digit-in {
+  from { opacity: 0; transform: translateY(0.3em); }
+  to { opacity: 1; transform: translateY(0); }
 }

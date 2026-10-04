@@ -96,7 +96,7 @@ export type EtaView =
   | { readonly kind: "none" }
   | { readonly kind: "date"; readonly label: string; readonly date: EtaDate; readonly dday: number; readonly caption: string | null }
   | { readonly kind: "today"; readonly label: string; readonly date: EtaDate; readonly caption: string | null }
-  | { readonly kind: "holidayAffected"; readonly label: string; readonly date: EtaDate; readonly badge: string; readonly holidayName: string; readonly caption: string | null }
+  | { readonly kind: "holidayAffected"; readonly label: string; readonly date: EtaDate; readonly dday: number; readonly badge: string; readonly holidayName: string; readonly caption: string | null }
   | { readonly kind: "overdue"; readonly label: string; readonly date: EtaDate }        // label '예상했던 날짜'
   | { readonly kind: "deliveredOn"; readonly label: string; readonly date: EtaDate }    // label '배송 완료일'
   | { readonly kind: "pendingInfo"; readonly label: string; readonly text: string }     // text '정보 등록 후 안내'

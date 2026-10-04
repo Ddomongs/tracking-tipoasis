@@ -83,13 +83,14 @@ const ChannelsSchema = z.object({
 const DisclosuresSchema = z.object({ coupang: z.string() }).strict();
 
 const HolidayPeriodSchema = z.object({
-  id: TextSchema, name: TextSchema, dates: z.array(DateKeySchema).min(1), badge: TextSchema
+  id: TextSchema, name: TextSchema, dates: z.array(DateKeySchema).min(1), badge: TextSchema, carriersRest: z.boolean().optional()
 }).strict();
 
 const CalendarSchema = z.object({
   timeZone: z.literal("Asia/Seoul"),
   holidays: z.array(HolidayPeriodSchema),
-  carrierDeliversSaturday: z.boolean()
+  carrierDeliversSaturday: z.boolean(),
+  sevenDayCarriers: z.array(TextSchema).optional()
 }).strict();
 
 const DayRangeSchema = z.object({ min: NonNegativeIntSchema, max: NonNegativeIntSchema })

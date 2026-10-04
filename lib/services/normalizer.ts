@@ -1,3 +1,7 @@
+import { calendar as siteCalendar } from "@/config/site.config";
+import type { CalendarConfig } from "@/lib/config/types";
+import { countedDaysAfter, isCarrierDeliveryDay } from "@/lib/tracking/delivery-days";
+import { calendarDaysBetween, isBusinessDay, kstDateKey, type KstDateKey } from "@/lib/tracking/time";
 import type {
   DeliveryLookupResult,
   DeliveryResult,
@@ -40,6 +44,17 @@ const addDaysIso = (isoLike: string, days: number): string => {
   }
 
   return new Date(base.getTime() + days * 86_400_000).toISOString();
+};
+
+/**
+ * `isoLike` moved forward by `count` days that `counts` accepts, keeping its time of day (10월 4일 요청: the estimate
+ * skips the days nobody works instead of plain calendar days).
+ */
+const addCountedDaysIso = (isoLike: string, count: number, counts: (key: KstDateKey) => boolean): string => {
+  const base = new Date(isoLike);
+  if (Number.isNaN(base.getTime())) return addDaysIso(isoLike, count);
+  const startKey = kstDateKey(base);
+  return addDaysIso(isoLike, calendarDaysBetween(startKey, countedDaysAfter(startKey, count, counts)));
 };
 
 const getKoreaDateKey = (date: Date): number => {
@@ -92,7 +107,8 @@ const estimateDeliveryDate = (
   customsEvents: TrackingEvent[],
   currentStatusCode: StatusCode,
   customsEstimate: string | undefined,
-  now: Date
+  now: Date,
+  deliveryDay: (key: KstDateKey) => boolean
 ): string | undefined => {
   const latestDelivery = getLastDatetime(deliveryEvents);
   const latestCustoms = getLastDatetime(customsEvents);
@@ -107,20 +123,21 @@ const estimateDeliveryDate = (
   }
 
   if (currentStatusCode === 6) {
-    return adjustPastEstimate(addDaysIso(reference, 1), now).date;
+    return adjustPastEstimate(addCountedDaysIso(reference, 1, deliveryDay), now).date;
   }
 
   if (currentStatusCode === 5) {
-    return adjustPastEstimate(addDaysIso(reference, 2), now).date;
+    return adjustPastEstimate(addCountedDaysIso(reference, 2, deliveryDay), now).date;
   }
 
-  return adjustPastEstimate(addDaysIso(reference, 3), now).date;
+  return adjustPastEstimate(addCountedDaysIso(reference, 3, deliveryDay), now).date;
 };
 
 const estimateCustomsClearanceDate = (
   customsEvents: TrackingEvent[],
   currentStatusCode: StatusCode,
-  now: Date
+  now: Date,
+  calendar: CalendarConfig
 ): EstimatedDate => {
   const completedEvent = getLatestEventByStatusCode(customsEvents, 4);
   if (currentStatusCode >= 4) {
@@ -138,8 +155,15 @@ const estimateCustomsClearanceDate = (
     3: 1
   };
 
+  // Customs counts working days, unless this shipment already moved on a weekend or holiday (10월 4일 요청: some
+  // bonded areas work then) — then every day counts.
+  const movedOnDayOff = customsEvents.some((event) => {
+    const at = new Date(event.datetime);
+    return !Number.isNaN(at.getTime()) && !isBusinessDay(kstDateKey(at), calendar, "customs");
+  });
+  const counts = (key: KstDateKey): boolean => movedOnDayOff || isBusinessDay(key, calendar, "customs");
   return adjustPastEstimate(
-    addDaysIso(latestCustoms, remainingDaysByStatus[currentStatusCode as 1 | 2 | 3]),
+    addCountedDaysIso(latestCustoms, remainingDaysByStatus[currentStatusCode as 1 | 2 | 3], counts),
     now
   );
 };
@@ -167,8 +191,9 @@ export const normalizeTrackingData = (params: {
   customsEvents: TrackingEvent[];
   deliveryLookup: DeliveryLookupResult;
   now?: Date;
+  calendar?: CalendarConfig;
 }): TrackResponseData => {
-  const { trackingNumber, type, deliveryLookup, now = new Date() } = params;
+  const { trackingNumber, type, deliveryLookup, now = new Date(), calendar = siteCalendar } = params;
   const productName = productNameOf(params.customsEvents);
   const customsEvents = params.customsEvents.map(withoutProductName);
   const deliveryEvents = deliveryLookup.events;
@@ -219,14 +244,16 @@ export const normalizeTrackingData = (params: {
     getLatestDatetime([getLastDatetime(deliveryEvents), getLastDatetime(customsEvents)]) ?? now.toISOString();
   const latestEventIso = getLatestDatetime([getLastDatetime(deliveryEvents), getLastDatetime(customsEvents)]);
   const estimateStale = hasTrackingData && isStaleShipment(latestEventIso, currentStatusCode, now);
-  const rawCustomsEstimate = estimateCustomsClearanceDate(customsEvents, currentStatusCode, now);
+  const rawCustomsEstimate = estimateCustomsClearanceDate(customsEvents, currentStatusCode, now, calendar);
   // Once a shipment goes quiet, a recalculated "today" estimate misleads; keep only real dates.
   const customsEstimate: EstimatedDate =
     estimateStale && rawCustomsEstimate.adjusted ? { adjusted: false } : rawCustomsEstimate;
   const estimatedDeliveryDate =
     isPendingDomestic || estimateStale
       ? undefined
-      : estimateDeliveryDate(deliveryEvents, customsEvents, currentStatusCode, customsEstimate.date, now);
+      : estimateDeliveryDate(deliveryEvents, customsEvents, currentStatusCode, customsEstimate.date, now, (key) =>
+          isCarrierDeliveryDay(key, calendar, deliveryLookup.carrierCode)
+        );
   const estimatedCustomsClearanceDate = customsEstimate.date;
 
   return {

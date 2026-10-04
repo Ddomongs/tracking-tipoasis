@@ -55,11 +55,12 @@ function estimateEta(input: EtaInput): EtaView {
   const date = etaDate(shownKey);
   const caption = captionFor(input);
   const last = latestEvent(events);
+  const dday = calendarDaysBetween(today, shownKey);
   const holiday = holidayPeriodBetween(last === null ? today : kstDateKey(last.at), shownKey, config.calendar);
   if (holiday !== null) {
-    return { kind: "holidayAffected", label: copy.etaLabel, date, badge: holiday.badge, holidayName: holiday.name, caption };
+    // The server's estimate already skips the days off (10월 4일 요청), so the D-day stays next to the holiday badge.
+    return { kind: "holidayAffected", label: copy.etaLabel, date, dday, badge: holiday.badge, holidayName: holiday.name, caption };
   }
-  const dday = calendarDaysBetween(today, shownKey);
   if (dday === 0) return { kind: "today", label: copy.etaTodayLabel, date, caption };
   return { kind: "date", label: copy.etaLabel, date, dday, caption };
 }

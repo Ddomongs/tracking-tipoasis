@@ -156,10 +156,12 @@ test.describe("status card", () => {
         )
         .filter((node) => node.closest(".sr-only") === null)
         .map((node) => Number.parseFloat(getComputedStyle(node).fontSize));
-      return { eta: visual === null ? 0 : Number.parseFloat(getComputedStyle(visual).fontSize), max: Math.max(...textSizes) };
+      // 10월 4일 요청 ②: the digits are drawn larger than the date words.
+      const digits = Array.from(element.querySelectorAll("[data-eta-digit]")).map((node) => Number.parseFloat(getComputedStyle(node).fontSize));
+      return { eta: visual === null ? 0 : Number.parseFloat(getComputedStyle(visual).fontSize), digits: Math.max(...digits), max: Math.max(...textSizes) };
     });
     expect(sizes.eta).toBeGreaterThanOrEqual(32);
-    expect(sizes.max).toBe(sizes.eta);
+    expect(sizes.max).toBe(Math.max(sizes.eta, sizes.digits));
   });
 
   test("overdue keeps the station, switches to the attention tone and marks data-overdue", async ({ page }) => {

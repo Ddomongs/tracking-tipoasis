@@ -1,11 +1,15 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { Suspense, lazy, useSyncExternalStore } from "react";
 import { useAnnounce } from "@/components/primitives/LiveAnnouncer";
 import { applyStyleChoice, readAppliedStyle, subscribeAppliedStyle } from "@/lib/style/style-choice";
 import { DARK_STYLE_ID, DEFAULT_STYLE_ID, STYLE_LABELS, type StyleId } from "@/lib/style/styles";
 
 const TOGGLE_LABEL = "어두운 화면";
+const BUTTON_CLASS =
+  "tt-focus inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-tt-control bg-tt-surface text-tt-ink";
+// Sound on/off (10월 4일 요청 ③) loads as its own small chunk after hydration: '/' HTML and first JS stay as they were.
+const SoundToggle = lazy(() => import("./SoundToggle"));
 
 /** '/' is static: the server cannot know the style, so the button starts unpressed until hydration reads html[data-style]. */
 function readServerStyle(): StyleId | null {
@@ -45,15 +49,15 @@ export function ThemeToggle(): React.JSX.Element {
   };
 
   return (
-    <button
-      type="button"
-      aria-label={TOGGLE_LABEL}
-      aria-pressed={dark}
-      data-theme-toggle="true"
-      onClick={toggle}
-      className="tt-focus inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-tt-control bg-tt-surface text-tt-ink"
-    >
-      {dark ? <SunIcon /> : <MoonIcon />}
-    </button>
+    <>
+      {current === null ? null : (
+        <Suspense fallback={null}>
+          <SoundToggle />
+        </Suspense>
+      )}
+      <button type="button" aria-label={TOGGLE_LABEL} aria-pressed={dark} data-theme-toggle="true" onClick={toggle} className={BUTTON_CLASS}>
+        {dark ? <SunIcon /> : <MoonIcon />}
+      </button>
+    </>
   );
 }

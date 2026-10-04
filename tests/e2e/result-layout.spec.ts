@@ -75,7 +75,7 @@ test.describe("focus, live sentence, title and fill", () => {
     const input = page.getByLabel(INPUT_LABEL, { exact: true });
     await input.fill(FAKE.hbl);
     await input.press("Enter");
-    const heading = page.locator("[data-result-view] h2");
+    const heading = page.locator("[data-result-view] h2[tabindex='-1']");
     await expect(heading).toBeFocused();
     expect(await heading.getAttribute("role")).toBeNull();
     await expect(page.locator('[data-result-view] [role="alert"], [data-result-view] [role="status"], [data-result-view] [aria-live]')).toHaveCount(0);
@@ -93,14 +93,14 @@ test.describe("focus, live sentence, title and fill", () => {
 
   test("a deep link moves focus to the status h2 when the customer did nothing", async ({ page }) => {
     await openDeepLink(page, 600);
-    await expect(page.locator("[data-result-view] h2")).toBeFocused();
+    await expect(page.locator("[data-result-view] h2[tabindex='-1']")).toBeFocused();
   });
 
   test("a deep link leaves focus alone when the customer pressed a key while it loaded", async ({ page }) => {
     await openDeepLink(page, 2_000);
     await expect(page.locator("[data-loading-stage]")).toBeVisible();
     await page.keyboard.press("Tab");
-    const heading = page.locator("[data-result-view] h2");
+    const heading = page.locator("[data-result-view] h2[tabindex='-1']");
     await expect(heading).toBeVisible();
     await expect(heading).not.toBeFocused();
   });
@@ -109,7 +109,7 @@ test.describe("focus, live sentence, title and fill", () => {
     const view = deriveTrackingView(success(trackData("customsWaiting")), FIXTURE_NOW, siteConfig);
     await recordLiveRegion(page);
     await openDeepLink(page, 800);
-    await expect(page.locator("[data-result-view] h2")).toBeVisible();
+    await expect(page.locator("[data-result-view] h2[tabindex='-1']")).toBeVisible();
     await expect.poll(() => liveTexts(page)).toContain(view.liveMessage);
     // A duplicate announcement (for example from an old settle handler) would arrive within this time.
     await page.waitForTimeout(800);
@@ -222,7 +222,7 @@ async function openScene(page: Page, item: LiveScene): Promise<void> {
   await blockOtherHosts(page);
   await mockTrack(page, item.reply);
   await page.goto(`/${typeof item.reply === "string" ? FAKE.domestic : item.reply.trackingNumber}`);
-  await expect(page.locator("[data-result-view] h2")).toBeVisible();
+  await expect(page.locator("[data-result-view] h2[tabindex='-1']")).toBeVisible();
   await page.evaluate(async () => {
     await document.fonts.ready;
   });

@@ -34,7 +34,7 @@ function monthDay(key: KstDateKey): { readonly month: number; readonly day: numb
   return { month: date.getUTCMonth() + 1, day: date.getUTCDate() };
 }
 
-function weekdayIndex(key: KstDateKey): number {
+export function weekdayIndex(key: KstDateKey): number {
   return new Date(keyToUtcMs(key)).getUTCDay();
 }
 
@@ -122,3 +122,4 @@ export function holidayPeriodBetween(from: KstDateKey, to: KstDateKey, calendar:
   if (from > to) return null;
   return calendar.holidays.find((period) => period.dates.some((date) => date >= from && date <= to)) ?? null;
 }
+

@@ -65,9 +65,12 @@ export const disclosures = {
 export const calendar = {
   timeZone: "Asia/Seoul",
   carrierDeliversSaturday: false, // 택배 토요일 배송을 걱정 기준일 계산에 넣으려면 true
+  // 도착 예상일 계산(10월 4일 요청): 여기 적힌 택배사는 일요일·공휴일도 배송일로 셉니다(CJ대한통운 '매일 오네').
+  // carriersRest가 붙은 연휴(설·추석)에는 이 택배사도 쉰다고 봅니다. 나머지 택배사는 일요일과 공휴일을 뺍니다.
+  sevenDayCarriers: ["CJ"],
   holidays: [
     { id: "2026-new-year", name: "신정", dates: ["2026-01-01"], badge: "신정 영향 · 1일 늦어질 수 있어요" },
-    { id: "2026-seollal", name: "설 연휴", dates: ["2026-02-16", "2026-02-17", "2026-02-18"], badge: "설 연휴 영향 · 1~2일 늦어질 수 있어요" },
+    { id: "2026-seollal", name: "설 연휴", dates: ["2026-02-16", "2026-02-17", "2026-02-18"], badge: "설 연휴 영향 · 1~2일 늦어질 수 있어요", carriersRest: true },
     { id: "2026-independence-day", name: "삼일절", dates: ["2026-03-01", "2026-03-02"], badge: "삼일절 영향 · 1일 늦어질 수 있어요" },
     { id: "2026-labor-day", name: "노동절", dates: ["2026-05-01"], badge: "노동절 영향 · 1일 늦어질 수 있어요" },
     { id: "2026-childrens-day", name: "어린이날", dates: ["2026-05-05"], badge: "어린이날 영향 · 1일 늦어질 수 있어요" },
@@ -76,12 +79,12 @@ export const calendar = {
     { id: "2026-memorial-day", name: "현충일", dates: ["2026-06-06"], badge: "현충일 영향 · 1일 늦어질 수 있어요" },
     { id: "2026-constitution-day", name: "제헌절", dates: ["2026-07-17"], badge: "제헌절 영향 · 1일 늦어질 수 있어요" },
     { id: "2026-liberation-day", name: "광복절", dates: ["2026-08-15", "2026-08-17"], badge: "광복절 영향 · 1일 늦어질 수 있어요" },
-    { id: "2026-chuseok", name: "추석 연휴", dates: ["2026-09-24", "2026-09-25", "2026-09-26"], badge: "추석 연휴 영향 · 1~2일 늦어질 수 있어요" },
+    { id: "2026-chuseok", name: "추석 연휴", dates: ["2026-09-24", "2026-09-25", "2026-09-26"], badge: "추석 연휴 영향 · 1~2일 늦어질 수 있어요", carriersRest: true },
     { id: "2026-foundation-day", name: "개천절", dates: ["2026-10-03", "2026-10-05"], badge: "개천절 영향 · 1일 늦어질 수 있어요" },
     { id: "2026-hangul-day", name: "한글날", dates: ["2026-10-09"], badge: "한글날 영향 · 1일 늦어질 수 있어요" },
     { id: "2026-christmas", name: "성탄절", dates: ["2026-12-25"], badge: "성탄절 영향 · 1일 늦어질 수 있어요" },
     { id: "2027-new-year", name: "신정", dates: ["2027-01-01"], badge: "신정 영향 · 1일 늦어질 수 있어요" },
-    { id: "2027-seollal", name: "설 연휴", dates: ["2027-02-06", "2027-02-07", "2027-02-08", "2027-02-09"], badge: "설 연휴 영향 · 1~2일 늦어질 수 있어요" },
+    { id: "2027-seollal", name: "설 연휴", dates: ["2027-02-06", "2027-02-07", "2027-02-08", "2027-02-09"], badge: "설 연휴 영향 · 1~2일 늦어질 수 있어요", carriersRest: true },
     { id: "2027-independence-day", name: "삼일절", dates: ["2027-03-01"], badge: "삼일절 영향 · 1일 늦어질 수 있어요" },
     { id: "2027-labor-day", name: "노동절", dates: ["2027-05-01", "2027-05-03"], badge: "노동절 영향 · 1일 늦어질 수 있어요" },
     { id: "2027-childrens-day", name: "어린이날", dates: ["2027-05-05"], badge: "어린이날 영향 · 1일 늦어질 수 있어요" },
@@ -89,7 +92,7 @@ export const calendar = {
     { id: "2027-memorial-day", name: "현충일", dates: ["2027-06-06"], badge: "현충일 영향 · 1일 늦어질 수 있어요" },
     { id: "2027-constitution-day", name: "제헌절", dates: ["2027-07-17", "2027-07-19"], badge: "제헌절 영향 · 1일 늦어질 수 있어요" },
     { id: "2027-liberation-day", name: "광복절", dates: ["2027-08-15", "2027-08-16"], badge: "광복절 영향 · 1일 늦어질 수 있어요" },
-    { id: "2027-chuseok", name: "추석 연휴", dates: ["2027-09-14", "2027-09-15", "2027-09-16"], badge: "추석 연휴 영향 · 1~2일 늦어질 수 있어요" },
+    { id: "2027-chuseok", name: "추석 연휴", dates: ["2027-09-14", "2027-09-15", "2027-09-16"], badge: "추석 연휴 영향 · 1~2일 늦어질 수 있어요", carriersRest: true },
     { id: "2027-foundation-day", name: "개천절", dates: ["2027-10-03", "2027-10-04"], badge: "개천절 영향 · 1일 늦어질 수 있어요" },
     { id: "2027-hangul-day", name: "한글날", dates: ["2027-10-09", "2027-10-11"], badge: "한글날 영향 · 1일 늦어질 수 있어요" },
     { id: "2027-christmas", name: "성탄절", dates: ["2027-12-25", "2027-12-27"], badge: "성탄절 영향 · 1일 늦어질 수 있어요" }

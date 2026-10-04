@@ -85,10 +85,10 @@ function EtaBody({ eta }: { readonly eta: ShownEta }): React.JSX.Element {
         </>
       );
     case "holidayAffected":
-      // Holiday overlap hides D-n and '오늘 예상' (spec §6); the badge says why.
+      // The badge says why it may slip; the D-day stays (10월 4일 요청: the estimate already skips the days off).
       return (
         <>
-          <DateValue date={eta.date} dday={null} />
+          <DateValue date={eta.date} dday={eta.dday > 0 ? eta.dday : null} />
           <span data-eta-badge="true">
             <CalendarIcon />
             {eta.badge}

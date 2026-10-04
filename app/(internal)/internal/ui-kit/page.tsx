@@ -309,6 +309,7 @@ const HOLIDAY_ETA: EtaView = {
   kind: "holidayAffected",
   label: "도착 예상",
   date: etaDate("2026-09-30"),
+  dday: 4,
   badge: "추석 연휴 영향 · 1~2일 늦어질 수 있어요",
   holidayName: "추석 연휴",
   caption: "통관 완료 예상 9월 28일 (월)"

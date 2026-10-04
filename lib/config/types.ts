@@ -41,11 +41,13 @@ export interface HolidayPeriod {
   readonly name: string;             // '추석 연휴'
   readonly dates: readonly string[]; // 'YYYY-MM-DD'
   readonly badge: string;            // '추석 연휴 영향 · 1~2일 늦어질 수 있어요'
+  readonly carriersRest?: boolean;   // true: even seven-day carriers (CJ 매일 오네) stop (설·추석)
 }
 export interface CalendarConfig {
   readonly timeZone: "Asia/Seoul";
   readonly holidays: readonly HolidayPeriod[];
   readonly carrierDeliversSaturday: boolean; // default false
+  readonly sevenDayCarriers?: readonly string[]; // carrier codes that deliver on Sundays and holidays (10월 4일 요청)
 }
 
 export interface DayRange { readonly min: number; readonly max: number }

@@ -274,7 +274,7 @@ test.describe("settled states", () => {
     await expect(page.locator('[data-recommended-products="pending"]')).toBeVisible();
   });
 
-  test("customs waiting: holiday badge instead of D-n, the notice line, no filled button, a worry line with 톡톡", async ({ page }) => {
+  test("customs waiting: holiday badge next to D-n (10월 4일 요청), the notice line, no filled button, a worry line with 톡톡", async ({ page }) => {
     const data = trackData("customsWaiting");
     const view = viewFor(success(data));
     await openDeepLink(page, data);
@@ -284,8 +284,10 @@ test.describe("settled states", () => {
     await expect(card.getByRole("heading", { level: 2 })).toHaveText(view.title);
     await expect(card.locator('[aria-current="step"]')).toHaveCount(1);
     await expect(card.locator('[data-slot="eta"]')).toHaveAttribute("data-eta-kind", view.eta.kind);
-    await expect(card.locator("[data-eta-dday]")).toHaveCount(0);
-    if (view.eta.kind === "holidayAffected") await expect(card.locator("[data-eta-badge]")).toHaveText(view.eta.badge);
+    if (view.eta.kind === "holidayAffected") {
+      await expect(card.locator("[data-eta-badge]")).toHaveText(view.eta.badge);
+      await expect(card.locator("[data-eta-dday]")).toHaveText(`D-${view.eta.dday}`);
+    }
     await expect(card.locator('[data-notice-variant="inline"]')).toHaveCount(view.notice === null ? 0 : 1);
     const cta = page.locator('[data-cta-state="customsWaiting"]');
     await expect(cta.locator('[data-slot="button"][data-variant="primary"]')).toHaveCount(0);

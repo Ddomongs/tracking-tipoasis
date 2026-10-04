@@ -212,7 +212,7 @@ test.describe("state keys and dates in America/New_York", () => {
 });
 
 test.describe("result view models", () => {
-  test("customs waiting: calm progress, holiday badge instead of D-n, worry line bound to 톡톡", () => {
+  test("customs waiting: calm progress, holiday badge next to D-n, worry line bound to 톡톡", () => {
     const view = BASELINE_WAITING;
     expect(view.guideKey).toBe("customsWaiting");
     expect(view.mode).toBe("settled");
@@ -226,8 +226,9 @@ test.describe("result view models", () => {
     expect(view.spine).toEqual({ current: "customs", issue: null, handoffPending: false, positionLabel: "2/4" });
     expect(view.eta).toEqual({
       kind: "holidayAffected", label: "도착 예상",
-      date: { key: "2026-09-29", label: "9월 29일 (화)", month: 9, day: 29, weekday: "화" },
-      badge: "추석 연휴 영향 · 1~2일 늦어질 수 있어요", holidayName: "추석 연휴", caption: "통관 완료 예상 9월 26일 (토)"
+      date: { key: "2026-10-01", label: "10월 1일 (목)", month: 10, day: 1, weekday: "목" },
+      dday: 5,
+      badge: "추석 연휴 영향 · 1~2일 늦어질 수 있어요", holidayName: "추석 연휴", caption: "통관 완료 예상 9월 28일 (월)"
     });
     expect(view.nextAction).toEqual({
       heading: "지금 할 일",
@@ -255,7 +256,7 @@ test.describe("result view models", () => {
     expect(view.inquiryCopy).toBeNull();
     expect(view.returnLink).toBe(buildReturnLink(FAKE.hbl, "AUTO"));
     expect(view.documentTitle).toBe("통관 대기 중 · 배송 조회");
-    expect(view.liveMessage).toBe("통관 순서를 기다리고 있어요 · 도착 예상 9월 29일 (화)");
+    expect(view.liveMessage).toBe("통관 순서를 기다리고 있어요 · 도착 예상 10월 1일 (목)");
   });
 
   test("customs waiting turns overdue at KST midnight after the worry date", () => {
@@ -267,7 +268,7 @@ test.describe("result view models", () => {
     expect(view.chip).toBe("확인 필요 · 2/4");
     expect(view.title).toBe("9월 28일(월)이 지났는데 아직 통관이 끝나지 않았어요");
     expect(view.eta).toEqual({
-      kind: "overdue", label: "예상했던 날짜", date: { key: "2026-09-29", label: "9월 29일 (화)", month: 9, day: 29, weekday: "화" }
+      kind: "overdue", label: "예상했던 날짜", date: { key: "2026-10-01", label: "10월 1일 (목)", month: 10, day: 1, weekday: "목" }
     });
     expect(view.nextAction.primary).toEqual(COPY_AND_TALK);
     expect(view.nextAction.secondary).toEqual([]);
@@ -294,7 +295,7 @@ test.describe("result view models", () => {
     expect(view.chip).toBe("통관 완료 · 2/4");
     expect(view.title).toBe("통관이 끝났어요");
     expect(view.spine).toEqual({ current: "customs", issue: null, handoffPending: true, positionLabel: "2/4" });
-    expect(view.eta).toMatchObject({ kind: "holidayAffected", date: { key: "2026-09-26" }, caption: "통관 완료 9월 23일 (수)" });
+    expect(view.eta).toMatchObject({ kind: "holidayAffected", date: { key: "2026-09-30" }, caption: "통관 완료 9월 23일 (수)" });
     expect(view.nextAction.worry?.text).toBe("9월 29일(화)까지 소식이 없으면 알려 주세요");
     expect(view.nextAction.primary).toBeNull();
     expect(view.lastEvent?.text).toBe("9월 23일 (수) 10:05 · 통관 완료");
@@ -706,13 +707,14 @@ test.describe("customs estimate card (10월 2일 요청)", () => {
   test("customs waiting: the server's clearance date, D-day, the arrival day and the weekdays and days off in between", () => {
     const view = deriveTrackingView(success(customsWaitingData()), FIXTURE_NOW, CONFIG);
     expect(view.guideKey).toBe("customsWaiting");
-    // Arrived Tue 9/22; the estimate 9/24 had passed by 9/26, so it shows today. 9/23 is a weekday; 9/24–25 추석 and Sat 9/26 are off.
+    // Arrived Tue 9/22, accepted Wed 9/23: one customs working day later skips 추석 (9/24–26) and Sunday 9/27 (10월 4일 요청),
+    // so Mon 9/28. 9/23 and 9/28 are weekdays; 9/24–27 are off.
     expect(view.customsEstimate).toEqual({
-      date: { key: "2026-09-26", label: "9월 26일 (토)", month: 9, day: 26, weekday: "토" },
-      dday: 0,
+      date: { key: "2026-09-28", label: "9월 28일 (월)", month: 9, day: 28, weekday: "월" },
+      dday: 2,
       arrival: { key: "2026-09-22", label: "9월 22일 (화)", month: 9, day: 22, weekday: "화" },
-      businessDays: 1,
-      offDays: 3
+      businessDays: 2,
+      offDays: 4
     });
   });
 

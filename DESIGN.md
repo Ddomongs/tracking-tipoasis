@@ -367,3 +367,9 @@ framer-motion 대체(패키지 제거는 S06):
 - **첫 페인트 전**: `lib/style/prepaint.ts`의 `PREPAINT_SCRIPT`가 `<head>`에서 스타일을 정합니다(저장된 선택 → 기기 어두운 모드면서 `data-follow-dark="1"`이면 night → 아니면 signal). 글이 상수라서 해시 `PREPAINT_SCRIPT_SHA256`가 CSP Report-Only의 `script-src`에 들어갑니다(`next.config.ts`). 글을 바꾸면 해시를 새로 계산하고 `tests/unit/prepaint.spec.ts`를 돌립니다. `data-follow-dark`는 `config/site.config.ts`의 `style.followSystemDark`(기본 true)입니다.
 - **글꼴 예산**: 기본은 DM Mono 한 파일만 preload합니다. 서류형·어두운 화면의 숫자 글꼴은 preload하지 않고 그 스타일의 토큰에서만 쓰므로 그 스타일일 때만 내려받습니다(`tests/budgets/font-preload.spec.ts`).
 - **검사**: `tests/unit/tokens.spec.ts`(세 스타일의 값·대비·보완), `tests/e2e/ui-kit.spec.ts`(스타일별 11px 이하 0·글자 대비·포커스 링·320px), `tests/e2e/style-picker.spec.ts`(첫 페인트 규칙, 고르기, 막힌 저장소), `tests/visual/style-matrix.spec.ts`(핵심 8상태 × 375·1440 × 3스타일 = 48장, `PW_VISUAL=1`), `tests/e2e/style-a11y.spec.ts`(승인 13 뒤 axe).
+
+## 10월 4일: 날짜 타이포그래피와 효과음
+
+- 도착 예상일의 숫자는 `TT Numerals`(Fraunces 800, 숫자·D·+·-·. 13글자만 담은 2.3 KB, `public/fonts`, OFL)로 56 px, '월·일'은 32 px 고딕입니다. 큰 숫자는 줄 높이를 차지하지 않아 상태 칸 300 px 예산을 지킵니다. 어두운 화면은 숫자 타일(JetBrains Mono)을 그대로 씁니다.
+- 숫자는 처음 한 번 280 ms 동안 차례로 올라옵니다(`tt-digit-in`). 줄인 모션이면 움직이지 않습니다.
+- 효과음은 기본 꺼짐입니다. 헤더의 둥근 버튼(야간 버튼 왼쪽)은 hydration 뒤 별도 조각으로 불러와 '/' HTML과 첫 JS를 늘리지 않습니다. 직접 조회한 결과에만 0.5초 안의 합성음(Web Audio, 파일 없음)이 한 번 납니다: 진행은 두 음, 배송 완료는 도장 소리와 두 음, 문제는 낮은 두 음입니다.

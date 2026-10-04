@@ -164,6 +164,7 @@ test.describe("summarizeBulkView", () => {
         kind: "holidayAffected",
         label: "도착 예상",
         date: DATE,
+        dday: 4,
         badge: "추석 연휴 영향 · 1~2일 늦어질 수 있어요",
         caption: null,
         holidayName: "추석 연휴"

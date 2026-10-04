@@ -212,6 +212,8 @@ export function ResultSlot({
     onView?.(next.view);
     const quiet = QUIET_ENTRIES.has(next.state.outcome.request.entry);
     if (!quiet || !interactedRef.current) focusHeading(targetRef.current, !quiet);
+    // A lookup the customer started may ring once (10월 4일 요청 ③): the header sound button listens and plays it if on.
+    if (!quiet) window.dispatchEvent(new CustomEvent("tt:cue", { detail: next.view.tone }));
     interactedRef.current = false;
   });
 

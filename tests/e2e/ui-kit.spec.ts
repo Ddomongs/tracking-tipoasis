@@ -484,12 +484,13 @@ test.describe("EtaDisplay", () => {
     await expect(page.locator('[data-demo="eta-date"] [data-eta-value] .sr-only')).toHaveText("9월 30일 (수)");
   });
 
-  test("D-n shows only for a plain estimate; the holiday badge replaces it", async ({ page }) => {
+  test("D-n shows for a plain estimate and next to the holiday badge (10월 4일 요청)", async ({ page }) => {
     await openKit(page);
     const dday = page.locator('[data-demo="eta-date"] [data-eta-dday]');
     await expect(dday).toHaveText("D-4");
     await expect(dday).toHaveAttribute("data-eta-dday", "4");
-    for (const demo of ["eta-today", "eta-holiday", "eta-overdue", "eta-delivered", ...TEXT_DEMOS]) {
+    await expect(page.locator('[data-demo="eta-holiday"] [data-eta-dday]')).toHaveText("D-4");
+    for (const demo of ["eta-today", "eta-overdue", "eta-delivered", ...TEXT_DEMOS]) {
       await expect(page.locator(`[data-demo="${demo}"] [data-eta-dday]`), demo).toHaveCount(0);
     }
     const badge = page.locator('[data-demo="eta-holiday"] [data-eta-badge]');
@@ -506,7 +507,8 @@ test.describe("EtaDisplay", () => {
     for (const demo of TEXT_DEMOS) await expect(page.locator(`[data-demo="${demo}"] [data-eta-value]`), demo).toHaveCount(0);
   });
 
-  test("the estimated date is the largest text in the status field (32–40px)", async ({ page }) => {
+  // 10월 4일 요청 ②: the date words stay 32–40px and its digits are drawn larger still, so the date leads the field.
+  test("the estimated date is the largest text in the status field (words 32–40px, digits larger)", async ({ page }) => {
     await openKit(page, 375, 812);
     const sizes = await page.locator('[data-demo="status-head"]').evaluate((field) => {
       const eta = field.querySelector("[data-eta-visual]");
@@ -516,11 +518,13 @@ test.describe("EtaDisplay", () => {
         )
         .filter((element) => !element.closest(".sr-only"))
         .map((element) => Number.parseFloat(getComputedStyle(element).fontSize));
-      return { eta: eta ? Number.parseFloat(getComputedStyle(eta).fontSize) : 0, max: Math.max(...textSizes) };
+      const digits = Array.from(field.querySelectorAll("[data-eta-digit]")).map((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+      return { eta: eta ? Number.parseFloat(getComputedStyle(eta).fontSize) : 0, digits: Math.max(...digits), max: Math.max(...textSizes) };
     });
     expect(sizes.eta).toBeGreaterThanOrEqual(32);
     expect(sizes.eta).toBeLessThanOrEqual(40);
-    expect(sizes.max).toBe(sizes.eta);
+    expect(sizes.digits).toBeGreaterThanOrEqual(sizes.eta);
+    expect(sizes.max).toBe(sizes.digits);
   });
 
   test("status field budget: chip, title, reason, spine and date fit --tt-status-field-max at 375×812", async ({ page }) => {
@@ -771,7 +775,8 @@ test.describe("motion", () => {
         .filter((style) => style.animationName !== "none")
         .map((style) => ({ name: style.animationName, duration: style.animationDuration, count: style.animationIterationCount }))
     );
-    expect(new Set(animated.map((item) => item.name))).toEqual(new Set(["tt-paint", "tt-grow"]));
+    // tt-digit-in: the arrival date digits rise once (10월 4일 요청 ②).
+    expect(new Set(animated.map((item) => item.name))).toEqual(new Set(["tt-paint", "tt-grow", "tt-digit-in"]));
     for (const item of animated) {
       expect(item.count, item.name).toBe("1");
       const ms = item.duration.endsWith("ms") ? Number.parseFloat(item.duration) : Number.parseFloat(item.duration) * 1000;
