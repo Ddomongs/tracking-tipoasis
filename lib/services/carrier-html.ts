@@ -20,7 +20,8 @@ const findColumn = (headers: readonly string[], patterns: readonly RegExp[]): nu
 const mapColumns = (headers: readonly string[]): ColumnMap => ({
   date: findColumn(headers, [/날짜/, /일자/, /처리일/]),
   time: findColumn(headers, [/시간/, /일시/]),
-  location: findColumn(headers, [/발생국/, /상품위치/, /현재위치/, /처리점소/, /영업소/, /위치/]),
+  // 로젠: '사업장' holds the place (광주터미널); its later '영업소' column is usually empty (10월 4일 확인).
+  location: findColumn(headers, [/발생국/, /상품위치/, /현재위치/, /처리점소/, /사업장/, /영업소/, /위치/]),
   status: findColumn(headers, [/처리현황/, /진행상황/, /배송상태/, /처리상태/, /상태/]),
   detail: findColumn(headers, [/상세/, /내용/, /비고/])
 });
