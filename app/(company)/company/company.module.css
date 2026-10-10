@@ -1,0 +1,480 @@
+/*
+ * tipoasis.com company page. Its own palette, independent of the tracking styles (html[data-style]):
+ * airport-signage black and wayfinding yellow for the route strip only, customs green-channel for links and states.
+ */
+.page {
+  --c-sign: #000000;
+  --c-way: #ffc40c;
+  --c-green: #00754f;
+  --c-paper: #ffffff;
+  --c-ground: #edf0eb;
+  --c-rule: #c9cfc7;
+  --c-body: #2b2f2d;
+  --c-muted: #565c58;
+  --measure: 1120px;
+  --gutter: clamp(20px, 5vw, 56px);
+
+  min-height: 100vh;
+  background: var(--c-paper);
+  color: var(--c-body);
+  font-family: var(--font-plex-kr), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  word-break: keep-all;
+}
+
+.wrap {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.page a:focus-visible {
+  outline: 3px solid var(--c-green);
+  outline-offset: 3px;
+}
+
+/* Header */
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+.brand {
+  font-family: var(--font-han-sans), sans-serif;
+  font-size: 22px;
+  color: var(--c-sign);
+  text-decoration: none;
+}
+.brand small {
+  margin-left: 10px;
+  font-family: var(--font-plex-kr), sans-serif;
+  font-size: 14px;
+  color: var(--c-muted);
+}
+.nav {
+  display: flex;
+  gap: 20px;
+}
+.nav a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--c-sign);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+.nav a:hover {
+  border-bottom-color: var(--c-green);
+}
+
+/* Hero */
+.hero {
+  padding-top: clamp(32px, 8vw, 96px);
+  padding-bottom: clamp(32px, 6vw, 64px);
+}
+.hero h1 {
+  margin: 0;
+  font-family: var(--font-han-sans), sans-serif;
+  font-weight: 400;
+  font-size: clamp(44px, 9vw, 112px);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  color: var(--c-sign);
+}
+.lede {
+  margin: 28px 0 0;
+  max-width: 36em;
+  font-size: clamp(17px, 2vw, 20px);
+  color: var(--c-body);
+}
+
+/* Route sign: the one bold element */
+.sign {
+  background: var(--c-sign);
+  color: var(--c-paper);
+  padding-top: 40px;
+  padding-bottom: 48px;
+}
+.signTitle {
+  margin: 0 0 28px;
+  font-family: var(--font-han-sans), sans-serif;
+  font-weight: 400;
+  font-size: 26px;
+  color: var(--c-way);
+}
+.route {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.route::before {
+  content: "";
+  position: absolute;
+  top: 15px;
+  left: 16px;
+  /* ends at the last marker: one column (of five, four 20px gaps) minus the marker radius */
+  right: calc((100% - 80px) / 5 - 17px);
+  height: 4px;
+  background: var(--c-way);
+  transform-origin: left center;
+  animation: draw 1.4s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+@keyframes draw {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.stop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.marker {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--c-way);
+  color: var(--c-sign);
+  font-weight: 700;
+  font-size: 15px;
+  box-shadow: 0 0 0 5px var(--c-sign);
+}
+.stopName {
+  margin: 12px 0 0;
+  font-family: var(--font-han-sans), sans-serif;
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1.25;
+  color: var(--c-paper);
+}
+.stopDo {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #d9ddd9;
+}
+.signFoot {
+  margin: 36px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid #3a3a3a;
+  font-size: 15px;
+  color: #d9ddd9;
+}
+.signFoot a {
+  color: var(--c-way);
+  font-weight: 600;
+}
+.page .signFoot a:focus-visible {
+  outline-color: var(--c-way);
+}
+
+/* Sections */
+.section {
+  padding-top: clamp(56px, 8vw, 96px);
+}
+.section h2 {
+  margin: 0;
+  font-family: var(--font-han-sans), sans-serif;
+  font-weight: 400;
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.2;
+  color: var(--c-sign);
+}
+.sectionLede {
+  margin: 12px 0 0;
+  max-width: 40em;
+  color: var(--c-muted);
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 48px);
+  margin-top: 32px;
+  align-items: start;
+}
+
+/* Store panel */
+.store {
+  background: var(--c-ground);
+  padding: clamp(24px, 4vw, 40px);
+  border-radius: 4px;
+}
+.store h3,
+.tracker h3 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--c-sign);
+}
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 20px;
+  margin: 20px 0 0;
+  font-size: 15px;
+}
+.facts dt {
+  color: var(--c-muted);
+}
+.facts dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--c-sign);
+}
+.cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cats li {
+  padding: 4px 12px;
+  border: 1px solid var(--c-rule);
+  border-radius: 999px;
+  background: var(--c-paper);
+  font-size: 14px;
+}
+.go {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin-top: 20px;
+  font-weight: 700;
+  color: var(--c-green);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+.go:hover {
+  text-decoration-thickness: 4px;
+}
+
+/* Tracker preview: the lookup bar customers actually use */
+.tracker {
+  padding-top: 4px;
+}
+.tracker p {
+  margin: 10px 0 0;
+}
+.lookup {
+  display: flex;
+  align-items: stretch;
+  margin-top: 20px;
+  border: 2px solid var(--c-sign);
+  border-radius: 4px;
+  overflow: hidden;
+  text-decoration: none;
+}
+.lookupField {
+  flex: 1;
+  padding: 14px 16px;
+  font-family: var(--font-dm-mono), ui-monospace, monospace;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  color: var(--c-muted);
+  background: var(--c-paper);
+}
+.lookupButton {
+  display: grid;
+  place-items: center;
+  padding: 0 20px;
+  background: var(--c-green);
+  color: var(--c-paper);
+  font-weight: 700;
+}
+.lookup:hover .lookupButton {
+  background: #005c3e;
+}
+.carriers {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--c-muted);
+}
+
+/* Ops table */
+.ops {
+  width: 100%;
+  margin-top: 28px;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.ops th {
+  padding: 10px 12px 10px 0;
+  border-bottom: 2px solid var(--c-sign);
+  text-align: left;
+  font-weight: 600;
+  color: var(--c-muted);
+}
+.ops td {
+  padding: 16px 12px 16px 0;
+  border-bottom: 1px solid var(--c-rule);
+  vertical-align: top;
+}
+.ops td:first-child {
+  font-weight: 600;
+  color: var(--c-sign);
+}
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  color: var(--c-green);
+  font-weight: 600;
+}
+.state::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* English summary */
+.english {
+  margin-top: 28px;
+  max-width: 44em;
+  font-size: 16px;
+}
+
+/* Business details, laid out like a declaration form */
+.footer {
+  margin-top: clamp(64px, 10vw, 120px);
+  background: var(--c-ground);
+  padding-top: 40px;
+  padding-bottom: 48px;
+}
+.form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 16px 0 0;
+  border-top: 2px solid var(--c-sign);
+  border-left: 1px solid var(--c-rule);
+  background: var(--c-paper);
+}
+.field {
+  padding: 10px 14px 12px;
+  border-right: 1px solid var(--c-rule);
+  border-bottom: 1px solid var(--c-rule);
+}
+.field dt {
+  font-size: 13px;
+  color: var(--c-muted);
+}
+.field dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+  color: var(--c-sign);
+}
+.wide {
+  grid-column: span 2;
+}
+.footer h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--c-sign);
+}
+.footNote {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 24px;
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--c-muted);
+}
+.footNote a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--c-green);
+  font-weight: 600;
+}
+
+@media (max-width: 860px) {
+  .split {
+    grid-template-columns: 1fr;
+  }
+  .form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .route {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+  .route::before {
+    top: 16px;
+    bottom: 16px;
+    left: 15px;
+    right: auto;
+    width: 4px;
+    height: auto;
+    transform-origin: center top;
+    animation-name: drawDown;
+  }
+  .stop {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    column-gap: 18px;
+  }
+  .marker {
+    grid-row: span 2;
+  }
+  .stopName {
+    margin: 2px 0 0;
+  }
+  .nav a:first-child {
+    display: none;
+  }
+  .ops thead {
+    display: none;
+  }
+  .ops tr {
+    display: grid;
+    gap: 4px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--c-rule);
+  }
+  .ops td {
+    padding: 0;
+    border: 0;
+  }
+}
+@keyframes drawDown {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@media (max-width: 480px) {
+  .form {
+    grid-template-columns: 1fr;
+  }
+  .wide {
+    grid-column: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route::before {
+    animation: none;
+  }
+}
