@@ -21,9 +21,10 @@ const LEGACY_TRACKING_QUERY_VALUE =
 
 /**
  * tipoasis.com (the apex, 10월 10일 요청) is the company page: '/' shows app/(company)/company, and every other path
- * (old WordPress blog links) goes to '/' — except Next assets and the page itself. www is redirected to the apex in Vercel.
+ * (old WordPress blog links) goes to '/' — except Next assets and the page itself. www serves the same page (canonical: apex).
+ * Next anchors the value (^…$), so tracking.tipoasis.com never matches.
  */
-const COMPANY_HOST = [{ type: "host" as const, value: "tipoasis\\.com" }];
+const COMPANY_HOST = [{ type: "host" as const, value: "(?:www\\.)?tipoasis\\.com" }];
 
 const nextConfig: NextConfig = {
   output: "standalone",
