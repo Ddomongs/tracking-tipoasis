@@ -18,10 +18,10 @@ test("old blog paths on tipoasis.com go to '/', and the tracking host keeps its 
   expect(old.headers()["location"]).toBe("/");
 
   const www = await request.get("/", { headers: { host: "www.tipoasis.com" } });
-  expect(await www.text()).toContain("사업자 정보");
+  expect(await www.text()).toContain("Business registration");
 
   for (const host of ["tracking.tipoasis.com", "127.0.0.1"]) {
     const tracking = await request.get("/", { headers: { host } });
-    expect(await tracking.text(), host).not.toContain("사업자 정보");
+    expect(await tracking.text(), host).not.toContain("Business registration");
   }
 });
