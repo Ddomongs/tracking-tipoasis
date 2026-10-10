@@ -19,6 +19,12 @@ const CSP_REPORT_URI = "/api/csp-report";
 const LEGACY_TRACKING_QUERY_VALUE =
   "\\s*(?<trackingNumber>(?!(?:internal|api|privacy|guide)\\s*$)[A-Za-z0-9][A-Za-z0-9 -]{0,63}?)\\s*";
 
+/**
+ * tipoasis.com (the apex, 10월 10일 요청) is the company page: '/' shows app/(company)/company, and every other path
+ * (old WordPress blog links) goes to '/' — except Next assets and the page itself. www is redirected to the apex in Vercel.
+ */
+const COMPANY_HOST = [{ type: "host" as const, value: "tipoasis\\.com" }];
+
 const nextConfig: NextConfig = {
   output: "standalone",
   // Playwright drives `next dev` through 127.0.0.1; Next 16 blocks non-localhost dev origins by default.
@@ -36,8 +42,19 @@ const nextConfig: NextConfig = {
       has: [{ type: "query", key: "trackingNumber", value: LEGACY_TRACKING_QUERY_VALUE }],
       destination: "/:trackingNumber",
       permanent: false
+    },
+    {
+      source: "/:path((?!_next/|company$|icon\\.svg$).+)",
+      has: COMPANY_HOST,
+      destination: "/",
+      permanent: true
     }
-  ]
+  ],
+  rewrites: async () => ({
+    beforeFiles: [{ source: "/", has: COMPANY_HOST, destination: "/company" }],
+    afterFiles: [],
+    fallback: []
+  })
 };
 
 export default nextConfig;
