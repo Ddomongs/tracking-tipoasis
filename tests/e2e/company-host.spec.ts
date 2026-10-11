@@ -22,10 +22,20 @@ test("tipoasis.com serves robots.txt and the AdSense ads.txt instead of redirect
   expect(await ads.text()).toContain("google.com, pub-7351210358018620, DIRECT, f08c47fec0942fa0");
 });
 
-test("old blog paths on tipoasis.com go to '/', and the tracking host keeps its own home", async ({ request }) => {
+test("old blog paths on tipoasis.com go to the same path on blog.tipoasis.com, and the tracking host keeps its own home", async ({ request }) => {
   const old = await request.get("/2026/07/20/some-old-post", { headers: APEX, maxRedirects: 0 });
   expect(old.status()).toBe(308);
-  expect(old.headers()["location"]).toBe("/");
+  expect(old.headers()["location"]).toBe("https://blog.tipoasis.com/2026/07/20/some-old-post");
+
+  const korean = await request.get("/%EC%97%90%EC%96%B4%EC%BB%A8-%EC%A0%88%EC%95%BD", { headers: APEX, maxRedirects: 0 });
+  expect(korean.headers()["location"]).toBe("https://blog.tipoasis.com/%EC%97%90%EC%96%B4%EC%BB%A8-%EC%A0%88%EC%95%BD");
+
+  const upload = await request.get("/wp-content/uploads/a.jpg", { headers: APEX, maxRedirects: 0 });
+  expect(upload.headers()["location"]).toBe("https://blog.tipoasis.com/wp-content/uploads/a.jpg");
+
+  const shortlink = await request.get("/?p=123", { headers: APEX, maxRedirects: 0 });
+  expect(shortlink.status()).toBe(308);
+  expect(shortlink.headers()["location"]).toBe("https://blog.tipoasis.com/?p=123");
 
   const www = await request.get("/", { headers: { host: "www.tipoasis.com" } });
   expect(await www.text()).toContain("Business registration");

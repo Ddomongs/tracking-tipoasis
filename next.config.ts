@@ -20,10 +20,12 @@ const LEGACY_TRACKING_QUERY_VALUE =
   "\\s*(?<trackingNumber>(?!(?:internal|api|privacy|guide)\\s*$)[A-Za-z0-9][A-Za-z0-9 -]{0,63}?)\\s*";
 
 /**
- * tipoasis.com (the apex, 10월 10일 요청) is the company page: '/' shows app/(company)/company, and every other path
- * (old WordPress blog links) goes to '/' — except Next assets and the page itself. www serves the same page (canonical: apex).
- * Next anchors the value (^…$), so tracking.tipoasis.com never matches.
+ * tipoasis.com (the apex, 10월 10일 요청) is the company page: '/' shows app/(company)/company. The WordPress blog that used
+ * to live here moved to blog.tipoasis.com (10월 12일), so every other path (old post links, feeds, uploads, '/?p=') goes to
+ * the same path there — except Next assets, the page itself, robots.txt and ads.txt. www serves the same page (canonical:
+ * apex). Next anchors the value (^…$), so tracking.tipoasis.com never matches.
  */
+const BLOG_ORIGIN = "https://blog.tipoasis.com";
 const COMPANY_HOST = [{ type: "host" as const, value: "(?:www\\.)?tipoasis\\.com" }];
 
 const nextConfig: NextConfig = {
@@ -47,7 +49,13 @@ const nextConfig: NextConfig = {
     {
       source: "/:path((?!_next/|company$|icon\\.svg$|robots\\.txt$|ads\\.txt$).+)",
       has: COMPANY_HOST,
-      destination: "/",
+      destination: `${BLOG_ORIGIN}/:path`,
+      permanent: true
+    },
+    {
+      source: "/",
+      has: [...COMPANY_HOST, { type: "query", key: "p" }],
+      destination: `${BLOG_ORIGIN}/`,
       permanent: true
     }
   ],
