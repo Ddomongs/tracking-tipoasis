@@ -14,9 +14,12 @@ test("tipoasis.com '/' is the company page with the registered business details"
   expect(html).toContain('"foundingDate":"2023-04-26"');
 });
 
-test("tipoasis.com serves robots.txt instead of redirecting it", async ({ request }) => {
+test("tipoasis.com serves robots.txt and the AdSense ads.txt instead of redirecting them", async ({ request }) => {
   const robots = await request.get("/robots.txt", { headers: APEX, maxRedirects: 0 });
   expect(robots.status()).toBe(200);
+  const ads = await request.get("/ads.txt", { headers: APEX, maxRedirects: 0 });
+  expect(ads.status()).toBe(200);
+  expect(await ads.text()).toContain("google.com, pub-7351210358018620, DIRECT, f08c47fec0942fa0");
 });
 
 test("old blog paths on tipoasis.com go to '/', and the tracking host keeps its own home", async ({ request }) => {
