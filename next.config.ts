@@ -45,7 +45,7 @@ const nextConfig: NextConfig = {
       permanent: false
     },
     {
-      source: "/:path((?!_next/|company$|icon\\.svg$).+)",
+      source: "/:path((?!_next/|company$|icon\\.svg$|robots\\.txt$).+)",
       has: COMPANY_HOST,
       destination: "/",
       permanent: true

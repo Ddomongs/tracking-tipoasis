@@ -10,6 +10,13 @@ test("tipoasis.com '/' is the company page with the registered business details"
   expect(html).toContain(["553", "52", "00857"].join("-"));
   expect(html).toContain("제2023-부산해운대-1870호");
   expect(html).toMatch(/<link rel="canonical" href="https:\/\/tipoasis\.com\/?"/);
+  expect(html).toContain('"@type":"Organization"');
+  expect(html).toContain('"foundingDate":"2023-04-26"');
+});
+
+test("tipoasis.com serves robots.txt instead of redirecting it", async ({ request }) => {
+  const robots = await request.get("/robots.txt", { headers: APEX, maxRedirects: 0 });
+  expect(robots.status()).toBe(200);
 });
 
 test("old blog paths on tipoasis.com go to '/', and the tracking host keeps its own home", async ({ request }) => {

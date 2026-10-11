@@ -58,9 +58,26 @@ const BUSINESS = [
   { label: "Email", value: "admin@tipoasis.com", wide: true }
 ] as const;
 
+// Machine-readable company facts for verifiers and search engines; every value matches the visible business details.
+const ORGANIZATION_JSON_LD = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "TIP Oasis",
+  legalName: "또몽이네 스토어",
+  alternateName: ["Ddomong Store", "또몽이네 스토어"],
+  url: `${COMPANY_ORIGIN}/`,
+  email: "admin@tipoasis.com",
+  foundingDate: "2023-04-26",
+  founder: { "@type": "Person", name: "Dongho Kim" },
+  taxID: BUSINESS_NUMBER,
+  address: { "@type": "PostalAddress", addressLocality: "Haeundae-gu, Busan", addressCountry: "KR" },
+  sameAs: [STORE_URL, TRACKING_URL]
+});
+
 export default function CompanyPage(): React.JSX.Element {
   return (
     <div lang="en" className={`${styles.page} ${signFont.variable} ${bodyFont.variable}`}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ORGANIZATION_JSON_LD }} />
       <header className={`${styles.wrap} ${styles.top}`}>
         <a href="#main-content" className={styles.brand}>
           TIP Oasis<small>Ddomong Store</small>
