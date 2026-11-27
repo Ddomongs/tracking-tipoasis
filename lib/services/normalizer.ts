@@ -202,14 +202,18 @@ const clearanceWindowFromArrival = (
   const window = cargo.bySea === false ? CLEARANCE_WINDOW.air : CLEARANCE_WINDOW.sea;
   const after = (start: KstDateKey, count: number): string => kstMidnightIso(countedDaysAfter(start, count, counts));
   const today = kstDateKey(now);
-  let fastest = after(cargo.arrivalDate, window.fastest);
+  const scheduled = after(cargo.arrivalDate, window.fastest);
   const batch = cargo.batch;
-  if (batch !== undefined && batch.clearedToday > 0) fastest = kstMidnightIso(today);
-  if (batch !== undefined && batch.cleared === 0) fastest = laterDay(fastest, after(today, 1));
-  const early = adjustPastEstimate(fastest, now);
-  const latestRaw = after(cargo.arrivalDate, window.latest);
-  const latest = early.date === undefined ? undefined : laterDay(latestRaw, early.date);
-  return { ...early, ...(latest === undefined || latest === early.date ? {} : { latest }) };
+  const clearingToday = batch !== undefined && batch.clearedToday > 0;
+  const nothingCleared = batch !== undefined && batch.cleared === 0;
+  // The first day customs can still clear it: today if it is clearing this batch now, else today only when today is a
+  // customs working day and some of the batch is already cleared, otherwise the next working day (11월 28일: a passed
+  // estimate showed Saturday as '빠르면').
+  const floor = clearingToday || (counts(today) && !nothingCleared) ? kstMidnightIso(today) : after(today, 1);
+  const fastest = clearingToday ? floor : laterDay(scheduled, floor);
+  const early: EstimatedDate = { date: fastest, adjusted: kstDateKey(new Date(scheduled)) < today };
+  const latest = laterDay(after(cargo.arrivalDate, window.latest), fastest);
+  return { ...early, ...(latest === fastest ? {} : { latest }) };
 };
 
 const PRODUCT_NAME_MAX = 60;

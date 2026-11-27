@@ -57,6 +57,20 @@ test.describe("clearance window from the arrival day", () => {
     expect(data.customs.estimateAdjusted).toBe(true);
   });
 
+  test("a passed estimate on a weekend moves to the next customs working day, not today", () => {
+    // Sat 11/28: the batch is partly cleared, nothing today (customs rests).
+    const data = normalize({ ...seaCargo, batch: { sampled: 11, cleared: 8, clearedToday: 0 } }, "2026-11-28T10:00:00+09:00");
+    expect(data.estimatedCustomsClearanceDate).toBe("2026-11-30T00:00:00+09:00");
+    expect(data.estimatedCustomsClearanceLatest).toBeUndefined();
+    expect(data.customs.estimateAdjusted).toBe(true);
+  });
+
+  test("a bonded area clearing the batch on a weekend keeps today", () => {
+    const data = normalize({ ...seaCargo, batch: { sampled: 11, cleared: 9, clearedToday: 2 } }, "2026-11-28T10:00:00+09:00");
+    expect(data.estimatedCustomsClearanceDate).toBe("2026-11-28T00:00:00+09:00");
+    expect(data.estimatedCustomsClearanceLatest).toBe("2026-11-30T00:00:00+09:00");
+  });
+
   test("the summary's item name is the product name", () => {
     expect(normalize({ ...seaCargo, productName: "PLASTIC  TOYS SET" }, "2026-11-26T10:00:00+09:00").productName).toBe("PLASTIC TOYS SET");
   });
