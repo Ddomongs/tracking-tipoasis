@@ -26,7 +26,7 @@ test("a stale customs estimate is recalculated from today while customs is still
   expect(data.currentStatus).toBe("통관목록접수");
   expect(data.currentStatusCode).toBe(2);
   expect(data.estimatedCustomsClearanceDate).toBe("2026-07-21T00:00:00+09:00");
-  expect(data.estimatedDeliveryDate).toBe("2026-07-23T15:00:00.000Z");
+  expect(data.estimatedDeliveryDate).toBe("2026-07-22T15:00:00.000Z");
   expect(data.customs.estimateAdjusted).toBe(true);
 });
 
@@ -115,24 +115,24 @@ test.describe("arrival estimate days (10월 4일 요청)", () => {
   const carrier = (carrierCode: "CJ" | "HANJIN") => ({ carrier: carrierCode, carrierCode, events: [] });
 
   test("CJ counts Saturday and Sunday; other carriers skip Sunday", () => {
-    // Cleared Fri 10/16: three delivery days.
+    // Cleared Fri 10/16: two delivery days (11월 28일 요청: 통관 후 1~2일).
     const now = new Date("2026-10-16T12:00:00+09:00");
     const cj = normalizeTrackingData({ trackingNumber: FAKE.domestic, type: "DOMESTIC", customsEvents: [cleared("2026-10-16T09:00:00+09:00")], deliveryLookup: carrier("CJ"), now });
     const hanjin = normalizeTrackingData({ trackingNumber: FAKE.domestic, type: "DOMESTIC", customsEvents: [cleared("2026-10-16T09:00:00+09:00")], deliveryLookup: carrier("HANJIN"), now });
-    expect(cj.estimatedDeliveryDate).toBe("2026-10-19T00:00:00.000Z"); // Sat, Sun, Mon
-    expect(hanjin.estimatedDeliveryDate).toBe("2026-10-20T00:00:00.000Z"); // Sat, Mon, Tue
+    expect(cj.estimatedDeliveryDate).toBe("2026-10-18T00:00:00.000Z"); // Sat, Sun
+    expect(hanjin.estimatedDeliveryDate).toBe("2026-10-19T00:00:00.000Z"); // Sat, Mon
   });
 
   test("CJ rests on 추석 but delivers on other holidays", () => {
     const now = new Date("2026-10-08T12:00:00+09:00");
     // Cleared Thu 10/8: 한글날 Fri 10/9 counts for CJ only.
     const cj = normalizeTrackingData({ trackingNumber: FAKE.domestic, type: "DOMESTIC", customsEvents: [cleared("2026-10-08T09:00:00+09:00")], deliveryLookup: carrier("CJ"), now });
-    expect(cj.estimatedDeliveryDate).toBe("2026-10-11T00:00:00.000Z"); // 10/9, 10/10, 10/11
+    expect(cj.estimatedDeliveryDate).toBe("2026-10-10T00:00:00.000Z"); // 10/9, 10/10
     const chuseok = normalizeTrackingData({
       trackingNumber: FAKE.domestic, type: "DOMESTIC", customsEvents: [cleared("2026-09-23T09:00:00+09:00")], deliveryLookup: carrier("CJ"),
       now: new Date("2026-09-23T12:00:00+09:00")
     });
-    expect(chuseok.estimatedDeliveryDate).toBe("2026-09-29T00:00:00.000Z"); // 추석 9/24–26 off: 9/27, 9/28, 9/29
+    expect(chuseok.estimatedDeliveryDate).toBe("2026-09-28T00:00:00.000Z"); // 추석 9/24–26 off: 9/27, 9/28
   });
 
   test("customs skips the weekend unless this shipment already moved on a day off", () => {

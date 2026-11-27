@@ -228,8 +228,8 @@ test.describe("result view models", () => {
     expect(view.spine).toEqual({ current: "customs", issue: null, handoffPending: false, positionLabel: "2/4" });
     expect(view.eta).toEqual({
       kind: "holidayAffected", label: "도착 예상",
-      date: { key: "2026-10-01", label: "10월 1일 (목)", month: 10, day: 1, weekday: "목" },
-      dday: 5,
+      date: { key: "2026-09-30", label: "9월 30일 (수)", month: 9, day: 30, weekday: "수" },
+      dday: 4,
       badge: "추석 연휴 영향 · 1~2일 늦어질 수 있어요", holidayName: "추석 연휴", caption: "통관 완료 예상 9월 28일 (월)"
     });
     expect(view.nextAction).toEqual({
@@ -258,7 +258,7 @@ test.describe("result view models", () => {
     expect(view.inquiryCopy).toBeNull();
     expect(view.returnLink).toBe(buildReturnLink(FAKE.hbl, "AUTO"));
     expect(view.documentTitle).toBe("통관 대기 중 · 배송 조회");
-    expect(view.liveMessage).toBe("통관 순서를 기다리고 있어요 · 도착 예상 10월 1일 (목)");
+    expect(view.liveMessage).toBe("통관 순서를 기다리고 있어요 · 도착 예상 9월 30일 (수)");
   });
 
   test("customs waiting turns overdue at KST midnight after the worry date", () => {
@@ -270,7 +270,7 @@ test.describe("result view models", () => {
     expect(view.chip).toBe("확인 필요 · 2/4");
     expect(view.title).toBe("9월 28일(월)이 지났는데 아직 통관이 끝나지 않았어요");
     expect(view.eta).toEqual({
-      kind: "overdue", label: "예상했던 날짜", date: { key: "2026-10-01", label: "10월 1일 (목)", month: 10, day: 1, weekday: "목" }
+      kind: "overdue", label: "예상했던 날짜", date: { key: "2026-09-30", label: "9월 30일 (수)", month: 9, day: 30, weekday: "수" }
     });
     expect(view.nextAction.primary).toEqual(COPY_AND_TALK);
     expect(view.nextAction.secondary).toEqual([]);
@@ -297,7 +297,7 @@ test.describe("result view models", () => {
     expect(view.chip).toBe("통관 완료 · 2/4");
     expect(view.title).toBe("통관이 끝났어요");
     expect(view.spine).toEqual({ current: "customs", issue: null, handoffPending: true, positionLabel: "2/4" });
-    expect(view.eta).toMatchObject({ kind: "holidayAffected", date: { key: "2026-09-30" }, caption: "통관 완료 9월 23일 (수)" });
+    expect(view.eta).toMatchObject({ kind: "holidayAffected", date: { key: "2026-09-29" }, caption: "통관 완료 9월 23일 (수)" });
     expect(view.nextAction.worry?.text).toBe("9월 29일(화)까지 소식이 없으면 알려 주세요");
     expect(view.nextAction.primary).toBeNull();
     expect(view.lastEvent?.text).toBe("9월 23일 (수) 10:05 · 통관 완료");

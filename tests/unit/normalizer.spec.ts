@@ -13,8 +13,8 @@ test("normalizer calculates a clear customs completion estimate while customs is
 
   expect(data.currentStatusCode).toBe(2);
   expect(data.estimatedCustomsClearanceDate).toBe("2026-07-14T01:17:07.000Z");
-  // Three delivery days for an unknown carrier skip 제헌절 (Fri 7/17): 7/15, 7/16, 7/18 (10월 4일 요청).
-  expect(data.estimatedDeliveryDate).toBe("2026-07-18T01:17:07.000Z");
+  // Two delivery days after the clearance estimate (11월 28일 요청: 통관 후 1~2일): 7/15, 7/16.
+  expect(data.estimatedDeliveryDate).toBe("2026-07-16T01:17:07.000Z");
 });
 
 test("estimates that already passed move to today and are marked adjusted", () => {
@@ -27,7 +27,7 @@ test("estimates that already passed move to today and are marked adjusted", () =
   });
 
   expect(data.estimatedCustomsClearanceDate).toBe("2026-07-21T00:00:00+09:00");
-  expect(data.estimatedDeliveryDate).toBe("2026-07-23T15:00:00.000Z");
+  expect(data.estimatedDeliveryDate).toBe("2026-07-22T15:00:00.000Z");
   expect(data.customs.estimateAdjusted).toBe(true);
 });
 

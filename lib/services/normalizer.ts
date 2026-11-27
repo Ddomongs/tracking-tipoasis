@@ -131,7 +131,9 @@ const estimateDeliveryDate = (
     return adjustPastEstimate(addCountedDaysIso(reference, 2, deliveryDay), now).date;
   }
 
-  return adjustPastEstimate(addCountedDaysIso(reference, 3, deliveryDay), now).date;
+  // Customs waiting or cleared: parcels reach the customer 1–2 delivery days after clearance; the estimate takes the
+  // later day (11월 28일 요청: the arrival date had sat three days after the clearance estimate).
+  return adjustPastEstimate(addCountedDaysIso(reference, 2, deliveryDay), now).date;
 };
 
 const estimateCustomsClearanceDate = (

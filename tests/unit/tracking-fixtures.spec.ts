@@ -105,12 +105,12 @@ test("fixture states carry the flags later stages branch on", () => {
 test("fixture estimates are fixed by FIXTURE_NOW", () => {
   expect(trackData("customsWaiting")).toMatchObject({
     estimatedCustomsClearanceDate: "2026-09-27T01:10:00.000Z",
-    estimatedDeliveryDate: "2026-09-30T01:10:00.000Z"
+    estimatedDeliveryDate: "2026-09-29T01:10:00.000Z"
   });
   expect(trackData("customsCleared")).toMatchObject({
     estimatedCustomsClearanceDate: "2026-09-23T15:30:00+09:00",
-    // 10월 4일 요청: no delivery on 추석 (9/24–26) or Sunday 9/27, so 9/28, 9/29, 9/30.
-    estimatedDeliveryDate: "2026-09-30T06:30:00.000Z"
+    // No delivery on 추석 (9/24–26) or Sunday 9/27, then two delivery days (11월 28일 요청): 9/28, 9/29.
+    estimatedDeliveryDate: "2026-09-29T06:30:00.000Z"
   });
   // CJ rests on 추석 (9/26) and delivers on Sunday 9/27 (10월 4일 요청).
   expect(trackData("inTransit").estimatedDeliveryDate).toBe("2026-09-27T12:40:00.000Z");
