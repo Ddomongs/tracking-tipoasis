@@ -4,7 +4,7 @@ import { buildTrackCacheKey, getCache, setCache } from "@/lib/cache";
 import { getDeliveryCarrier } from "@/lib/delivery-carriers";
 import { TrackRequestSchema } from "@/lib/schemas";
 import { acquireRequestSlot, consumeRequestQuota, releaseRequestSlot } from "@/lib/rate-limit";
-import { lookupCustomsEvents, type CustomsLookupResult, type CustomsLookupType } from "@/lib/services/customs";
+import { lookupCustomsEvents, sampleBatchProgress, type CustomsLookupResult, type CustomsLookupType } from "@/lib/services/customs";
 import { fetchCustomstrackCustomsEvents } from "@/lib/services/customstrack";
 import { fetchDeliveryTracking } from "@/lib/services/delivery";
 import { readRequestTextWithLimit } from "@/lib/services/http";
@@ -24,7 +24,7 @@ import {
   type UnipassTally
 } from "@/lib/services/lookup-log";
 import { normalizeTrackingData } from "@/lib/services/normalizer";
-import type { ApiError, DeliveryCarrierCode, DeliveryLookupResult, TrackResponseData, TrackingEvent } from "@/lib/types";
+import type { ApiError, CustomsCargoInfo, DeliveryCarrierCode, DeliveryLookupResult, TrackResponseData, TrackingEvent } from "@/lib/types";
 
 /** Vercel ends the function here; the in-code budget (LOOKUP_TIMING.budgetMs, 15 s) answers well before. */
 export const maxDuration = 30;
@@ -175,13 +175,22 @@ const lookupCustomsWithFallback = async (
   };
 };
 
+/** UNI-PASS cargo facts, plus the batch progress while this shipment still waits for clearance. Never rejects. */
+const cargoWithBatch = async (customs: CustomsOutcome, deadline: LookupDeadline): Promise<CustomsCargoInfo | undefined> => {
+  const cargo = customs.unipass.kind === "found" ? customs.unipass.cargo : undefined;
+  if (cargo?.cargMtNo === undefined || customs.events.some((event) => event.statusCode >= 4)) return cargo;
+  const batch = await sampleBatchProgress(cargo.cargMtNo, deadline);
+  return batch === undefined ? cargo : { ...cargo, batch };
+};
+
 const successOutcome = (
   target: LookupTarget,
   customsEvents: TrackingEvent[],
   deliveryLookup: DeliveryLookupResult,
-  kind: LookupResultKind
+  kind: LookupResultKind,
+  cargo?: CustomsCargoInfo
 ): RouteOutcome => {
-  const data = normalizeTrackingData({ trackingNumber: target.number, type: target.type, customsEvents, deliveryLookup });
+  const data = normalizeTrackingData({ trackingNumber: target.number, type: target.type, customsEvents, deliveryLookup, cargo });
   const cacheable = shouldCacheTrackResult({
     type: target.type,
     customsEvents,
@@ -203,7 +212,9 @@ const pendingOutcome = (target: LookupTarget, customs: CustomsOutcome, deliveryL
 
 const resolveCustomsOnly = async (target: LookupTarget, deadline: LookupDeadline, tally: UnipassTally): Promise<RouteOutcome> => {
   const customs = await lookupCustomsWithFallback(target, deadline, tally);
-  if (customs.events.length > 0) return successOutcome(target, customs.events, autoDelivery(), "found");
+  if (customs.events.length > 0) {
+    return successOutcome(target, customs.events, autoDelivery(), "found", await cargoWithBatch(customs, deadline));
+  }
   if (customs.unipass.kind === "unavailable") return allFailedOutcome(customs.unipass.timedOut);
   if (customs.answeredEmpty) {
     setCache(notFoundCacheKey(target.cacheKey), true, LOOKUP_CACHE_SECONDS.notFound);
@@ -211,12 +222,15 @@ const resolveCustomsOnly = async (target: LookupTarget, deadline: LookupDeadline
   return notFoundOutcome("notFound");
 };
 
-const domesticWithoutCarrierEvents = (
+const domesticWithoutCarrierEvents = async (
   target: LookupTarget,
   customs: CustomsOutcome,
-  deliveryLookup: DeliveryLookupResult
-): RouteOutcome => {
-  if (customs.events.length > 0) return successOutcome(target, customs.events, deliveryLookup, "found");
+  deliveryLookup: DeliveryLookupResult,
+  deadline: LookupDeadline
+): Promise<RouteOutcome> => {
+  if (customs.events.length > 0) {
+    return successOutcome(target, customs.events, deliveryLookup, "found", await cargoWithBatch(customs, deadline));
+  }
   if (deliveryLookup.ambiguous) return successOutcome(target, [], deliveryLookup, "ambiguous");
   if (deliveryLookup.lookupUnavailable) return successOutcome(target, [], deliveryLookup, "lookupUnavailable");
   if (customs.unipass.kind === "unavailable") return allFailedOutcome(customs.unipass.timedOut);
@@ -228,14 +242,15 @@ const resolveDomestic = async (target: LookupTarget, deadline: LookupDeadline, t
   const customsLookup = lookupCustomsWithFallback(target, deadline, tally);
   const deliveryLookup = await settleDelivery(target, deadline);
   if (deliveryLookup.events.length === 0) {
-    return domesticWithoutCarrierEvents(target, await customsLookup, deliveryLookup);
+    return domesticWithoutCarrierEvents(target, await customsLookup, deliveryLookup, deadline);
   }
   const customs = await withinMs(
     customsLookup,
     Math.min(LOOKUP_TIMING.customsGraceAfterCarrierMs, deadline.remainingMs())
   );
   const customsEvents = customs?.events ?? [];
-  return successOutcome(target, customsEvents, deliveryLookup, customsEvents.length > 0 ? "found" : "carrierFirst");
+  const cargo = customs?.unipass.kind === "found" ? customs.unipass.cargo : undefined;
+  return successOutcome(target, customsEvents, deliveryLookup, customsEvents.length > 0 ? "found" : "carrierFirst", cargo);
 };
 
 const readTarget = async (request: Request): Promise<LookupTarget | null> => {

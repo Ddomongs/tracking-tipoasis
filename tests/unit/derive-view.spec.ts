@@ -714,10 +714,31 @@ test.describe("customs estimate card (10월 2일 요청)", () => {
     expect(view.customsEstimate).toEqual({
       date: { key: "2026-09-28", label: "9월 28일 (월)", month: 9, day: 28, weekday: "월" },
       dday: 2,
+      latest: null,
+      latestDday: null,
       arrival: { key: "2026-09-22", label: "9월 22일 (화)", month: 9, day: 22, weekday: "화" },
       businessDays: 2,
-      offDays: 4
+      offDays: 4,
+      batch: null
     });
+  });
+
+  test("a window from the official arrival day: 빠르면 / 늦으면, days counted to the late end, and the batch share", () => {
+    const base = customsWaitingData();
+    const data = {
+      ...base,
+      estimatedCustomsClearanceDate: "2026-09-28T00:00:00+09:00",
+      estimatedCustomsClearanceLatest: "2026-09-29T00:00:00+09:00",
+      customs: { ...base.customs, arrivalDate: "2026-09-23T00:00:00+09:00", batch: { sampled: 16, cleared: 12, clearedToday: 3 } }
+    };
+    const card = deriveTrackingView(success(data), FIXTURE_NOW, CONFIG).customsEstimate;
+    expect(card?.latest?.key).toBe("2026-09-29");
+    expect(card?.latestDday).toBe(3);
+    // The official 입항일 wins over the earliest arrival-type event (9/22).
+    expect(card?.arrival?.key).toBe("2026-09-23");
+    // 9/24–27 off (추석, weekend), 9/28 and 9/29 working days.
+    expect([card?.businessDays, card?.offDays]).toEqual([2, 4]);
+    expect(card?.batch).toEqual({ percent: 75, todayPercent: 19, sampled: 16 });
   });
 
   test("no card outside customs waiting, or once the shipment is overdue", () => {

@@ -104,13 +104,23 @@ export type EtaView =
   | { readonly kind: "unknown"; readonly label: string; readonly text: string };        // estimate missing
 export type EtaKind = EtaView["kind"];
 
-/** '통관 완료 예상일' card: the estimate, D-day, the arrival day and the weekdays and days off between them. */
+/** Share of this shipment's batch (same master BL) customs has cleared, from a live sample. */
+export interface CustomsBatchView {
+  readonly percent: number;           // 0–100, cleared share of the sample
+  readonly todayPercent: number;      // 0–100, cleared today
+  readonly sampled: number;
+}
+
+/** '통관 완료 예상일' card: the window (빠르면 / 늦으면), D-day, the arrival day and the days between, batch progress. */
 export interface CustomsEstimateView {
-  readonly date: EtaDate;
+  readonly date: EtaDate;             // early end ('빠르면')
   readonly dday: number;              // 0 = today
-  readonly arrival: EtaDate | null;   // the 입항 event's day; null when customs has no arrival record
-  readonly businessDays: number;      // customs working days after the arrival day, up to the estimate
+  readonly latest: EtaDate | null;    // late end ('늦으면'); null when only one date is known
+  readonly latestDday: number | null;
+  readonly arrival: EtaDate | null;   // the official 입항일; null when customs has no arrival record
+  readonly businessDays: number;      // customs working days after the arrival day, up to the late end
   readonly offDays: number;           // weekends and holidays in the same span
+  readonly batch: CustomsBatchView | null;
 }
 
 export type ActionKind =

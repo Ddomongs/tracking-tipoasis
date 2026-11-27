@@ -35,12 +35,17 @@ export const TrackResponseDataSchema = z.object({
   currentStatusCode: StatusCodeSchema,
   isPending: z.boolean().optional(),
   estimatedCustomsClearanceDate: z.string().datetime({ offset: true }).optional(),
+  estimatedCustomsClearanceLatest: z.string().datetime({ offset: true }).optional(),
   productName: z.string().max(80).optional(),
   estimatedDeliveryDate: z.string().optional(),
   estimateStale: z.boolean().optional(),
   customs: z.object({
     events: z.array(TrackingEventSchema),
-    estimateAdjusted: z.boolean().optional()
+    estimateAdjusted: z.boolean().optional(),
+    arrivalDate: z.string().datetime({ offset: true }).optional(),
+    batch: z
+      .object({ sampled: z.number().int().min(0), cleared: z.number().int().min(0), clearedToday: z.number().int().min(0) })
+      .optional()
   }),
   delivery: z.object({
     carrier: z.string(),

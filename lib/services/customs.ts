@@ -1,5 +1,7 @@
 import { parseStringPromise } from "xml2js";
-import type { TrackingEvent, TrackingType } from "@/lib/types";
+import { getCache, setCache } from "@/lib/cache";
+import { kstDateKey } from "@/lib/tracking/time";
+import type { CustomsBatchProgress, CustomsCargoInfo, TrackingEvent, TrackingType } from "@/lib/types";
 import { toIsoOrNow } from "@/lib/utils";
 import { readTextWithLimit } from "@/lib/services/http";
 import { LOOKUP_TIMING, type LookupDeadline } from "@/lib/services/lookup-budget";
@@ -10,6 +12,7 @@ export const normalizeCustomsStatus = (raw: string): TrackingEvent["statusCode"]
 
   if (
     normalized.includes("수입신고수리") ||
+    normalized.includes("통관목록심사완료") ||
     normalized.includes("수리후반출") ||
     normalized.includes("반출신고") ||
     normalized.includes("통관완료")
@@ -145,7 +148,7 @@ const PARAMS_BY_TYPE: Readonly<Record<CustomsLookupType, readonly UnipassParam[]
 };
 
 export type CustomsLookupResult =
-  | { readonly kind: "found"; readonly events: TrackingEvent[] }
+  | { readonly kind: "found"; readonly events: TrackingEvent[]; readonly cargo?: CustomsCargoInfo }
   /** Every answer was a confirmed "no record"; complete = no call failed, so the route may cache NOT_FOUND. */
   | { readonly kind: "empty"; readonly complete: boolean }
   /** No confirmed UNI-PASS answer at all (timeouts, network errors, non-2xx, unreadable bodies). */
@@ -161,7 +164,7 @@ export interface CustomsLookupOptions {
 }
 
 type UnipassCall =
-  | { readonly outcome: "answered"; readonly events: TrackingEvent[] }
+  | { readonly outcome: "answered"; readonly events: TrackingEvent[]; readonly cargo?: CustomsCargoInfo }
   | { readonly outcome: "failed"; readonly timedOut: boolean };
 type YearCalls = readonly UnipassCall[];
 
@@ -173,14 +176,38 @@ interface WaveRequest {
   readonly year: number;
 }
 
-const eventsFromParsedXml = (parsed: unknown): TrackingEvent[] => {
+interface ParsedAnswer {
+  readonly events: TrackingEvent[];
+  readonly cargo?: CustomsCargoInfo;
+  readonly summary?: Record<string, string>;
+}
+
+const arrivalDateOf = (etprDt: string | undefined): string | undefined =>
+  etprDt !== undefined && /^\d{8}$/.test(etprDt) ? `${etprDt.slice(0, 4)}-${etprDt.slice(4, 6)}-${etprDt.slice(6, 8)}` : undefined;
+
+const cargoOf = (summary: Record<string, string> | undefined): CustomsCargoInfo | undefined => {
+  if (summary === undefined) return undefined;
+  const port = summary.dsprNm;
+  return {
+    cargMtNo: summary.cargMtNo,
+    arrivalDate: arrivalDateOf(summary.etprDt),
+    bySea: port === undefined ? undefined : !port.includes("공항"),
+    productName: summary.prnm
+  };
+};
+
+const parseAnswer = (parsed: unknown): ParsedAnswer => {
   const root = toRecord(parsed)?.cargCsclPrgsInfoQryRtnVo;
   const rootNode = toRecord(Array.isArray(root) ? root[0] : root) ?? toRecord(parsed);
-  if (!rootNode) return [];
+  if (!rootNode) return { events: [] };
 
   const summaryRows = toObjectArray(rootNode.cargCsclPrgsInfoQryVo).map(toFlatStringRecord);
   const detailRows = toObjectArray(rootNode.cargCsclPrgsInfoDtlQryVo).map(toFlatStringRecord);
-  return mapRowsToEvents([...detailRows, ...summaryRows]);
+  // The summary row repeats the latest state with the latest time (and the item name as its place): as an event it
+  // showed '통관목록접수' as the newest step (11월 27일 요청). It is an event only when UNI-PASS sent no detail rows.
+  const events = mapRowsToEvents(detailRows.length > 0 ? detailRows : summaryRows);
+  const summary = summaryRows.length === 1 ? summaryRows[0] : undefined;
+  return { events, cargo: cargoOf(summary), summary };
 };
 
 /** A UNI-PASS answer is "confirmed" only when it carries the cargCsclPrgsInfoQryRtnVo envelope. */
@@ -191,10 +218,10 @@ const isErrorAnswer = (envelope: unknown): boolean => {
   return count !== undefined && Number(count) < 0;
 };
 
-const readUnipassXml = async (xml: string): Promise<{ readonly confirmed: boolean; readonly events: TrackingEvent[] }> => {
+const readUnipassXml = async (xml: string): Promise<ParsedAnswer & { readonly confirmed: boolean }> => {
   const parsed: unknown = await parseStringPromise(xml, { explicitArray: false, trim: true });
   const envelope = toRecord(parsed)?.cargCsclPrgsInfoQryRtnVo;
-  return { confirmed: envelope !== undefined && !isErrorAnswer(envelope), events: eventsFromParsedXml(parsed) };
+  return { confirmed: envelope !== undefined && !isErrorAnswer(envelope), ...parseAnswer(parsed) };
 };
 
 const errorName = (error: unknown): string =>
@@ -220,7 +247,7 @@ const fetchUnipassCall = async (url: string, options: CustomsLookupOptions): Pro
     const answer = await readUnipassXml(xml);
     if (!answer.confirmed) return failedCall(options, false);
     options.onUnipassCall?.("ok");
-    return { outcome: "answered", events: answer.events };
+    return { outcome: "answered", events: answer.events, cargo: answer.cargo };
   } catch (error) {
     return failedCall(options, signal.aborted || isTimeoutError(error));
   }
@@ -239,13 +266,19 @@ const runWave = (offsets: readonly number[], request: WaveRequest, options: Cust
     )
   );
 
+interface YearFind {
+  readonly events: TrackingEvent[];
+  readonly cargo?: CustomsCargoInfo;
+}
+
 /** Events of the first year (in wave order) that has any; later years are ignored so two shipments never mix. */
-const firstYearEvents = (years: readonly YearCalls[]): TrackingEvent[] => {
+const firstYearEvents = (years: readonly YearCalls[]): YearFind => {
   for (const calls of years) {
-    const events = calls.flatMap((call) => (call.outcome === "answered" ? call.events : []));
-    if (events.length > 0) return events;
+    const answered = calls.flatMap((call) => (call.outcome === "answered" ? [call] : []));
+    const events = answered.flatMap((call) => call.events);
+    if (events.length > 0) return { events, cargo: answered.find((call) => call.cargo !== undefined)?.cargo };
   }
-  return [];
+  return { events: [] };
 };
 
 const countAnswered = (years: readonly YearCalls[]): number =>
@@ -256,22 +289,23 @@ const countCalls = (years: readonly YearCalls[]): number => years.reduce((sum, c
 const anyTimedOut = (years: readonly YearCalls[]): boolean =>
   years.some((calls) => calls.some((call) => call.outcome === "failed" && call.timedOut));
 
-const toFound = (events: TrackingEvent[]): CustomsLookupResult => ({
+const toFound = ({ events, cargo }: YearFind): CustomsLookupResult => ({
   kind: "found",
-  events: dedupeEvents(events).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())
+  events: dedupeEvents(events).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()),
+  ...(cargo === undefined ? {} : { cargo })
 });
 
 /** Wave 1 = current and last year; wave 2 (the other four years, in parallel) only when wave 1 found nothing. */
 const lookupDirect = async (request: WaveRequest, options: CustomsLookupOptions): Promise<CustomsLookupResult> => {
   const first = await runWave(FIRST_WAVE_YEAR_OFFSETS, request, options);
   const firstEvents = firstYearEvents(first);
-  if (firstEvents.length > 0) return toFound(firstEvents);
+  if (firstEvents.events.length > 0) return toFound(firstEvents);
   options.onFirstWaveEmpty?.();
   if (countAnswered(first) === 0) return { kind: "unavailable", timedOut: anyTimedOut(first) };
 
   const second = await runWave(SECOND_WAVE_YEAR_OFFSETS, request, options);
   const secondEvents = firstYearEvents(second);
-  if (secondEvents.length > 0) return toFound(secondEvents);
+  if (secondEvents.events.length > 0) return toFound(secondEvents);
   const all = [...first, ...second];
   return { kind: "empty", complete: countAnswered(all) === countCalls(all) };
 };
@@ -297,4 +331,75 @@ export const lookupCustomsEvents = async (
     },
     options
   );
+};
+
+/** Cargo sampled from one master BL. Kept small: every sample is one more UNI-PASS call. */
+const BATCH_SAMPLE_SIZE = 16;
+/** Below this many answered samples the share is noise: no batch progress. */
+const BATCH_MIN_SAMPLES = 6;
+const BATCH_CALL_MS = 2_500;
+const BATCH_CACHE_SECONDS = 600;
+/** 화물관리번호 = master part + 4-digit house serial (HSN); '0000' is the master itself. */
+const CARGO_SERIAL = /^([0-9A-Z]{8,})(\d{4})$/;
+
+/** House serials spread over 1..2×own (cargo of one master BL is numbered from 1), own serial excluded. */
+export const batchSampleSerials = (ownSerial: number, size = BATCH_SAMPLE_SIZE): number[] => {
+  const span = Math.min(9_999, Math.max(ownSerial * 2, size + 1));
+  const serials = Array.from({ length: size }, (_, index) => Math.max(1, Math.round((span * (index + 0.5)) / size)));
+  return [...new Set(serials)].filter((serial) => serial !== ownSerial);
+};
+
+/** A sampled cargo summary: cleared (목록통관 심사완료, 수입신고수리 or 반출) and, if so, whether that was today. */
+export const summaryProgress = (summary: Readonly<Record<string, string>>, today: string): { cleared: boolean; today: boolean } => {
+  const cleared =
+    normalizeCustomsStatus(summary.csclPrgsStts ?? "") === 4 || (summary.prgsStts ?? "").replace(/\s+/g, "").includes("반출");
+  const at = new Date(parseCustomsDatetime(summary.prcsDttm));
+  return { cleared, today: cleared && !Number.isNaN(at.getTime()) && kstDateKey(at) === today };
+};
+
+const fetchSummary = async (url: string, deadline: LookupDeadline): Promise<Record<string, string> | undefined> => {
+  const capMs = Math.min(BATCH_CALL_MS, deadline.remainingMs());
+  if (capMs <= 0) return undefined;
+  try {
+    const response = await fetch(url, { signal: deadline.signal(capMs), cache: "no-store", headers: { "user-agent": USER_AGENT } });
+    if (!response.ok) return undefined;
+    const answer = await readUnipassXml(await readTextWithLimit(response, MAX_XML_BYTES, capMs));
+    return answer.confirmed ? answer.summary : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * How far customs got with this shipment's own batch (11월 27일 요청: accuracy like '11월 25일 입항건 95% 완료'): a
+ * handful of cargo from the same master BL (same ship, same arrival) looked up now. Only counts leave this function;
+ * nothing is kept beyond a 10-minute in-memory count per master BL. Never rejects.
+ */
+export const sampleBatchProgress = async (
+  cargMtNo: string,
+  deadline: LookupDeadline,
+  now: Date = new Date()
+): Promise<CustomsBatchProgress | undefined> => {
+  const apiKey = process.env.UNIPASS_API_KEY;
+  const match = CARGO_SERIAL.exec(cargMtNo);
+  if (!apiKey || match === null || Number(match[2]) === 0) return undefined;
+  const [, master, serial] = match;
+  const cacheKey = `batch:${master}`;
+  const cached = getCache<CustomsBatchProgress>(cacheKey);
+  if (cached !== undefined) return cached;
+
+  const apiUrl = process.env.UNIPASS_API_URL || DEFAULT_UNIPASS_URL;
+  const today = kstDateKey(now);
+  const urlFor = (house: number): string =>
+    `${apiUrl}?${new URLSearchParams({ crkyCn: apiKey, cargMtNo: `${master}${String(house).padStart(4, "0")}` }).toString()}`;
+  const summaries = await Promise.all(batchSampleSerials(Number(serial)).map((house) => fetchSummary(urlFor(house), deadline)));
+  const progress = summaries.flatMap((summary) => (summary === undefined ? [] : [summaryProgress(summary, today)]));
+  if (progress.length < BATCH_MIN_SAMPLES) return undefined;
+  const batch: CustomsBatchProgress = {
+    sampled: progress.length,
+    cleared: progress.filter((item) => item.cleared).length,
+    clearedToday: progress.filter((item) => item.today).length
+  };
+  setCache(cacheKey, batch, BATCH_CACHE_SECONDS);
+  return batch;
 };

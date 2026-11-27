@@ -3,6 +3,7 @@ import type { CalendarConfig } from "@/lib/config/types";
 import { countedDaysAfter, isCarrierDeliveryDay } from "@/lib/tracking/delivery-days";
 import { calendarDaysBetween, isBusinessDay, kstDateKey, type KstDateKey } from "@/lib/tracking/time";
 import type {
+  CustomsCargoInfo,
   DeliveryLookupResult,
   DeliveryResult,
   StatusCode,
@@ -137,8 +138,9 @@ const estimateCustomsClearanceDate = (
   customsEvents: TrackingEvent[],
   currentStatusCode: StatusCode,
   now: Date,
-  calendar: CalendarConfig
-): EstimatedDate => {
+  calendar: CalendarConfig,
+  cargo?: CustomsCargoInfo
+): ClearanceWindow => {
   const completedEvent = getLatestEventByStatusCode(customsEvents, 4);
   if (currentStatusCode >= 4) {
     return { date: completedEvent?.datetime, adjusted: false };
@@ -162,17 +164,59 @@ const estimateCustomsClearanceDate = (
     return !Number.isNaN(at.getTime()) && !isBusinessDay(kstDateKey(at), calendar, "customs");
   });
   const counts = (key: KstDateKey): boolean => movedOnDayOff || isBusinessDay(key, calendar, "customs");
+  const fromArrival = clearanceWindowFromArrival(cargo, now, counts);
+  if (fromArrival !== undefined) return fromArrival;
   return adjustPastEstimate(
     addCountedDaysIso(latestCustoms, remainingDaysByStatus[currentStatusCode as 1 | 2 | 3], counts),
     now
   );
 };
 
+/**
+ * Customs working days after the arrival day (입항일) to the early and late end of the clearance window
+ * (11월 27일 요청: 7customs-like '빠르면 / 늦으면'). Sea cargo waits for unloading and warehouse entry; air is faster.
+ */
+const CLEARANCE_WINDOW = {
+  sea: { fastest: 2, latest: 3 },
+  air: { fastest: 1, latest: 2 }
+} as const;
+
+type ClearanceWindow = EstimatedDate & { latest?: string };
+
+const kstMidnightIso = (key: KstDateKey): string => `${key}T00:00:00+09:00`;
+
+/** The later of two ISO instants by KST day. */
+const laterDay = (a: string, b: string): string => (kstDateKey(new Date(a)) >= kstDateKey(new Date(b)) ? a : b);
+
+/**
+ * From the official arrival day: the window by transport mode, then the batch (cargo of the same master BL) moves the
+ * early end — today when customs is clearing the batch today, not before the next working day while none of it is
+ * cleared. Undefined when the arrival day is unknown (the caller keeps the older latest-event rule).
+ */
+const clearanceWindowFromArrival = (
+  cargo: CustomsCargoInfo | undefined,
+  now: Date,
+  counts: (key: KstDateKey) => boolean
+): ClearanceWindow | undefined => {
+  if (cargo?.arrivalDate === undefined) return undefined;
+  const window = cargo.bySea === false ? CLEARANCE_WINDOW.air : CLEARANCE_WINDOW.sea;
+  const after = (start: KstDateKey, count: number): string => kstMidnightIso(countedDaysAfter(start, count, counts));
+  const today = kstDateKey(now);
+  let fastest = after(cargo.arrivalDate, window.fastest);
+  const batch = cargo.batch;
+  if (batch !== undefined && batch.clearedToday > 0) fastest = kstMidnightIso(today);
+  if (batch !== undefined && batch.cleared === 0) fastest = laterDay(fastest, after(today, 1));
+  const early = adjustPastEstimate(fastest, now);
+  const latestRaw = after(cargo.arrivalDate, window.latest);
+  const latest = early.date === undefined ? undefined : laterDay(latestRaw, early.date);
+  return { ...early, ...(latest === undefined || latest === early.date ? {} : { latest }) };
+};
+
 const PRODUCT_NAME_MAX = 60;
 
 /** The first item name customs gave, with spaces tidied and cut to 60 characters (10월 2일 요청: 상품명 표시). */
-const productNameOf = (events: readonly TrackingEvent[]): string | undefined => {
-  const raw = events.find((event) => (event.productName ?? "").trim().length > 0)?.productName;
+const productNameOf = (events: readonly TrackingEvent[], cargo?: CustomsCargoInfo): string | undefined => {
+  const raw = [cargo?.productName, ...events.map((event) => event.productName)].find((name) => (name ?? "").trim().length > 0);
   if (raw === undefined) return undefined;
   const tidy = raw.replace(/\s+/g, " ").trim();
   return [...tidy].length > PRODUCT_NAME_MAX ? `${[...tidy].slice(0, PRODUCT_NAME_MAX - 1).join("")}…` : tidy;
@@ -192,9 +236,11 @@ export const normalizeTrackingData = (params: {
   deliveryLookup: DeliveryLookupResult;
   now?: Date;
   calendar?: CalendarConfig;
+  /** UNI-PASS summary facts (arrival day, mode, batch progress); absent for customstrack or carrier-only answers. */
+  cargo?: CustomsCargoInfo;
 }): TrackResponseData => {
-  const { trackingNumber, type, deliveryLookup, now = new Date(), calendar = siteCalendar } = params;
-  const productName = productNameOf(params.customsEvents);
+  const { trackingNumber, type, deliveryLookup, now = new Date(), calendar = siteCalendar, cargo } = params;
+  const productName = productNameOf(params.customsEvents, cargo);
   const customsEvents = params.customsEvents.map(withoutProductName);
   const deliveryEvents = deliveryLookup.events;
   const trackingEvents = [...customsEvents, ...deliveryEvents];
@@ -244,9 +290,9 @@ export const normalizeTrackingData = (params: {
     getLatestDatetime([getLastDatetime(deliveryEvents), getLastDatetime(customsEvents)]) ?? now.toISOString();
   const latestEventIso = getLatestDatetime([getLastDatetime(deliveryEvents), getLastDatetime(customsEvents)]);
   const estimateStale = hasTrackingData && isStaleShipment(latestEventIso, currentStatusCode, now);
-  const rawCustomsEstimate = estimateCustomsClearanceDate(customsEvents, currentStatusCode, now, calendar);
+  const rawCustomsEstimate = estimateCustomsClearanceDate(customsEvents, currentStatusCode, now, calendar, cargo);
   // Once a shipment goes quiet, a recalculated "today" estimate misleads; keep only real dates.
-  const customsEstimate: EstimatedDate =
+  const customsEstimate: ClearanceWindow =
     estimateStale && rawCustomsEstimate.adjusted ? { adjusted: false } : rawCustomsEstimate;
   const estimatedDeliveryDate =
     isPendingDomestic || estimateStale
@@ -263,12 +309,15 @@ export const normalizeTrackingData = (params: {
     currentStatusCode,
     isPending: isPendingDomestic || undefined,
     estimatedCustomsClearanceDate,
+    ...(customsEstimate.latest === undefined ? {} : { estimatedCustomsClearanceLatest: customsEstimate.latest }),
     ...(productName === undefined ? {} : { productName }),
     estimatedDeliveryDate,
     estimateStale: estimateStale || undefined,
     customs: {
       events: customsEvents,
-      estimateAdjusted: customsEstimate.adjusted || undefined
+      estimateAdjusted: customsEstimate.adjusted || undefined,
+      ...(cargo?.arrivalDate === undefined ? {} : { arrivalDate: kstMidnightIso(cargo.arrivalDate) }),
+      ...(cargo?.batch === undefined || currentStatusCode >= 4 ? {} : { batch: cargo.batch })
     },
     delivery,
     timeline,

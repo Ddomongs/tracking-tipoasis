@@ -98,23 +98,40 @@ export function customsEstimateFor(input: EtaInput): CustomsEstimateView | undef
   const estimate = isoToKey(data.estimatedCustomsClearanceDate);
   if (estimate === null) return undefined;
   const today = kstDateKey(now);
-  const arrivalEvent = events
-    .filter((item) => item.source === "customs" && item.event.statusCode === 1)
-    .reduce<TimedEvent | null>((earliest, item) => (earliest === null || item.at < earliest.at ? item : earliest), null);
-  const arrivalKey = arrivalEvent === null ? null : kstDateKey(arrivalEvent.at);
+  const latest = isoToKey(data.estimatedCustomsClearanceLatest);
+  const arrivalKey = isoToKey(data.customs.arrivalDate) ?? earliestArrivalEvent(events);
   let businessDays = 0;
   let offDays = 0;
   if (arrivalKey !== null) {
-    for (let day = addCalendarDays(arrivalKey, 1); day <= estimate; day = addCalendarDays(day, 1)) {
+    for (let day = addCalendarDays(arrivalKey, 1); day <= (latest ?? estimate); day = addCalendarDays(day, 1)) {
       if (isBusinessDay(day, config.calendar, "customs")) businessDays += 1;
       else offDays += 1;
     }
   }
+  const batch = data.customs.batch;
   return {
     date: etaDate(estimate),
     dday: Math.max(0, calendarDaysBetween(today, estimate)),
+    latest: latest === null ? null : etaDate(latest),
+    latestDday: latest === null ? null : Math.max(0, calendarDaysBetween(today, latest)),
     arrival: arrivalKey === null ? null : etaDate(arrivalKey),
     businessDays,
-    offDays
+    offDays,
+    batch:
+      batch === undefined || batch.sampled === 0
+        ? null
+        : {
+            percent: Math.round((batch.cleared / batch.sampled) * 100),
+            todayPercent: Math.round((batch.clearedToday / batch.sampled) * 100),
+            sampled: batch.sampled
+          }
   };
+}
+
+/** Without the official 입항일 (customstrack answers): the earliest arrival-type event's day. */
+function earliestArrivalEvent(events: readonly TimedEvent[]): KstDateKey | null {
+  const first = events
+    .filter((item) => item.source === "customs" && item.event.statusCode === 1)
+    .reduce<TimedEvent | null>((earliest, item) => (earliest === null || item.at < earliest.at ? item : earliest), null);
+  return first === null ? null : kstDateKey(first.at);
 }

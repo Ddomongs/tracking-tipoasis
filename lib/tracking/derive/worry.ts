@@ -44,7 +44,9 @@ export function worryDateKey(data: TrackResponseData, key: GuideKey, config: Sit
   switch (key) {
     case "customsArrived":
     case "customsWaiting": {
-      const base = earlier(isoToKey(data.estimatedCustomsClearanceDate), plusDays(lastCustoms, stages.customs.max));
+      // The late end of the window when known (11월 27일 요청): worry only once even the slower estimate has passed.
+      const estimate = isoToKey(data.estimatedCustomsClearanceLatest ?? data.estimatedCustomsClearanceDate);
+      const base = earlier(estimate, plusDays(lastCustoms, stages.customs.max));
       return base === null ? null : businessDaysAfter(base, worry.afterEstimateBusinessDays, config.calendar, "customs");
     }
     case "customsCleared":
