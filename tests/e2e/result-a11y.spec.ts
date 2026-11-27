@@ -78,6 +78,8 @@ test.describe("result area accessibility (S07, approval 13)", () => {
     await page.setViewportSize({ width: 375, height: 812 });
     await blockOtherHosts(page);
     await open(page, { name: "delivered", reply: trackData("delivered"), now: FIXTURE_NOW, ready: "[data-result-view]" });
+    // The sound switch mounts after hydration; axe flagged it (target-size) when it appeared mid-analysis.
+    await page.locator("[data-sound-toggle]").waitFor({ state: "attached" });
     await page.locator("details[data-history] summary").click();
     await page.locator('[data-cta-state="delivered"]').getByRole("button", { name: "수령이 안 됐다면 여기를 눌러 주세요" }).click();
     await expect(page.locator("details[data-delivered-help]")).toHaveAttribute("open", "");

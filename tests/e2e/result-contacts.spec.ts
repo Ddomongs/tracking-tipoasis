@@ -53,7 +53,7 @@ test("customs waiting: the reference-only clearance card with the arrival day an
   await open(page, "customsWaiting");
   const card = page.locator("[data-customs-estimate]");
   await expect(card.getByRole("heading", { level: 3 })).toHaveText("통관 완료 예상일");
-  await expect(card).toContainText("참고용 · 확정된 날짜 아님");
+  await expect(card).toContainText("참고용 · 실시간 변동");
   await expect(card).toContainText("내 입항일");
   await expect(card.locator("[data-customs-dday]")).toHaveText(/^(오늘|D-\d+)$/);
 });
