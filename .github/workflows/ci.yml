@@ -34,7 +34,8 @@ jobs:
         run: npm run lint
 
       - name: Typecheck
-        run: npm run typecheck -- --pretty false --incremental false
+        # next-env.d.ts (image import types) is gitignored and only written by next dev/build/typegen.
+        run: npx next typegen && npm run typecheck -- --pretty false --incremental false
 
       - name: Build
         run: npm run build
