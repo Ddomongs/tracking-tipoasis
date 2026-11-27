@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { Suspense, lazy, useId } from "react";
 import { channels } from "@/config/site.config";
 import { ButtonLink } from "@/components/primitives/ButtonLink";
 import { PROBLEM_GUIDE_KEYS } from "@/lib/tracking/types";
@@ -17,6 +17,11 @@ import { NextActionBlock, type HelpLink } from "./NextActionBlock";
 import { SideColumn } from "./SideColumn";
 import { StatusCard } from "./StatusCard";
 import { StickySummary } from "./StickySummary";
+
+// 통관 완료 알림 (11월 28일 요청): its own chunk, fetched only on a customs-waiting result once push is configured, so
+// the result bundle stays inside its JS budget.
+const PUSH_CONFIGURED = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "") !== "";
+const PushAlertButton = lazy(() => import("./PushAlertButton").then((module) => ({ default: module.PushAlertButton })));
 
 export interface ResultViewProps {
   readonly view: TrackingViewModel;
@@ -180,6 +185,11 @@ function SettledFlow({ view, baseId, onAction, headingRef, recommendationSlot }:
       <LastEventLine lastEvent={view.lastEvent} />
       <div data-primary-end="true" aria-hidden="true" />
       {view.customsEstimate === undefined ? null : <CustomsEstimateCard estimate={view.customsEstimate} id={`${baseId}-customs-estimate`} />}
+      {view.customsEstimate === undefined || !PUSH_CONFIGURED ? null : (
+        <Suspense fallback={null}>
+          <PushAlertButton trackingNumber={view.number.raw} />
+        </Suspense>
+      )}
       {recommendationsLead ? recommendations : null}
       <HistoryDetails history={view.history} id={`${baseId}-history`} />
       {undelivered === null ? null : <DeliveredHelp item={undelivered} id={undeliveredId} contact={view.nextAction.contact} carrierName={view.carrier.name} />}

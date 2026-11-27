@@ -1,0 +1,27 @@
+name: Push check
+
+# 통관 완료 알림 (11월 28일 요청): every 15 minutes, ask production to look up the subscribed numbers and send the
+# alerts. Vercel Hobby cron runs only daily, so GitHub schedules it. Without the secret the job does nothing.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Call the push check
+        env:
+          PUSH_CRON_SECRET: ${{ secrets.PUSH_CRON_SECRET }}
+        run: |
+          if [ -z "$PUSH_CRON_SECRET" ]; then
+            echo "PUSH_CRON_SECRET is not set; skipping."
+            exit 0
+          fi
+          curl --silent --show-error --fail-with-body --max-time 90 -X POST \
+            -H "Authorization: Bearer $PUSH_CRON_SECRET" \
+            https://tracking.tipoasis.com/api/push/check
