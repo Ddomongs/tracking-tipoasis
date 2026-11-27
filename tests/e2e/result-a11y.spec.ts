@@ -83,6 +83,14 @@ test.describe("result area accessibility (S07, approval 13)", () => {
     await page.locator("details[data-history] summary").click();
     await page.locator('[data-cta-state="delivered"]').getByRole("button", { name: "수령이 안 됐다면 여기를 눌러 주세요" }).click();
     await expect(page.locator("details[data-delivered-help]")).toHaveAttribute("open", "");
+    // The glide to the opened help is a smooth scroll; mid-scroll the sticky band can cross the sound switch, which axe
+    // then reads as an obscured target. Measure once the page stands still.
+    await expect
+      .poll(() => page.evaluate(() => new Promise<boolean>((resolve) => {
+        const before = window.scrollY;
+        setTimeout(() => resolve(window.scrollY === before), 250);
+      })))
+      .toBe(true);
     expect(await violationsOf(page, "delivered, details open")).toEqual([]);
   });
 });
